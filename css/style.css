@@ -260,6 +260,22 @@ svg { display: inline-block; vertical-align: middle; }
 /* ═══════════════════════════════════════════════════════════════════════
    Halaman mushaf: render layout + font halaman (QCF)
 ════════════════════════════════════════════════════════════════════════ */
+/* bidang halaman: lebar tetap 720px lalu diskalakan utuh ke lebar layar,
+   sehingga halaman tidak pernah terpotong berapa pun lebar jendela */
+.scan-sheet-box {
+  width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+.scan-sheet-box > .scan-sheet {
+  width: var(--design-w, 720px);
+  flex: 0 0 auto;
+  transform: scale(var(--page-scale, 1));
+  transform-origin: top center;
+}
+
 .scan-sheet {
   /* QUL: teks 19,1em lebar × 15 baris × 1,85 line-height.
      Di sini ditambah 0,75em padding tiap sisi untuk bingkai ornamen. */
@@ -327,11 +343,7 @@ svg { display: inline-block; vertical-align: middle; }
   word-spacing: -.25em;       /* QUL memakai jarak kata negatif untuk mushaf v2 */
 }
 /* halaman renggang (mis. halaman 1 & 2): rata tengah, tidak direntangkan */
-.mline.mline-center {
-  text-align: center;
-  text-align-last: center;
-  word-spacing: 0;
-}
+
 .mline.mline-short,
 .mline.mline-head,
 .mline.mline-basmalah,

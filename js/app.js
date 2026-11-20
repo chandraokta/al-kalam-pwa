@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-no-clip';
+  const BUILD = '2026-11-22-stage-fit';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -883,7 +883,7 @@
     // ── baris halaman ──
     const rows = buildRows(layout, page, chapters);
     const filledLines = rows ? rows.filter(r => r.kind === 'words').length : 0;
-    const sparsePage = filledLines <= 9;        // mis. halaman 1 & 2: jangan direntangkan
+    const sparsePage = false;                   // semua baris rata penuh (standar mushaf)
     let htm = '';
     if (!rows) {
       htm = `<div class="mline mline-empty">Layout halaman tidak tersedia</div>`;
@@ -937,12 +937,12 @@
     const style = fontFamily ? ` style="font-family:'${fontFamily}', serif"` : '';
     const mushafClass = mushafKey() === 'indopak' ? ' mushaf-indopak' : '';
     let html = `<div class="scan-page" data-page="${page}">`;
-    html += `<div class="scan-sheet${mushafClass}">`;
+    html += `<div class="scan-sheet-box"><div class="scan-sheet${mushafClass}">`;
     html += `<div class="page-frame" aria-hidden="true">` +
             `<span class="page-corner tl"></span><span class="page-corner tr"></span>` +
             `<span class="page-corner bl"></span><span class="page-corner br"></span>` +
             `</div>`;
-    html += `<div class="mushaf-page-lines"${style}>${htm}</div></div>`;
+    html += `<div class="mushaf-page-lines"${style}>${htm}</div></div></div>`;
 
     // legenda warna tajwid (tampil saat tajwid aktif)
     if (state.showTajwid) {
@@ -1077,12 +1077,15 @@
    */
   function applyPageScale(sheet) {
     if (!sheet || !sheet.isConnected) return;
+    const stage = sheet.parentElement;
+    const DESIGN_W = 720;
     const pageEm = mushafKey() === 'indopak' ? 17.69 : 20.6;
-    sheet.style.setProperty('--msize', `${sheet.clientWidth / pageEm}px`);
-    const box = sheet.querySelector('.mushaf-page-lines');
+    sheet.style.setProperty('--design-w', `${DESIGN_W}px`);
+    sheet.style.setProperty('--msize', `${DESIGN_W / pageEm}px`);
+    const pageLines = sheet.querySelector('.mushaf-page-lines');
     const sheetRect0 = sheet.getBoundingClientRect();
     for (let i = 0; i < 4; i++) {
-      const avail = box.clientWidth || 1;
+      const avail = pageLines.clientWidth || 1;
       let worst = 0;
       for (const el of sheet.querySelectorAll('.mline')) {
         worst = Math.max(worst, el.scrollWidth - el.clientWidth);
@@ -1096,6 +1099,11 @@
       const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || 26;
       sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.994)}px`);
     }
+
+    // skala utuh: halaman selebar layar (maks 720px), tinggi box ikut menyesuaikan
+    const scale = Math.min(1, (stage ? stage.clientWidth : DESIGN_W) / DESIGN_W) || 1;
+    sheet.style.setProperty('--page-scale', String(scale));
+    if (stage) stage.style.height = `${Math.round(sheet.offsetHeight * scale)}px`;
   }
 
   async function renderPage(page) {
