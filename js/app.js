@@ -114,6 +114,12 @@
     els.homeResume = $('homeResume');
     els.homeResumeText = $('homeResumeText');
     els.homeNote = $('homeNote');
+    els.homeGreeting = $('homeGreeting');
+    els.homeHijri = $('homeHijri');
+    els.homeResumeJuz = $('homeResumeJuz');
+    els.homeResumeBar = $('homeResumeBar');
+    els.cardMushafHint = $('cardMushafHint');
+    els.cardBookmarkHint = $('cardBookmarkHint');
     els.btnResume = $('btnResume');
     els.homeCards = document.querySelectorAll('.home-card');
     els.surahPlaceFilter = $('surahPlaceFilter');
@@ -133,7 +139,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-batch-a';
+  const BUILD = '2026-11-21-cover-2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -433,19 +439,66 @@
     } catch {}
   }
 
+  function greetingFor(hour) {
+    if (hour < 4) return 'Selamat malam';
+    if (hour < 11) return 'Selamat pagi';
+    if (hour < 15) return 'Selamat siang';
+    if (hour < 18) return 'Selamat sore';
+    return 'Selamat malam';
+  }
+
+  function hijriToday() {
+    try {
+      return new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      }).format(new Date());
+    } catch {
+      try {
+        return new Intl.DateTimeFormat('id-ID-u-ca-islamic', {
+          day: 'numeric', month: 'long', year: 'numeric',
+        }).format(new Date());
+      } catch { return ''; }
+    }
+  }
+
   function renderHome() {
     let last = state.lastRead || null;
     if (!last) { try { last = JSON.parse(localStorage.getItem('alkalam_last') || 'null'); } catch {} }
+
+    if (els.homeGreeting) els.homeGreeting.textContent = `${greetingFor(new Date().getHours())}, selamat membaca`;
+    if (els.homeHijri) els.homeHijri.textContent = hijriToday();
+
     if (last && last.page) {
       els.homeResume.hidden = false;
       els.homeResumeText.textContent =
         `${surahName(last.surah || state.currentSurah)} · halaman ${last.page}` +
-        (last.mushaf === 'indopak' ? ' (IndoPak)' : ' (Madani)');
+        (last.mushaf === 'indopak' ? ' · IndoPak' : ' · Madani');
+      // juz dari peta juz (madani) atau perkiraan proporsional untuk mushaf lain
+      let juz = null;
+      if (DataManager) {
+        DataManager.load('juzMap').then(map => {
+          if (!map) return;
+          const idx = map.findIndex(j => j.verses.some(vk => vk.startsWith(`${last.surah}:`)));
+          if (els.homeResumeJuz && idx >= 0) els.homeResumeJuz.textContent = `Juz ${map[idx].juz}`;
+        }).catch(() => {});
+      }
+      if (els.homeResumeBar) {
+        const pct = Math.max(2, Math.min(100, (last.page / pageCount()) * 100));
+        els.homeResumeBar.style.width = `${pct}%`;
+      }
+      if (els.homeResumeJuz) els.homeResumeJuz.textContent = juz || `Juz ±${Math.ceil(last.page / (pageCount() / 30))}`;
     } else {
       els.homeResume.hidden = true;
     }
+
     const marks = state.bookmarks ? state.bookmarks.size : 0;
-    els.homeNote.textContent = `${marks} penanda · ${state.mushaf === 'indopak' ? 'IndoPak' : 'Madani'} · ${pageCount()} halaman`;
+    if (els.cardBookmarkHint) els.cardBookmarkHint.textContent = `${marks} ayat`;
+    if (els.cardMushafHint) els.cardMushafHint.textContent = `${pageCount()} halaman`;
+    if (els.homeNote) {
+      els.homeNote.textContent =
+        `${marks} penanda · ${state.mushaf === 'indopak' ? 'IndoPak' : 'Madani'} · ${pageCount()} halaman`;
+    }
+
     els.btnResume.onclick = () => {
       if (!last) return;
       if (last.mushaf && last.mushaf !== state.mushaf) {

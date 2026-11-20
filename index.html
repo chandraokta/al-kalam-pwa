@@ -103,37 +103,76 @@
     <!-- View: Sampul / beranda -->
     <section class="view" id="viewHome" data-view="home" role="region" aria-label="Sampul" hidden>
       <div class="home-cover">
-        <div class="home-ornament">۞</div>
-        <h2 class="home-title">Al-Kalam</h2>
-        <p class="home-sub">Al-Qur'an Digital Interaktif</p>
-        <p class="home-bismillah" dir="rtl">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</p>
-
-        <div class="home-resume" id="homeResume" hidden>
-          <span class="home-resume-label">Terakhir dibaca</span>
-          <strong id="homeResumeText">—</strong>
-          <button class="btn btn-primary" id="btnResume">Lanjutkan</button>
+        <div class="cover-bg" aria-hidden="true">
+          <div class="cover-arch"></div>
+          <div class="cover-glow"></div>
         </div>
 
-        <div class="home-actions">
-          <button class="home-card" data-go="mushaf">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-            <span>Mushaf</span>
-          </button>
-          <button class="home-card" data-go="juz">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>
-            <span>Juz</span>
-          </button>
-          <button class="home-card" data-go="search">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <span>Cari</span>
-          </button>
-          <button class="home-card" data-go="bookmarks">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-            <span>Penanda</span>
-          </button>
-        </div>
+        <div class="cover-inner">
+          <p class="cover-greeting" id="homeGreeting">Assalamu'alaikum</p>
 
-        <p class="home-note" id="homeNote"></p>
+          <div class="cover-mark" aria-hidden="true">
+            <svg viewBox="0 0 120 120" width="86" height="86" fill="none" stroke="currentColor" stroke-width="1.2">
+              <path d="M60 6 74 32 102 24 94 52 120 66 94 80 102 108 74 100 60 126 46 100 18 108 26 80 0 66 26 52 18 24 46 32Z" transform="translate(0,-6)"/>
+              <circle cx="60" cy="60" r="26"/>
+              <circle cx="60" cy="60" r="18" stroke-dasharray="2 4"/>
+            </svg>
+          </div>
+
+          <h2 class="home-title">Al-Kalam</h2>
+          <p class="home-sub">Al-Qur&rsquo;an Digital Interaktif</p>
+          <p class="cover-bismillah" dir="rtl">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</p>
+          <p class="cover-date" id="homeHijri">—</p>
+
+          <div class="home-resume" id="homeResume" hidden>
+            <div class="resume-head">
+              <span class="home-resume-label">Terakhir dibaca</span>
+              <span class="resume-juz" id="homeResumeJuz">—</span>
+            </div>
+            <strong id="homeResumeText">—</strong>
+            <div class="resume-bar" aria-hidden="true"><span id="homeResumeBar"></span></div>
+            <button class="btn btn-primary btn-resume" id="btnResume">
+              Lanjutkan
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
+
+          <div class="home-actions">
+            <button class="home-card" data-go="mushaf">
+              <span class="home-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+              </span>
+              <span class="home-card-label">Mushaf</span>
+              <span class="home-card-hint" id="cardMushafHint">604 halaman</span>
+            </button>
+            <button class="home-card" data-go="juz">
+              <span class="home-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+              </span>
+              <span class="home-card-label">Juz</span>
+              <span class="home-card-hint">30 juz</span>
+            </button>
+            <button class="home-card" data-go="search">
+              <span class="home-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7.5"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </span>
+              <span class="home-card-label">Cari</span>
+              <span class="home-card-hint">Arab · Indonesia</span>
+            </button>
+            <button class="home-card" data-go="bookmarks">
+              <span class="home-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+              </span>
+              <span class="home-card-label">Penanda</span>
+              <span class="home-card-hint" id="cardBookmarkHint">0 ayat</span>
+            </button>
+          </div>
+
+          <div class="cover-footer">
+            <span id="homeNote"></span>
+            <span class="cover-credit">Inspirasi: Al-Kalam Digital 2009</span>
+          </div>
+        </div>
       </div>
     </section>
 
