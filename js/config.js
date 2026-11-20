@@ -38,6 +38,8 @@ window.ALKALAM_CONFIG = {
       fontPerPage: true,
       fontsBase: 'https://static-cdn.tarteel.ai/qul/fonts/quran_fonts/v2/woff2/',
       fontQuery: '?v=3.2',
+      // font berwarna: huruf sudah diwarnai menurut hukum tajwid
+      fontsTajweedBase: 'https://static-cdn.tarteel.ai/qul/fonts/quran_fonts/v4-tajweed/woff2/',
       fontsLocal: ''      // isi './data/fonts/' bila font disimpan lokal
     },
     indopak: {

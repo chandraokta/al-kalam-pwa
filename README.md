@@ -24,9 +24,9 @@ browser dari data layout + font (Madani QCF per halaman, atau IndoPak nastaleeq)
 |---|---|
 | ![](docs/layar-sampul.png) | ![](docs/layar-tajwid.png) |
 
-| Tema gelap (arang hangat + sage) |
-|---|
-| ![](docs/layar-gelap.png) |
+| Tajwid berwarna di halaman | Tema gelap (arang hangat + sage) |
+|---|---|
+| ![](docs/layar-tajwid-halaman.png) | ![](docs/layar-gelap.png) |
 
 | Mode teks + tajwid | Cari ayat |
 |---|---|

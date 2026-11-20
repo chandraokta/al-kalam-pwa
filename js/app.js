@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-qul-ratio';
+  const BUILD = '2026-11-21-tajwid-page';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -673,7 +673,7 @@
   function mushafConf() { return DataManager.mushafCfg(mushafKey()); }
   function pageCount() { return mushafConf().pageCount || 604; }
 
-  async function ensureMushafFont(page) {
+  async function ensureMushafFont(page, tajweed = false) {
     const mc = mushafConf();
     const tryLoad = async (family, url) => {
       const face = new FontFace(family, `url("${url}")`, { display: 'swap' });
@@ -694,18 +694,30 @@
       return null;
     }
 
-    // Madani: font per halaman (lokal dulu bila mode offline)
-    if (loadedFonts.has(page)) return `p${page}`;
-    const name = `p${page}`;
+    // Madani: font per halaman — v2 biasa, atau v4-tajweed (huruf berwarna)
+    const wantTajweed = tajweed && !!mc.fontsTajweedBase;
+    const name = wantTajweed ? `p${page}v4` : `p${page}`;
+    if (loadedFonts.has(name)) return name;
+
     const cfg = window.ALKALAM_CONFIG || {};
     const local = (mc.fontsLocal || cfg.fontsLocal || '').trim();
-    const urls = [DataManager.getPageFontUrl(page, mushafKey())];
-    if (local) {
-      const cdn = `${mc.fontsBase || cfg.fontsBase || ''}p${page}.woff2${mc.fontQuery || cfg.fontQuery || ''}`;
-      urls.push(cdn);
+    const urls = [];
+    if (wantTajweed) {
+      urls.push(`${mc.fontsTajweedBase}p${page}.woff2${mc.fontQuery || cfg.fontQuery || ''}`);
+    } else {
+      urls.push(DataManager.getPageFontUrl(page, mushafKey()));
+      if (local) {
+        const cdn = `${mc.fontsBase || cfg.fontsBase || ''}p${page}.woff2${mc.fontQuery || cfg.fontQuery || ''}`;
+        urls.push(cdn);
+      }
     }
     for (const u of [...new Set(urls)]) {
-      try { await tryLoad(name, u); loadedFonts.add(page); return name; } catch (e) { /* coba berikutnya */ }
+      try { await tryLoad(name, u); loadedFonts.add(name); return name; } catch (e) { /* coba berikutnya */ }
+    }
+    // kalau font tajwid gagal, jatuh ke font biasa
+    if (wantTajweed) {
+      console.warn('font tajwid halaman gagal, memakai font biasa:', page);
+      return ensureMushafFont(page, false);
     }
     console.warn('font halaman gagal dimuat:', page);
     return null;
@@ -713,8 +725,11 @@
 
   function prefetchPageFonts(page) {
     if (!mushafConf().fontPerPage) return;
+    const tajweed = !!state.showTajwid && mushafKey() === 'madani';
     for (const p of [page + 1, page + 2, page - 1]) {
-      if (p >= 1 && p <= pageCount() && !loadedFonts.has(p)) ensureMushafFont(p);
+      if (p < 1 || p > pageCount()) continue;
+      const key = tajweed ? `p${p}v4` : `p${p}`;
+      if (!loadedFonts.has(key)) ensureMushafFont(p, tajweed);
     }
   }
 
@@ -790,7 +805,8 @@
   async function renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters) {
     const layout = await DataManager.getLayout(mushafKey());
     const versesData = await DataManager.load('verses');
-    const fontFamily = await ensureMushafFont(page);
+    const tajweedPage = !!state.showTajwid && mushafKey() === 'madani';
+    const fontFamily = await ensureMushafFont(page, tajweedPage);
     prefetchPageFonts(page);
 
     const verses = pageData.verses
@@ -1842,11 +1858,16 @@
       state.showTajwid = !state.showTajwid;
       els.toggleTajwid.classList.toggle('active', state.showTajwid);
       els.toggleTajwid.setAttribute('aria-pressed', state.showTajwid);
-      // Tajwid butuh teks: pindah otomatis dari mode pindaian
-      if (state.showTajwid && state.pageMode === 'scan') {
-        setPageMode('text', false);
-        saveSettings();
-        showToast('Tajwid butuh mode teks — beralih ke mode Teks');
+      saveSettings();
+
+      if (state.showTajwid) {
+        if (state.pageMode === 'scan' && mushafKey() === 'madani') {
+          showToast('Tajwid berwarna aktif di halaman mushaf');
+        } else if (state.pageMode === 'scan') {
+          // IndoPak belum punya font berwarna → pakai mode teks
+          setPageMode('text', false);
+          showToast('IndoPak belum punya font berwarna — beralih ke mode Teks');
+        }
       }
       renderPage(state.currentPage);
     });
