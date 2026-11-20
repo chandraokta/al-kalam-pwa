@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-page-ornament';
+  const BUILD = '2026-11-21-qul-ratio';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -811,6 +811,8 @@
 
     // ── baris halaman ──
     const rows = buildRows(layout, page, chapters);
+    const filledLines = rows ? rows.filter(r => r.kind === 'words').length : 0;
+    const sparsePage = filledLines <= 9;        // mis. halaman 1 & 2: jangan direntangkan
     let htm = '';
     if (!rows) {
       htm = `<div class="mline mline-empty">Layout halaman tidak tersedia</div>`;
@@ -825,14 +827,15 @@
             htm += `<div class="mline mline-head"><div class="msurah-band">` +
                    `<span class="msurah-orn">۞</span>` +
                    `<span class="msurah-name">${info.name || ''}</span>` +
-                   `<span class="msurah-meta">${info.name_simple || ''}${info.ayahs ? ' · ' + info.ayahs + ' ayat' : ''}</span>` +
+                   `<span class="msurah-meta">${info.ayahs ? info.ayahs + ' ayat' : (info.name_simple || '')}</span>` +
                    `</div></div>`;
           }
         } else if (row.kind === 'bismillah') {
           htm += `<div class="mline mline-basmalah"><span class="mbasmalah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</span></div>`;
         } else if (row.kind === 'words') {
           const short = (row.words || []).length < 3 ? ' mline-short' : '';
-          htm += `<div class="mline${short}">`;
+          const centered = sparsePage ? ' mline-center' : '';
+          htm += `<div class="mline${short}${centered}">`;
           for (const [vk, pos, glyph, isEnd] of row.words) {
             if (mushafKey() === 'indopak') {
               // IndoPak: buang glyph PUA (waqf/penanda QCF) yang tak ada di font nastaleeq
@@ -911,7 +914,7 @@
 
     const sheet = els.mushafContainer.querySelector('.scan-sheet');
     if (sheet) {
-      const setScale = () => sheet.style.setProperty('--msize', `${sheet.clientWidth / 23}px`);
+      const setScale = () => sheet.style.setProperty('--msize', `${sheet.clientWidth / 20.6}px`);
       setScale();
       new ResizeObserver(setScale).observe(sheet);
     }
