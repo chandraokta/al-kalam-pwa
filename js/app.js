@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-tajwid-page';
+  const BUILD = '2026-11-21-tajwid-legend';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -332,6 +332,51 @@
     return state.bookmarks.has(verseKey);
   }
   
+  // ═══════════════════════════════════════════════════════════════
+  // Tajwid: grup warna (mengikuti standar KFGQPC / font v4-tajweed)
+  // ═══════════════════════════════════════════════════════════════
+  const TAJWID_GROUPS = [
+    ['mad', 'Mad (panjang)', ['madda_normal', 'madda_permissible', 'madda_obligatory', 'madda_necessary']],
+    ['ghunnah', 'Ghunnah (dengung)', ['ghunnah']],
+    ['idgham', 'Idgham', ['idgham_ghunnah', 'idgham_wo_ghunnah', 'idgham_shafawi', 'idgham_mutajanisayn', 'idgham_mutaqaribayn']],
+    ['ikhfa', 'Ikhfa', ['ikhafa', 'ikhafa_shafawi']],
+    ['iqlab', 'Iqlab', ['iqlab']],
+    ['qalqalah', 'Qalqalah', ['qalaqah']],
+    ['silent', 'Tidak dibaca', ['ham_wasl', 'slnt']],
+  ];
+
+  const RULE_TO_GROUP = (() => {
+    const map = {};
+    for (const [g, , rules] of TAJWID_GROUPS) for (const r of rules) map[r] = g;
+    return map;
+  })();
+
+  function tajwidLegendHtml() {
+    return TAJWID_GROUPS.map(([g, label]) =>
+      `<span class="tajwid-legend-item"><span class="tajwid-legend-dot ${g}"></span>${label}</span>`
+    ).join('');
+  }
+
+  const wordRuleCache = new Map();
+
+  /** Aturan tajwid dominan per kata sebuah ayat: hasil = array grup (indeks 1 = kata 1). */
+  async function wordRuleGroups(verseKey) {
+    if (wordRuleCache.has(verseKey)) return wordRuleCache.get(verseKey);
+    const all = await DataManager.load('tajwid');
+    const html = (all && all[verseKey]) || '';
+    if (!html) { wordRuleCache.set(verseKey, []); return []; }
+    // buang penanda nomor ayat, lalu pecah per kata
+    const clean = html.replace(/<span class=end>.*?<\/span>/g, '');
+    const words = clean.trim().split(/\s+/);
+    const out = [];
+    for (const w of words) {
+      const rule = (w.match(/class=\s*"?([a-z_]+)/i) || [, ''])[1];
+      out.push(RULE_TO_GROUP[rule] || null);
+    }
+    wordRuleCache.set(verseKey, out);
+    return out;
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // Fitur: salin ayat, tajwid, sampul, layar penuh, tombol tengah
   // ═══════════════════════════════════════════════════════════════
@@ -807,6 +852,16 @@
     const versesData = await DataManager.load('verses');
     const tajweedPage = !!state.showTajwid && mushafKey() === 'madani';
     const fontFamily = await ensureMushafFont(page, tajweedPage);
+
+    // IndoPak tidak punya font berwarna → warnai per kata dengan data tajwid
+    const wordTintOn = !!state.showTajwid && mushafKey() === 'indopak';
+    const ruleByVerse = new Map();
+    if (wordTintOn) {
+      for (const v of pageData.verses) {
+        const vk = `${v.surah}:${v.ayah}`;
+        if (!ruleByVerse.has(vk)) ruleByVerse.set(vk, await wordRuleGroups(vk));
+      }
+    }
     prefetchPageFonts(page);
 
     const verses = pageData.verses
@@ -860,7 +915,13 @@
                 const ayahNo = vk.split(':')[1];
                 htm += `<span class="mw mw-end-badge" data-v="${vk}" data-w="${pos}">${toArabicDigits(Number(ayahNo))}</span>`;
               } else if (clean) {
-                htm += `<span class="mw" data-v="${vk}" data-w="${pos}">${clean}</span> `;
+                let tint = '';
+                if (wordTintOn) {
+                  const rules = ruleByVerse.get(vk) || [];
+                  const g = rules[pos - 1];
+                  if (g) tint = ` taj-${g}`;
+                }
+                htm += `<span class="mw${tint}" data-v="${vk}" data-w="${pos}">${clean}</span> `;
               }
             } else {
               htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}">${glyph}</span> `;
@@ -882,6 +943,11 @@
             `<span class="page-corner bl"></span><span class="page-corner br"></span>` +
             `</div>`;
     html += `<div class="mushaf-page-lines"${style}>${htm}</div></div>`;
+
+    // legenda warna tajwid (tampil saat tajwid aktif)
+    if (state.showTajwid) {
+      html += `<div class="tajwid-legend" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
+    }
 
     // strip nomor ayat
     html += `<div class="scan-bar">`;
@@ -1064,6 +1130,9 @@
       }
       
       html += `</div>`;
+      if (state.showTajwid) {
+        html += `<div class="tajwid-legend" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
+      }
       els.mushafContainer.innerHTML = html;
       
       // Attach event listeners
@@ -1860,14 +1929,10 @@
       els.toggleTajwid.setAttribute('aria-pressed', state.showTajwid);
       saveSettings();
 
-      if (state.showTajwid) {
-        if (state.pageMode === 'scan' && mushafKey() === 'madani') {
-          showToast('Tajwid berwarna aktif di halaman mushaf');
-        } else if (state.pageMode === 'scan') {
-          // IndoPak belum punya font berwarna → pakai mode teks
-          setPageMode('text', false);
-          showToast('IndoPak belum punya font berwarna — beralih ke mode Teks');
-        }
+      if (state.showTajwid && state.pageMode === 'scan') {
+        showToast(mushafKey() === 'madani'
+          ? 'Tajwid berwarna aktif di halaman mushaf'
+          : 'Tajwid IndoPak: kata diwarnai menurut hukumnya');
       }
       renderPage(state.currentPage);
     });
