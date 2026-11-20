@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-indopak-qul';
+  const BUILD = '2026-11-22-indopak-610';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -998,7 +998,22 @@
     if (sheet) {
       // ukuran tetap seperti QUL: Madani 19,1em, IndoPak 15,89em (+0,75em padding)
       const pageEm = mushafKey() === 'indopak' ? 17.39 : 20.6;
-      const setScale = () => sheet.style.setProperty('--msize', `${sheet.clientWidth / pageEm}px`);
+      const fitWidth = () => {
+        // bila ada baris yang lebih lebar dari kotaknya, perkecil font sampai pas
+        for (let i = 0; i < 3; i++) {
+          const rows = [...sheet.querySelectorAll('.mline')].filter(l => (l.textContent || '').trim());
+          const worst = rows.reduce((m, l) => Math.max(m, l.scrollWidth - l.clientWidth), 0);
+          if (worst <= 1) break;
+          const box = sheet.querySelector('.mushaf-page-lines');
+          const avail = box.clientWidth || 1;
+          const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || 26;
+          sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.996)}px`);
+        }
+      };
+      const setScale = () => {
+        sheet.style.setProperty('--msize', `${sheet.clientWidth / pageEm}px`);
+        fitWidth();
+      };
       setScale();
       new ResizeObserver(setScale).observe(sheet);
     }
@@ -1038,6 +1053,36 @@
     });
   }
 
+  /**
+   * Data ayat untuk sebuah halaman.
+   * Madani memakai page_map (604 halaman); IndoPak (610 halaman) diturunkan dari
+   * layout-nya sendiri supaya halaman 605–610 tetap ketemu.
+   */
+  async function resolvePageData(page) {
+    const layout = await DataManager.getLayout(mushafKey());
+    const raw = layout && layout.pages ? layout.pages[String(page)] : null;
+    const rows = Array.isArray(raw) ? raw : (raw && raw.lines) || [];
+    const typed = rows.length && !Array.isArray(rows[0]) && rows[0].kind;
+
+    if (typed) {
+      const seq = [];
+      for (const row of rows) {
+        if (row.kind !== 'words') continue;
+        for (const [vk] of row.words) {
+          const [surah, ayah] = vk.split(':').map(Number);
+          const last = seq[seq.length - 1];
+          if (!last || last.surah !== surah || last.ayah !== ayah) {
+            seq.push({ verse_key: vk, surah, ayah });
+          }
+        }
+      }
+      if (seq.length) return { page: Number(page), verses: seq };
+    }
+
+    const pageMap = await DataManager.load('pageMap');
+    return (pageMap || []).find(p => p.page === Number(page)) || null;
+  }
+
   async function renderPage(page) {
     const maxPage = pageCount();
     if (page < 1 || page > maxPage) return;
@@ -1059,8 +1104,7 @@
     els.mushafContainer.innerHTML = '<div class="loading">Memuat halaman...</div>';
     
     try {
-      const pageMap = await DataManager.load('pageMap');
-      const pageData = pageMap.find(p => p.page === page);
+      const pageData = await resolvePageData(page);
       if (!pageData) throw new Error('Page not found');
       
       const versesData = await DataManager.load('verses');
@@ -1855,8 +1899,13 @@
   function openPageModal() {
     // Quick jump buttons: every 10 pages
     const btns = [];
-    for (let p = 1; p <= 604; p += 10) {
+    const maxPage = pageCount();
+    for (let p = 1; p <= maxPage; p += 10) {
       btns.push(`<button class="page-quick-btn" data-page="${p}">${p}</button>`);
+    }
+    const lastQuick = 1 + Math.floor((maxPage - 1) / 10) * 10;
+    if (lastQuick !== maxPage) {
+      btns.push(`<button class="page-quick-btn" data-page="${maxPage}">${maxPage}</button>`);
     }
     els.pageQuick.innerHTML = btns.join('');
     els.pageQuick.querySelectorAll('.page-quick-btn').forEach(btn => {
@@ -2055,7 +2104,7 @@
     els.pageInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         const page = parseInt(els.pageInput.value);
-        if (page >= 1 && page <= 604) {
+        if (page >= 1 && page <= pageCount()) {
           renderPage(page);
           els.pageModal.close();
         }
