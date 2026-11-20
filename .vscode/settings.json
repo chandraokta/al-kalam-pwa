@@ -1,0 +1,11 @@
+{
+  // Live Server (ekstensi ritwickdey.LiveServer)
+  "liveServer.settings.port": 8080,
+  "liveServer.settings.root": "/",
+  "liveServer.settings.CustomBrowser": "chrome",
+  "liveServer.settings.donotShowInfoMsg": true,
+
+  // jalankan tugas default dengan Ctrl+Shift+B
+  "files.eol": "\n",
+  "editor.tabSize": 2
+}

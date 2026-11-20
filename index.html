@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1b4332">
+  <meta name="description" content="Al-Kalam Digital — Al-Qur'an Interaktif: Mushaf, Murattal, Terjemahan, Tafsir, Tajwid">
+  <title>Al-Kalam Digital</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- App Shell -->
+  <header class="app-header" role="banner">
+    <div class="header-left">
+      <button class="icon-btn" id="btnMenu" aria-label="Menu" aria-expanded="false">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <h1 class="app-title">Al-Kalam</h1>
+    </div>
+    <div class="header-center">
+      <div class="surah-nav" id="surahNav" role="combobox" aria-label="Pilih Surat" aria-expanded="false">
+        <span class="surah-label" id="surahLabel">Al-Fatiha</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="page-nav" id="pageNav" role="combobox" aria-label="Pilih Halaman" aria-expanded="false">
+        <span class="page-label" id="pageLabel">Halaman 1</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="btnSettings" aria-label="Pengaturan">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <button class="icon-btn" id="btnBookmark" aria-label="Penanda">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Side Drawer -->
+  <aside class="drawer" id="drawer" role="navigation" aria-label="Menu utama">
+    <div class="drawer-header">
+      <h2>Al-Kalam</h2>
+      <button class="icon-btn" id="btnCloseDrawer" aria-label="Tutup menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <nav class="drawer-nav">
+      <a href="#mushaf" class="drawer-item active" data-view="mushaf">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        <span>Mushaf</span>
+      </a>
+      <a href="#juz" class="drawer-item" data-view="juz">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+        <span>Juz (30)</span>
+      </a>
+      <a href="#search" class="drawer-item" data-view="search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <span>Cari Ayat</span>
+      </a>
+      <a href="#bookmarks" class="drawer-item" data-view="bookmarks">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+        <span>Penanda</span>
+      </a>
+      <a href="#settings" class="drawer-item" data-view="settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span>Pengaturan</span>
+      </a>
+    </nav>
+    <div class="drawer-footer">
+      <p class="version">v1.0.0 · <span id="buildTag">build …</span> · QUL TarteelAI</p>
+    </div>
+  </aside>
+  <div class="drawer-overlay" id="drawerOverlay" aria-hidden="true"></div>
+
+  <!-- Main Content -->
+  <main class="app-main" id="appMain" role="main">
+    <!-- View: Mushaf -->
+    <section class="view" id="viewMushaf" data-view="mushaf" role="region" aria-label="Mushaf">
+      <div class="mushaf-toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-sm" id="btnPrevPage" aria-label="Halaman sebelumnya">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <span class="page-indicator" id="pageIndicator">1 / 604</span>
+          <button class="btn btn-sm" id="btnNextPage" aria-label="Halaman berikutnya">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
+        <div class="toolbar-group">
+          <select class="mushaf-select" id="mushafSelect" aria-label="Pilih mushaf">
+            <option value="madani">Madani</option>
+            <option value="indopak">IndoPak</option>
+          </select>
+          <div class="mode-switch" role="group" aria-label="Mode halaman">
+            <button class="btn btn-sm mode-btn active" id="modeScan" aria-pressed="true" title="Halaman mushaf dirender dari font QCF">Mushaf</button>
+            <button class="btn btn-sm mode-btn" id="modeText" aria-pressed="false" title="Tampilkan teks (untuk tajwid & tafsir)">Teks</button>
+          </div>
+          <button class="btn btn-sm toggle-btn active" id="toggleArabic" aria-pressed="true" aria-label="Tampilkan Arab">Arab</button>
+          <button class="btn btn-sm toggle-btn active" id="toggleTranslation" aria-pressed="true" aria-label="Tampilkan Terjemahan">Terjemahan</button>
+          <button class="btn btn-sm toggle-btn" id="toggleTajwid" aria-pressed="false" aria-label="Tampilkan Tajwid">Tajwid</button>
+          <button class="btn btn-sm toggle-btn" id="toggleTafsir" aria-pressed="false" aria-label="Tampilkan Tafsir">Tafsir</button>
+        </div>
+      </div>
+      <div class="mushaf-container" id="mushafContainer">
+        <!-- Halaman dimuat di sini via JS -->
+      </div>
+      <!-- Audio Player Bar -->
+      <div class="audio-bar" id="audioBar" role="region" aria-label="Pemutar Audio" hidden>
+        <div class="audio-info">
+          <span class="audio-surah" id="audioSurah"></span>
+          <span class="audio-ayah" id="audioAyah"></span>
+        </div>
+        <div class="audio-controls">
+          <button class="icon-btn" id="audioPrev" aria-label="Ayat sebelumnya"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><rect x="2" y="4" width="4" height="16"/></svg></button>
+          <button class="icon-btn audio-play-btn" id="audioPlay" aria-label="Putar"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+          <button class="icon-btn" id="audioPause" aria-label="Jeda" hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+          <button class="icon-btn" id="audioNext" aria-label="Ayat berikutnya"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><rect x="18" y="4" width="4" height="16"/></svg></button>
+        </div>
+        <div class="audio-progress" role="slider" aria-label="Kemajuan putar" tabindex="0">
+          <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+          <span class="audio-time" id="audioTime">0:00 / 0:00</span>
+        </div>
+        <div class="audio-volume">
+          <button class="icon-btn" id="audioMute" aria-label="Bisu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg></button>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.8" aria-label="Volume">
+        </div>
+      </div>
+    </section>
+
+    <!-- View: Juz -->
+    <section class="view" id="viewJuz" data-view="juz" role="region" aria-label="Daftar Juz" hidden>
+      <div class="view-header"><h2>Juz (30 Juz)</h2></div>
+      <div class="juz-grid" id="juzGrid"></div>
+    </section>
+
+    <!-- View: Search -->
+    <section class="view" id="viewSearch" data-view="search" role="region" aria-label="Cari Ayat" hidden>
+      <div class="view-header">
+        <div class="search-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="search" id="searchInput" placeholder="Cari ayat (Arab, Indonesia, Inggris)..." aria-label="Cari ayat" autocomplete="off">
+          <button class="icon-btn" id="btnClearSearch" aria-label="Hapus pencarian" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </section>
+
+    <!-- View: Bookmarks -->
+    <section class="view" id="viewBookmarks" data-view="bookmarks" role="region" aria-label="Penanda" hidden>
+      <div class="view-header"><h2>Penanda</h2></div>
+      <div class="bookmarks-list" id="bookmarksList">
+        <p class="empty-state">Belum ada penanda. Tekan ikon bintang pada ayat untuk menandai.</p>
+      </div>
+    </section>
+
+    <!-- View: Settings -->
+    <section class="view" id="viewSettings" data-view="settings" role="region" aria-label="Pengaturan" hidden>
+      <div class="view-header"><h2>Pengaturan</h2></div>
+      <div class="settings-grid">
+        <div class="setting-card">
+          <h3>Tampilan</h3>
+          <label class="setting-row">
+            <span>Ukuran Font Arab</span>
+            <input type="range" id="fontSizeArabic" min="16" max="48" value="28" aria-label="Ukuran font Arab">
+            <span class="range-value" id="fontSizeArabicVal">28px</span>
+          </label>
+          <label class="setting-row">
+            <span>Ukuran Font Terjemahan</span>
+            <input type="range" id="fontSizeTrans" min="12" max="24" value="15" aria-label="Ukuran font terjemahan">
+            <span class="range-value" id="fontSizeTransVal">15px</span>
+          </label>
+          <label class="setting-row">
+            <span>Tema</span>
+            <select id="themeSelect" aria-label="Tema">
+              <option value="auto">Otomatis (Sistem)</option>
+              <option value="light">Terang</option>
+              <option value="dark">Gelap</option>
+              <option value="sepia">Sepia</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>Tampilkan Nomor Ayat</span>
+            <input type="checkbox" id="showAyahNumbers" checked aria-label="Tampilkan nomor ayat">
+          </label>
+          <label class="setting-row">
+            <span>Mushaf</span>
+            <select id="mushafSelectSetting" aria-label="Pilih mushaf">
+              <option value="madani">Madani · QCF 604 halaman</option>
+              <option value="indopak">IndoPak · 15 baris (610 halaman)</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>Mode Halaman</span>
+            <select id="pageModeSelect" aria-label="Mode halaman">
+              <option value="scan">Mushaf (render layout + font)</option>
+              <option value="text">Teks (warna tajwid)</option>
+            </select>
+          </label>
+        </div>
+        <div class="setting-card">
+          <h3>Audio</h3>
+          <label class="setting-row">
+            <span>Qari</span>
+            <select id="qariSelect" aria-label="Pilih Qari">
+              <option value="Alafasy_64kbps">Mishari Rashid Alafasy (64 kbps)</option>
+              <option value="Abdul_Basit_Murattal_64kbps">Abdul Basit Murattal (64 kbps)</option>
+              <option value="Husary_64kbps">Mahmoud Khalil Al-Husary (64 kbps)</option>
+              <option value="Ghamadi_40kbps">Saad Al-Ghamdi (40 kbps)</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>Putar Otomatis Ayat Berikutnya</span>
+            <input type="checkbox" id="autoPlayNext" checked aria-label="Putar otomatis ayat berikutnya">
+          </label>
+          <label class="setting-row">
+            <span>Ulangi Ayat</span>
+            <input type="checkbox" id="repeatAyah" aria-label="Ulangi ayat saat selesai">
+          </label>
+        </div>
+        <div class="setting-card">
+          <h3>Data & Offline</h3>
+          <label class="setting-row">
+            <span>Simpan Halaman untuk Offline</span>
+            <input type="checkbox" id="offlinePages" checked aria-label="Cache halaman yang dibuka">
+          </label>
+          <button class="btn btn-secondary" id="btnClearCache">Bersihkan Cache</button><button class="btn btn-primary" id="btnReloadApp" style="margin-top:8px">Muat ulang aplikasi</button>
+          <p class="setting-hint">Data terkompresi (4,9 MB) diunduh sesuai kebutuhan. Halaman yang dibuka disimpan otomatis.</p>
+        </div>
+        <div class="setting-card">
+          <h3>Tentang</h3>
+          <p class="setting-hint">Al-Kalam Digital v1.0 — PWA Al-Qur'an Interaktif</p>
+          <p class="setting-hint">Data: quran.com API (teks, tajwid), QUL TarteelAI (timing kata & audio per surat, MIT), api.quran.gading.dev (terjemahan & tafsir), halaman: Quran-Images (MIT)</p>
+          <p class="setting-hint">Inspirasi: Al-Kalam Digital v1.0 oleh Penerbit Diponegoro (2009)</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Surah Picker -->
+  <dialog class="modal" id="surahModal" role="dialog" aria-labelledby="surahModalTitle" aria-modal="true">
+    <div class="modal-content">
+      <header class="modal-header">
+        <h3 id="surahModalTitle">Pilih Surat</h3>
+        <button class="icon-btn" id="btnCloseSurahModal" aria-label="Tutup"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </header>
+      <div class="modal-body">
+        <input type="search" id="surahSearch" placeholder="Cari nama surat..." aria-label="Cari surat">
+        <div class="surah-list" id="surahList" role="listbox" aria-label="Daftar surat"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Page Picker -->
+  <dialog class="modal" id="pageModal" role="dialog" aria-labelledby="pageModalTitle" aria-modal="true">
+    <div class="modal-content">
+      <header class="modal-header">
+        <h3 id="pageModalTitle">Pilih Halaman</h3>
+        <button class="icon-btn" id="btnClosePageModal" aria-label="Tutup"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </header>
+      <div class="modal-body">
+        <input type="number" id="pageInput" min="1" max="604" placeholder="Nomor halaman 1-604" aria-label="Nomor halaman">
+        <div class="page-quick" id="pageQuick"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Scripts -->
+  <script>
+    // Debug overlay: aktifkan dengan ?debug=1
+    if (new URLSearchParams(location.search).has('debug')) {
+      const box = document.createElement('pre');
+      box.style.cssText = 'position:fixed;inset:auto 0 0 0;max-height:45vh;overflow:auto;z-index:9999;background:#1a0000;color:#ffb4b4;font:12px ui-monospace,monospace;padding:10px;margin:0;border-top:2px solid #f87171;white-space:pre-wrap';
+      box.textContent = '[debug aktif]\n';
+      document.documentElement.appendChild(box);
+      const push = (m) => { box.textContent += m + '\n'; };
+      window.addEventListener('error', e => push('ERROR: ' + (e.message || e.type) + ' @ ' + (e.filename || '') + ':' + (e.lineno || '')));
+      window.addEventListener('unhandledrejection', e => push('REJECT: ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
+      const ce = console.error.bind(console);
+      console.error = (...a) => { push('console.error: ' + a.map(x => (x && (x.stack || x.message)) || String(x)).join(' ')); ce(...a); };
+      setTimeout(() => {
+        const c = document.getElementById('mushafContainer');
+        const s = window.AlKalam && window.AlKalam.state;
+        push('--- setelah 4s ---');
+        push('container.children=' + (c ? c.children.length : 'no-el') + ' innerHTML.len=' + (c ? c.innerHTML.length : 0));
+        push('container head: ' + (c ? c.innerHTML.slice(0, 200).replace(/\s+/g, ' ') : ''));
+        push('state: page=' + (s && s.currentPage) + ' surah=' + (s && s.currentSurah) + ' arab=' + (s && s.showArabic) + ' trans=' + (s && s.showTranslation));
+        push('cached data keys: ' + (window.AlKalam ? Object.keys(window.AlKalam.DataManager.getMemoryCache()).join(',') : 'n/a'));
+      }, 4000);
+    }
+  </script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

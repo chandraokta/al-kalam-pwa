@@ -1,0 +1,1760 @@
+/**
+ * Al-Kalam Digital — Main Application
+ * PWA Al-Qur'an Interaktif
+ */
+(() => {
+  'use strict';
+  
+  // ═══════════════════════════════════════════════════════════════
+  // State
+  // ═══════════════════════════════════════════════════════════════
+  const state = {
+    currentView: 'mushaf',
+    currentPage: 1,
+    currentSurah: 1,
+    currentAyah: 1,
+    pageMode: 'scan',      // 'scan' = halaman mushaf (layout), 'text' = teks Uthmani
+    mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
+    showArabic: true,
+    showTranslation: true,
+    showTajwid: false,
+    showTafsir: false,
+    fontSizeArabic: 28,
+    fontSizeTrans: 15,
+    theme: 'auto',
+    qari: 'alafasy',
+    segments: null,          // penanda waktu per kata untuk ayat yang diputar
+    autoPlayNext: true,
+    repeatAyah: false,
+    offlinePages: true,
+    bookmarks: new Set(),
+    audioPlaying: false,
+    audioCurrent: null, // {surah, ayah, element}
+    searchQuery: '',
+    searchResults: [],
+  };
+  
+  // ═══════════════════════════════════════════════════════════════
+  // DOM Refs
+  // ═══════════════════════════════════════════════════════════════
+  const els = {};
+  function $(id) { return document.getElementById(id); }
+  function initRefs() {
+    // Header
+    els.btnMenu = $('btnMenu');
+    els.btnSettings = $('btnSettings');
+    els.btnBookmark = $('btnBookmark');
+    els.surahNav = $('surahNav');
+    els.surahLabel = $('surahLabel');
+    els.pageNav = $('pageNav');
+    els.pageLabel = $('pageLabel');
+    // Drawer
+    els.drawer = $('drawer');
+    els.drawerOverlay = $('drawerOverlay');
+    els.btnCloseDrawer = $('btnCloseDrawer');
+    els.drawerItems = document.querySelectorAll('.drawer-item');
+    // Views
+    els.views = document.querySelectorAll('.view');
+    els.viewMushaf = $('viewMushaf');
+    els.viewJuz = $('viewJuz');
+    els.viewSearch = $('viewSearch');
+    els.viewBookmarks = $('viewBookmarks');
+    els.viewSettings = $('viewSettings');
+    // Mushaf
+    els.mushafContainer = $('mushafContainer');
+    els.btnPrevPage = $('btnPrevPage');
+    els.btnNextPage = $('btnNextPage');
+    els.pageIndicator = $('pageIndicator');
+    els.toggleArabic = $('toggleArabic');
+    els.toggleTranslation = $('toggleTranslation');
+    els.toggleTajwid = $('toggleTajwid');
+    els.toggleTafsir = $('toggleTafsir');
+    els.modeScan = $('modeScan');
+    els.modeText = $('modeText');
+    // Audio
+    els.audioBar = $('audioBar');
+    els.audioSurah = $('audioSurah');
+    els.audioAyah = $('audioAyah');
+    els.audioPlay = $('audioPlay');
+    els.audioPause = $('audioPause');
+    els.audioPrev = $('audioPrev');
+    els.audioNext = $('audioNext');
+    els.progressBar = $('progressBar');
+    els.progressFill = $('progressFill');
+    els.audioTime = $('audioTime');
+    els.volumeSlider = $('volumeSlider');
+    els.audioMute = $('audioMute');
+    // Search
+    els.searchInput = $('searchInput');
+    els.btnClearSearch = $('btnClearSearch');
+    els.searchResults = $('searchResults');
+    // Bookmarks
+    els.bookmarksList = $('bookmarksList');
+    // Settings
+    els.fontSizeArabic = $('fontSizeArabic');
+    els.fontSizeArabicVal = $('fontSizeArabicVal');
+    els.fontSizeTrans = $('fontSizeTrans');
+    els.fontSizeTransVal = $('fontSizeTransVal');
+    els.themeSelect = $('themeSelect');
+    els.showAyahNumbers = $('showAyahNumbers');
+    els.pageModeSelect = $('pageModeSelect');
+    els.mushafSelect = $('mushafSelect');
+    els.mushafSelectSetting = $('mushafSelectSetting');
+    els.qariSelect = $('qariSelect');
+    els.autoPlayNext = $('autoPlayNext');
+    els.repeatAyah = $('repeatAyah');
+    els.offlinePages = $('offlinePages');
+    els.btnClearCache = $('btnClearCache');
+    els.btnReloadApp = $('btnReloadApp');
+    // Modals
+    els.surahModal = $('surahModal');
+    els.surahList = $('surahList');
+    els.surahSearch = $('surahSearch');
+    els.btnCloseSurahModal = $('btnCloseSurahModal');
+    els.pageModal = $('pageModal');
+    els.pageInput = $('pageInput');
+    els.pageQuick = $('pageQuick');
+    els.btnClosePageModal = $('btnClosePageModal');
+    // Juz
+    els.juzGrid = $('juzGrid');
+    // Toast
+    els.toastContainer = $('toastContainer');
+  }
+  
+  // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
+  const BUILD = '2026-11-21-mushaf-2-indopak';
+
+  function showBuildTag() {
+    const el = document.getElementById('buildTag');
+    if (el) el.textContent = `build ${BUILD}`;
+  }
+
+  // Paksa ambil ulang seluruh berkas: lepas service worker, buang cache, reload
+  async function forceUpdate() {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (typeof caches !== 'undefined') {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) { console.warn('forceUpdate:', e); }
+    const url = new URL(location.href);
+    url.searchParams.set('v', Date.now().toString());
+    location.replace(url.toString());
+  }
+
+  // Bila service worker baru mengambil alih, muat ulang sekali
+  function watchSwUpdate() {
+    if (!('serviceWorker' in navigator)) return;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Utils
+  // ═══════════════════════════════════════════════════════════════
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    els.toastContainer.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 3000);
+  }
+
+  // ── Hukum tajwid: nama + penjelasan singkat (Indonesia) ──────────────
+  const TAJWID_RULES = {
+    ham_wasl:        ['Hamzah Washal', 'Hamzah yang dibaca ketika di awal kalimat dan tidak dibaca ketika di tengah.'],
+    slnt:            ['Huruf Tidak Dibaca', 'Huruf yang tidak dilafalkan karena bertemu huruf lain atau karena waqaf.'],
+    madda_normal:    ['Mad Thabi\u2019i', 'Panjang 2 harakat (1 alif) karena huruf mad bertemu tanpa sebab lain.'],
+    madda_permissible:['Mad Jaiz Munfashil', 'Panjang 2\u20135 harakat; huruf mad di akhir kata bertemu hamzah di kata berikutnya.'],
+    madda_obligatory:['Mad Wajib Muttashil', 'Panjang 4\u20135 harakat; huruf mad bertemu hamzah dalam satu kata.'],
+    madda_necessary: ['Mad Lazim', 'Panjang 6 harakat karena setelah huruf mad ada sukun tetap atau huruf bertasydid.'],
+    qalaqah:         ['Qalqalah', 'Pantulan suara pada huruf \u0642 \u0637 \u0628 \u062c \u062f, dibaca lebih jelas saat berhenti.'],
+    ikhafa:          ['Ikhfa Hakiki', 'Nun sukun\/tanwin bertemu salah satu dari 15 huruf ikhfa: dibaca samar dengan dengung.'],
+    ikhafa_shafawi:  ['Ikhfa Syafawi', 'Mim sukun bertemu ba: dibaca samar dengan dengung di bibir.'],
+    idgham_ghunnah:  ['Idgham Bighunnah', 'Nun sukun\/tanwin bertemu \u064a \u0646 \u0645 \u0648: dilebur dengan dengung.'],
+    idgham_wo_ghunnah:['Idgham Bilaghunnah', 'Nun sukun\/tanwin bertemu lam atau ra: dilebur tanpa dengung.'],
+    idgham_shafawi:  ['Idgham Mitslain', 'Mim sukun bertemu mim: dilebur dengan dengung.'],
+    idgham_mutajanisayn:['Idgham Mutajanisain', 'Dua huruf berdekatan makhrajnya, berbeda sifat: dilebur.'],
+    idgham_mutaqaribayn:['Idgham Mutqaribain', 'Dua huruf berdekatan makhraj dan sifatnya: dilebur.'],
+    iqlab:           ['Iqlab', 'Nun sukun\/tanwin bertemu ba: berubah menjadi mim dengan dengung.'],
+    ghunnah:         ['Ghunnah', 'Dengung pada nun atau mim bertasydid, sekitar 2 harakat.'],
+    tafkhim:         ['Tafkhim', 'Membaca huruf tebal, mulut dibuka membulat.'],
+    tarqiq:          ['Tarqiq', 'Membaca huruf tipis, mulut tidak dibulatkan.'],
+  };
+
+  function showTajwidRule(rule) {
+    const info = TAJWID_RULES[rule];
+    const name = info ? info[0] : rule;
+    const desc = info ? info[1] : 'Keterangan belum tersedia untuk hukum ini.';
+    let box = document.getElementById('tajwidTip');
+    if (box) box.remove();
+    box = document.createElement('div');
+    box.id = 'tajwidTip';
+    box.className = 'tajwid-tip';
+    box.innerHTML = `<strong>${name}</strong><span>${desc}</span><button aria-label="Tutup">\u00d7</button>`;
+    document.body.appendChild(box);
+    const close = () => box.remove();
+    box.querySelector('button').addEventListener('click', close);
+    setTimeout(close, 8000);
+  }
+  
+  function setTheme(theme) {
+    state.theme = theme;
+    const root = document.documentElement;
+    if (theme === 'auto') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+      root.setAttribute('data-theme', theme);
+    }
+    localStorage.setItem('alkalam_theme', theme);
+  }
+  
+  function saveSettings() {
+    const settings = {
+      theme: state.theme,
+      pageMode: state.pageMode,
+      mushaf: state.mushaf,
+      fontSizeArabic: state.fontSizeArabic,
+      fontSizeTrans: state.fontSizeTrans,
+      qari: state.qari,
+      autoPlayNext: state.autoPlayNext,
+      repeatAyah: state.repeatAyah,
+      offlinePages: state.offlinePages,
+      showAyahNumbers: state.showAyahNumbers,
+    };
+    localStorage.setItem('alkalam_settings', JSON.stringify(settings));
+  }
+  
+  function loadSettings() {
+    // Isi pilihan qari dari konfigurasi
+    const reciters = (window.ALKALAM_CONFIG && window.ALKALAM_CONFIG.reciters) || [];
+    if (reciters.length && els.qariSelect) {
+      els.qariSelect.innerHTML = reciters
+        .map(r => `<option value="${r.key}">${r.name}</option>`)
+        .join('');
+    }
+    try {
+      const s = JSON.parse(localStorage.getItem('alkalam_settings') || '{}');
+      Object.assign(state, s);
+    } catch {}
+    // Apply
+    setTheme(state.theme || 'auto');
+    state.fontSizeArabic = state.fontSizeArabic || 28;
+    state.fontSizeTrans = state.fontSizeTrans || 15;
+    state.qari = state.qari || 'alafasy';
+    if (!DataManager.getReciter(state.qari)) state.qari = 'alafasy';
+    state.autoPlayNext = state.autoPlayNext !== false;
+    state.repeatAyah = state.repeatAyah || false;
+    state.offlinePages = state.offlinePages !== false;
+    state.showAyahNumbers = state.showAyahNumbers !== false;
+    state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
+    state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
+    if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
+    setPageMode(state.pageMode, false);
+    // Update UI
+    els.fontSizeArabic.value = state.fontSizeArabic;
+    els.fontSizeArabicVal.textContent = `${state.fontSizeArabic}px`;
+    els.fontSizeTrans.value = state.fontSizeTrans;
+    els.fontSizeTransVal.textContent = `${state.fontSizeTrans}px`;
+    els.themeSelect.value = state.theme || 'auto';
+    els.showAyahNumbers.checked = state.showAyahNumbers;
+    if (els.pageModeSelect) els.pageModeSelect.value = state.pageMode;
+    if (els.mushafSelectSetting) els.mushafSelectSetting.value = state.mushaf;
+    if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
+    els.qariSelect.value = state.qari;
+    els.autoPlayNext.checked = state.autoPlayNext;
+    els.repeatAyah.checked = state.repeatAyah;
+    els.offlinePages.checked = state.offlinePages;
+    // CSS variables
+    document.documentElement.style.setProperty('--font-size-arabic', `${state.fontSizeArabic}px`);
+    document.documentElement.style.setProperty('--font-size-trans', `${state.fontSizeTrans}px`);
+  }
+  
+  function saveBookmarks() {
+    localStorage.setItem('alkalam_bookmarks', JSON.stringify([...state.bookmarks]));
+  }
+  
+  function loadBookmarks() {
+    try {
+      const b = JSON.parse(localStorage.getItem('alkalam_bookmarks') || '[]');
+      state.bookmarks = new Set(b);
+    } catch {}
+  }
+  
+  function toggleBookmark(verseKey) {
+    if (state.bookmarks.has(verseKey)) {
+      state.bookmarks.delete(verseKey);
+      showToast('Penanda dihapus');
+    } else {
+      state.bookmarks.add(verseKey);
+      showToast('Penanda ditambahkan', 'success');
+    }
+    saveBookmarks();
+    renderBookmarks();
+    updateBookmarkButtons();
+  }
+  
+  function isBookmarked(verseKey) {
+    return state.bookmarks.has(verseKey);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // View Management
+  // ═══════════════════════════════════════════════════════════════
+  function showView(viewName) {
+    state.currentView = viewName;
+    els.views.forEach(v => v.hidden = v.dataset.view !== viewName);
+    els.drawerItems.forEach(item => {
+      item.classList.toggle('active', item.dataset.view === viewName);
+    });
+    closeDrawer();
+    // Scroll to top
+    window.scrollTo(0, 0);
+    // Load view-specific data
+    if (viewName === 'juz') renderJuzGrid();
+    else if (viewName === 'bookmarks') renderBookmarks();
+    else if (viewName === 'search') focusSearch();
+  }
+  
+  function closeDrawer() {
+    els.drawer.classList.remove('open');
+    els.drawerOverlay.classList.remove('visible');
+    els.btnMenu.setAttribute('aria-expanded', 'false');
+  }
+  
+  function openDrawer() {
+    els.drawer.classList.add('open');
+    els.drawerOverlay.classList.add('visible');
+    els.btnMenu.setAttribute('aria-expanded', 'true');
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Mushaf Rendering
+  // ═══════════════════════════════════════════════════════════════
+  // ── Mode halaman: pindaian (gambar) / teks ───────────────────────────
+  function setPageMode(mode, rerender = true) {
+    state.pageMode = mode === 'text' ? 'text' : 'scan';
+    if (els.modeScan && els.modeText) {
+      els.modeScan.classList.toggle('active', state.pageMode === 'scan');
+      els.modeText.classList.toggle('active', state.pageMode === 'text');
+      els.modeScan.setAttribute('aria-pressed', state.pageMode === 'scan');
+      els.modeText.setAttribute('aria-pressed', state.pageMode === 'text');
+      // Di mode pindaian, tombol Arab tidak berlaku (Arab sudah ada di gambar)
+      els.toggleArabic.classList.toggle('hidden-mode', state.pageMode === 'scan');
+      if (els.pageModeSelect) els.pageModeSelect.value = state.pageMode;
+    if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
+    if (els.mushafSelectSetting) els.mushafSelectSetting.value = state.mushaf;
+    }
+    if (rerender) renderPage(state.currentPage);
+  }
+
+  // ── Render mushaf: Madani (QCF per halaman) atau IndoPak (nastaleeq) ──
+  const loadedFonts = new Set();
+
+  function mushafKey() { return state.mushaf || 'madani'; }
+
+  /** Peta ayat → halaman untuk mushaf aktif (604 atau 610 halaman). */
+  async function rebuildVersePage() {
+    const layout = await DataManager.getLayout(mushafKey());
+    const map = new Map();
+    if (layout && layout.pages) {
+      for (const [p, pageData] of Object.entries(layout.pages)) {
+        const pageNo = Number(p);
+        const rows = Array.isArray(pageData) ? pageData : (pageData.lines || []);
+        const typed = rows.length && !Array.isArray(rows[0]) && rows[0].kind;
+        if (typed) {
+          for (const row of rows) {
+            if (row.kind !== 'words') continue;
+            for (const [vk] of row.words) if (!map.has(vk)) map.set(vk, pageNo);
+          }
+        } else {
+          for (const line of rows) {
+            if (!Array.isArray(line)) continue;
+            for (const entry of line) if (!map.has(entry[0])) map.set(entry[0], pageNo);
+          }
+        }
+      }
+    }
+    state.versePage = map;
+    return map;
+  }
+
+  /** Ganti mushaf (Madani ↔ IndoPak): layout, peta halaman, font. */
+  async function setMushaf(key) {
+    if (key !== 'indopak' && key !== 'madani') key = 'madani';
+    if (state.mushaf === key && state.versePage && state.versePage.size) return;
+    state.mushaf = key;
+    saveSettings();
+    await rebuildVersePage();
+    const max = pageCount();
+    if (state.currentPage > max) state.currentPage = max;
+    renderPage(state.currentPage);
+  }
+
+  function mushafConf() { return DataManager.mushafCfg(mushafKey()); }
+  function pageCount() { return mushafConf().pageCount || 604; }
+
+  async function ensureMushafFont(page) {
+    const mc = mushafConf();
+    const tryLoad = async (family, url) => {
+      const face = new FontFace(family, `url("${url}")`, { display: 'swap' });
+      await face.load();
+      document.fonts.add(face);
+      return family;
+    };
+
+    if (!mc.fontPerPage) {
+      // IndoPak: satu font untuk semua halaman
+      const fam = mc.fontFamily || 'indopak-nastaleeq';
+      if (loadedFonts.has(fam)) return fam;
+      const urls = [DataManager.getPageFontUrl(page, mushafKey()), mc.fontUrl].filter(Boolean);
+      for (const u of [...new Set(urls)]) {
+        try { await tryLoad(fam, u); loadedFonts.add(fam); return fam; } catch (e) { /* coba berikutnya */ }
+      }
+      console.warn('font indopak gagal dimuat');
+      return null;
+    }
+
+    // Madani: font per halaman (lokal dulu bila mode offline)
+    if (loadedFonts.has(page)) return `p${page}`;
+    const name = `p${page}`;
+    const local = (mc.fontsLocal || CFG.fontsLocal || '').trim();
+    const urls = [DataManager.getPageFontUrl(page, mushafKey())];
+    if (local) {
+      const cdn = `${mc.fontsBase || CFG.fontsBase || ''}p${page}.woff2${mc.fontQuery || CFG.fontQuery || ''}`;
+      urls.push(cdn);
+    }
+    for (const u of [...new Set(urls)]) {
+      try { await tryLoad(name, u); loadedFonts.add(page); return name; } catch (e) { /* coba berikutnya */ }
+    }
+    console.warn('font halaman gagal dimuat:', page);
+    return null;
+  }
+
+  function prefetchPageFonts(page) {
+    if (!mushafConf().fontPerPage) return;
+    for (const p of [page + 1, page + 2, page - 1]) {
+      if (p >= 1 && p <= pageCount() && !loadedFonts.has(p)) ensureMushafFont(p);
+    }
+  }
+
+  /** Normalisasi layout apa pun menjadi baris: {kind:'surah'|'bismillah'|'words'|'empty'}. */
+  function buildRows(layout, page, chapters) {
+    const pageData = layout && layout.pages ? layout.pages[String(page)] : null;
+    if (!pageData) return null;
+    const surahs = layout.surahs || {};
+    const rows = [];
+
+    // ── IndoPak: baris sudah bertipe ──
+    if (pageData.length && !Array.isArray(pageData[0]) && pageData[0].kind) {
+      for (const line of pageData) {
+        if (line.kind === 'surah') {
+          const meta = surahs[String(line.surah)] || {};
+          const full = (chapters || []).find(c => String(c.id) === String(line.surah)) || {};
+          rows.push({ kind: 'surah', info: {
+            name: meta.name || full.name_arabic || '',
+            name_simple: meta.name_simple || full.name_simple || '',
+            ayahs: meta.ayahs || full.verses_count || 0,
+            bismillah: meta.bismillah !== undefined ? meta.bismillah : !!full.bismillah_pre
+          } });
+        } else if (line.kind === 'bismillah') {
+          rows.push({ kind: 'bismillah' });
+        } else {
+          rows.push({ kind: 'words', words: line.words || [] });
+        }
+      }
+      return rows;
+    }
+
+    // ── Madani: array kata; baris kosong = slot judul/basmalah ──
+    const lines = pageData.lines || pageData;
+    const surahStartAt = new Map();
+    lines.forEach((line, idx) => {
+      if (!line.length) return;
+      const [vk] = line[0];
+      const [sid, ayah] = vk.split(':').map(Number);
+      const prevFirst = idx > 0 && lines[idx - 1].length ? lines[idx - 1][0][0] : null;
+      const prevSid = prevFirst ? Number(prevFirst.split(':')[0]) : null;
+      if (ayah === 1 && prevSid !== sid) surahStartAt.set(idx, sid);
+    });
+
+    const emptyOrder = new Map();
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].length) continue;
+      let j = i;
+      while (j < lines.length && !lines[j].length) j++;
+      for (let k = i; k < j; k++) emptyOrder.set(k, k - i + 1);
+      i = j - 1;
+    }
+
+    lines.forEach((line, idx) => {
+      if (!line.length) {
+        let j = idx;
+        while (j < lines.length && !lines[j].length) j++;
+        const sid = surahStartAt.get(j);
+        const order = emptyOrder.get(idx) || 1;
+        const info = sid ? (surahs[String(sid)] || {}) : null;
+        if (sid && order === 1) rows.push({ kind: 'surah', info });
+        else if (sid && order === 2 && info && info.bismillah) rows.push({ kind: 'bismillah' });
+        else rows.push({ kind: 'empty' });
+        return;
+      }
+      const sid = surahStartAt.get(idx);
+      const prevHadWords = idx > 0 && lines[idx - 1].length > 0;
+      if (sid && prevHadWords) rows.push({ kind: 'surah', info: surahs[String(sid)] || {}, inline: true });
+      rows.push({ kind: 'words', words: line });
+    });
+    return rows;
+  }
+
+  async function renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters) {
+    const layout = await DataManager.getLayout(mushafKey());
+    const versesData = await DataManager.load('verses');
+    const fontFamily = await ensureMushafFont(page);
+    prefetchPageFonts(page);
+
+    const verses = pageData.verses
+      .map(v => ({ meta: v, verse: versesData[v.surah]?.find(x => x.verse_number === v.ayah) }))
+      .filter(x => x.verse);
+
+    // kelompokkan per surat untuk strip nomor ayat
+    const groups = [];
+    for (const item of verses) {
+      let g = groups.find(x => x.surah === item.meta.surah);
+      if (!g) {
+        const info = chapters.find(c => c.id === item.meta.surah);
+        g = { surah: item.meta.surah, info, items: [] };
+        groups.push(g);
+      }
+      g.items.push(item);
+    }
+
+    // ── baris halaman ──
+    const rows = buildRows(layout, page, chapters);
+    let htm = '';
+    if (!rows) {
+      htm = `<div class="mline mline-empty">Layout halaman tidak tersedia</div>`;
+    } else {
+      for (const row of rows) {
+        if (row.kind === 'surah') {
+          const info = row.info || {};
+          if (row.inline) {
+            htm += `<div class="msurah-inline">۞ ${info.name || ''} · ${info.name_simple || ''}</div>`;
+            if (info.bismillah) htm += `<div class="mbasmalah-inline">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</div>`;
+          } else {
+            htm += `<div class="mline mline-head"><div class="msurah-band">` +
+                   `<span class="msurah-orn">۞</span>` +
+                   `<span class="msurah-name">${info.name || ''}</span>` +
+                   `<span class="msurah-meta">${info.name_simple || ''}${info.ayahs ? ' · ' + info.ayahs + ' ayat' : ''}</span>` +
+                   `</div></div>`;
+          }
+        } else if (row.kind === 'bismillah') {
+          htm += `<div class="mline mline-basmalah"><span class="mbasmalah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</span></div>`;
+        } else if (row.kind === 'words') {
+          htm += `<div class="mline">`;
+          for (const [vk, pos, glyph, isEnd] of row.words) {
+            if (mushafKey() === 'indopak') {
+              // IndoPak: buang glyph PUA (waqf/penanda QCF) yang tak ada di font nastaleeq
+              const clean = String(glyph).replace(/[\uE000-\uF8FF]/g, '').trim();
+              if (isEnd) {
+                const ayahNo = vk.split(':')[1];
+                htm += `<span class="mw mw-end-badge" data-v="${vk}" data-w="${pos}">${toArabicDigits(Number(ayahNo))}</span>`;
+              } else if (clean) {
+                htm += `<span class="mw" data-v="${vk}" data-w="${pos}">${clean}</span>`;
+              }
+            } else {
+              htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}">${glyph}</span>`;
+            }
+          }
+          htm += `</div>`;
+        } else {
+          htm += `<div class="mline mline-empty"></div>`;
+        }
+      }
+    }
+
+    const style = fontFamily ? ` style="font-family:'${fontFamily}', serif"` : '';
+    const mushafClass = mushafKey() === 'indopak' ? ' mushaf-indopak' : '';
+    let html = `<div class="scan-page" data-page="${page}">`;
+    html += `<div class="scan-sheet${mushafClass}"><div class="mushaf-page-lines"${style}>${htm}</div></div>`;
+
+    // strip nomor ayat
+    html += `<div class="scan-bar">`;
+    for (const g of groups) {
+      html += `<div class="chip-group"><span class="chip-group-label" dir="rtl">${g.info?.name_arabic || ''}</span>`;
+      for (const { meta } of g.items) {
+        html += `<button class="ayah-chip" data-play="${meta.surah}:${meta.ayah}" ` +
+                `title="Putar ${g.info?.name_simple || meta.surah} ayat ${meta.ayah}">${toArabicDigits(meta.ayah)}</button>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+
+    // terjemahan / tafsir
+    if (state.showTranslation || state.showTafsir) {
+      html += `<div class="scan-texts">`;
+      let currentSurah = null;
+      for (const { meta } of verses) {
+        const verseKey = `${meta.surah}:${meta.ayah}`;
+        const tr = await DataManager.getTranslation(verseKey, 'indo') ||
+                   await DataManager.getTranslation(verseKey, 'eng');
+        const taf = state.showTafsir ? await DataManager.getTafsir(verseKey, 'short') : '';
+        const marked = isBookmarked(verseKey);
+        if (meta.surah !== currentSurah) {
+          currentSurah = meta.surah;
+          const info = chapters.find(c => c.id === meta.surah);
+          html += `<div class="scan-surah-sep"><span dir="rtl">${info?.name_arabic || ''}</span> ${info?.name_simple || ''}</div>`;
+        }
+        html += `<div class="scan-text-row" data-verse="${verseKey}">`;
+        html += `<button class="scan-num" data-play="${verseKey}" aria-label="Putar ayat ${meta.ayah}">${toArabicDigits(meta.ayah)}</button>`;
+        html += `<div class="scan-text-body">`;
+        if (state.showTranslation && tr) html += `<div class="scan-tr">${tr}</div>`;
+        if (state.showTafsir && taf) html += `<div class="scan-taf"><span>Tafsir:</span> ${taf}</div>`;
+        html += `</div>`;
+        html += `<button class="action-btn ${marked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="Penanda">` +
+                `<svg width="16" height="16" viewBox="0 0 24 24" fill="${marked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+    els.mushafContainer.innerHTML = html;
+
+    const sheet = els.mushafContainer.querySelector('.scan-sheet');
+    if (sheet) {
+      const setScale = () => sheet.style.setProperty('--msize', `${sheet.clientWidth / 23}px`);
+      setScale();
+      new ResizeObserver(setScale).observe(sheet);
+    }
+
+    els.mushafContainer.querySelectorAll('[data-play]').forEach(btn => {
+      btn.addEventListener('click', () => playAyah(btn.dataset.play));
+    });
+    els.mushafContainer.querySelectorAll('.mw').forEach(el => {
+      el.addEventListener('click', () => playAyah(el.dataset.v));
+    });
+    els.mushafContainer.querySelectorAll('[data-action="bookmark"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.verse;
+        toggleBookmark(key);
+        const on = isBookmarked(key);
+        btn.classList.toggle('active', on);
+        const svg = btn.querySelector('svg');
+        if (svg) svg.setAttribute('fill', on ? 'currentColor' : 'none');
+      });
+    });
+    updatePlayingHighlight();
+  }
+
+  function updatePlayingHighlight() {
+    const cur = state.audioCurrent ? state.audioCurrent.verseKey : null;
+    document.querySelectorAll('.ayah-chip').forEach(el => {
+      el.classList.toggle('playing', el.dataset.play === cur);
+    });
+    document.querySelectorAll('.scan-text-row').forEach(el => {
+      el.classList.toggle('playing', el.dataset.verse === cur);
+    });
+  }
+
+  async function renderPage(page) {
+    const maxPage = pageCount();
+    if (page < 1 || page > maxPage) return;
+    state.currentPage = page;
+    els.pageIndicator.textContent = `${page} / ${maxPage}`;
+    els.pageLabel.textContent = `Halaman ${page}`;
+    els.btnPrevPage.disabled = page === 1;
+    els.btnNextPage.disabled = page === maxPage;
+
+    // Keep the URL shareable (no reload)
+    try {
+      const url = new URL(location.href);
+      url.searchParams.set('page', String(page));
+      history.replaceState(null, '', url);
+    } catch {}
+    
+    els.mushafContainer.innerHTML = '<div class="loading">Memuat halaman...</div>';
+    
+    try {
+      const pageMap = await DataManager.load('pageMap');
+      const pageData = pageMap.find(p => p.page === page);
+      if (!pageData) throw new Error('Page not found');
+      
+      const versesData = await DataManager.load('verses');
+      const chapters = await DataManager.load('chapters');
+
+      // Determine surah for header
+      const firstVerse = pageData.verses[0];
+      const lastVerse = pageData.verses[pageData.verses.length - 1];
+      const surahInfo = chapters.find(c => c.id === firstVerse.surah);
+      const lastSurahInfo = chapters.find(c => c.id === lastVerse.surah);
+
+      // Update header labels
+      els.surahLabel.textContent = surahInfo?.name_simple || `Surat ${firstVerse.surah}`;
+      state.currentSurah = firstVerse.surah;
+
+      // ═══ Mode pindaian: tampilkan gambar halaman mushaf ═══
+      if (state.pageMode === 'scan') {
+        await renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters);
+        return;
+      }
+
+      // Build page HTML
+      let html = `<div class="mushaf-page">`;
+      html += `<div class="page-header">`;
+      html += `<div class="page-surah-name">${surahInfo?.name_arabic || ''} — ${surahInfo?.name_simple || ''}</div>`;
+      html += `<div class="page-meta">Halaman ${page} · Juz ${firstVerse.juz} · ${surahInfo?.name_simple || ''}${lastSurahInfo && lastSurahInfo.id !== surahInfo?.id ? ' s.d. ' + lastSurahInfo.name_simple : ''}</div>`;
+      html += `</div>`;
+      // Basmalah pembuka surat (bukan Al-Fatihah & bukan At-Taubah)
+      if (firstVerse.ayah === 1 && firstVerse.surah !== 1 && firstVerse.surah !== 9 && surahInfo?.bismillah_pre) {
+        html += `<div class="basmalah" dir="rtl">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</div>`;
+      }
+      
+      for (const v of pageData.verses) {
+        const verse = versesData[v.surah]?.find(vv => vv.verse_number === v.ayah);
+        if (!verse) continue;
+        
+        const verseKey = `${v.surah}:${v.ayah}`;
+        const translation = await DataManager.getTranslation(verseKey, 'indo');
+        const translationEng = translation ? '' : await DataManager.getTranslation(verseKey, 'eng');
+        const tafsir = state.showTafsir ? await DataManager.getTafsir(verseKey, 'short') : '';
+        const tajwidRaw = state.showTajwid ? await DataManager.getTajwid(verseKey) : '';
+        // Buang penanda nomor ayat bawaan API, kita pakai badge sendiri
+        const tajwidHtml = tajwidRaw ? tajwidRaw.replace(/<span class=end>.*?<\/span>/g, '') : '';
+        const displayArabic = state.showTajwid && tajwidHtml ? tajwidHtml : verse.text_uthmani;
+        const bookmarked = isBookmarked(verseKey);
+        
+        html += `<div class="ayah-row" data-verse="${verseKey}">`;
+        html += `<div class="ayah-content">`;
+        if (state.showArabic) {
+          html += `<div class="ayah-arabic" dir="rtl" title="Klik untuk memutar ayat">${wordsToSpans(displayArabic)}</div>`;
+        }
+        if (state.showTranslation) {
+          const tr = translation || translationEng || '';
+          if (tr) html += `<div class="ayah-translation" dir="ltr">${tr}</div>`;
+        }
+        if (state.showTafsir && tafsir) {
+          html += `<div class="ayah-tafsir"><div class="tafsir-title">Tafsir:</div>${tafsir}</div>`;
+        }
+        html += `</div>`;
+        if (state.showAyahNumbers) {
+          html += `<div class="ayah-marker"><span class="ayah-number">${toArabicDigits(v.ayah)}</span></div>`;
+        }
+        html += `<div class="ayah-actions">`;
+        html += `<button class="action-btn" data-action="play" data-verse="${verseKey}" aria-label="Putar ayat" title="Putar"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`;
+        html += `<button class="action-btn ${bookmarked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}" title="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}"><svg width="18" height="18" viewBox="0 0 24 24" fill="${bookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
+        html += `</div>`;
+        html += `</div>`;
+      }
+      
+      html += `</div>`;
+      els.mushafContainer.innerHTML = html;
+      
+      // Attach event listeners
+      attachVerseActions();
+      
+      // Cache for offline if enabled
+      if (state.offlinePages) {
+        cachePage(page, html);
+      }
+      
+    } catch (err) {
+      console.error('Render page error:', err);
+      els.mushafContainer.innerHTML = `<div class="error-state">Gagal memuat halaman ${page}<br><button class="btn btn-primary" data-retry="${page}">Coba Lagi</button></div>`;
+      const retry = els.mushafContainer.querySelector('[data-retry]');
+      if (retry) retry.addEventListener('click', () => renderPage(page));
+    }
+  }
+  
+  function attachVerseActions() {
+    // Play buttons
+    els.mushafContainer.querySelectorAll('[data-action="play"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const verseKey = e.currentTarget.dataset.verse;
+        playAyah(verseKey);
+      });
+    });
+    // Click on Arabic text → play this ayah (like the original app)
+    els.mushafContainer.querySelectorAll('.ayah-arabic').forEach(el => {
+      el.addEventListener('click', (e) => {
+        // if the click landed on a tajweed span, show its rule instead
+        if (e.target.matches('tajweed, tajweed *')) return;
+        const row = e.currentTarget.closest('.ayah-row');
+        if (row) playAyah(row.dataset.verse);
+      });
+    });
+    // Click on a tajweed span → show the rule explanation
+    els.mushafContainer.querySelectorAll('tajweed').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rule = [...e.currentTarget.classList].find(c => c !== 'tajweed');
+        showTajwidRule(rule || e.currentTarget.className);
+      });
+    });
+    // Bookmark buttons
+    els.mushafContainer.querySelectorAll('[data-action="bookmark"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const verseKey = e.currentTarget.dataset.verse;
+        toggleBookmark(verseKey);
+        // Update button visual
+        const isNowBookmarked = isBookmarked(verseKey);
+        e.currentTarget.classList.toggle('active', isNowBookmarked);
+        const svg = e.currentTarget.querySelector('svg');
+        svg.setAttribute('fill', isNowBookmarked ? 'currentColor' : 'none');
+        e.currentTarget.setAttribute('aria-label', isNowBookmarked ? 'Hapus penanda' : 'Tambah penanda');
+        e.currentTarget.title = isNowBookmarked ? 'Hapus penanda' : 'Tambah penanda';
+      });
+    });
+  }
+  
+  async function cachePage(page, html) {
+    try {
+      const cache = await caches.open('alkalam-pages');
+      await cache.put(`page-${page}`, new Response(html, { headers: { 'Content-Type': 'text/html' } }));
+    } catch (e) { console.warn('Cache page failed:', e); }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Highlight per kata (mengikuti bacaan)
+  // ═══════════════════════════════════════════════════════════════
+
+  /** Pecah HTML ayat menjadi kata-kata, dengan tag (mis. <tajweed>) tetap seimbang. */
+  function splitWords(html) {
+    const tokens = html.match(/<[^>]+>|[^<]+/g) || [];
+    const words = [];
+    let cur = '';
+    const open = [];
+
+    const nameOf = (tag) => (tag.match(/^<\s*\/?\s*([\w:-]+)/) || [, ''])[1];
+    const closeTags = (tags) => tags.slice().reverse().map(t => `</${nameOf(t)}>`).join('');
+    const openTags = (tags) => tags.join('');
+
+    for (const t of tokens) {
+      if (t.startsWith('<')) {
+        if (t.startsWith('</')) {
+          const name = nameOf(t);
+          const i = open.map(nameOf).lastIndexOf(name);
+          if (i >= 0) open.splice(i, 1);
+          cur += t;
+        } else {
+          open.push(t);
+          cur += t;
+        }
+      } else {
+        for (const part of t.split(/(\s+)/)) {
+          if (!part) continue;
+          if (/^\s+$/.test(part)) {
+            if (cur.replace(/<[^>]+>/g, '').trim()) {
+              words.push(cur + closeTags(open));   // tutup tag di akhir kata
+              cur = openTags(open);                // buka lagi di kata berikutnya
+            }
+          } else {
+            cur += part;
+          }
+        }
+      }
+    }
+    if (cur.replace(/<[^>]+>/g, '').trim()) words.push(cur + closeTags(open));
+    return words;
+  }
+
+  function wordsToSpans(html, cls = 'w') {
+    return splitWords(html)
+      .map((w, i) => `<span class="${cls}" data-w="${i}">${w}</span>`)
+      .join(' ');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Audio Player
+  // ═══════════════════════════════════════════════════════════════
+  let audioEl = null;
+  let audioTimeUpdateHandler = null;
+
+  function initAudio() {
+    audioEl = new Audio();
+    audioEl.preload = 'auto';
+    audioEl.volume = 0.8;
+
+    audioTimeUpdateHandler = () => onTimeUpdate();
+    audioEl.addEventListener('timeupdate', audioTimeUpdateHandler);
+    audioEl.addEventListener('ended', () => onAudioEnded());
+    audioEl.addEventListener('error', () => {
+      showToast('Gagal memuat audio', 'error');
+      stopAudio();
+    });
+  }
+
+  // ── Data QUL untuk qari aktif (audio per surat + timing kata) ───────
+  async function ensureQul() {
+    if (state.qul && state.qulKey === state.qari) return state.qul;
+    const qul = await DataManager.getQul(state.qari);
+    state.qul = qul;
+    state.qulKey = state.qari;
+    return qul;
+  }
+
+  function surahVerseKeys(surah) {
+    const verses = state.qul?.verses || {};
+    const prefix = `${surah}:`;
+    return Object.keys(verses)
+      .filter(k => k.startsWith(prefix))
+      .sort((a, b) => Number(a.split(':')[1]) - Number(b.split(':')[1]));
+  }
+
+  async function loadSurahAudio(surah) {
+    const qul = await ensureQul();
+    const url = (qul && qul.audio && qul.audio[String(surah)] && qul.audio[String(surah)].u) ||
+                DataManager.getSurahAudioUrl(surah, state.qari);
+    if (!url) return false;
+    const sameFile = audioEl.src && audioEl.src.split('/').pop() === url.split('/').pop();
+    if (state.playerSurah !== surah || !sameFile) {
+      state.playerSurah = surah;
+      state.surahKeys = surahVerseKeys(surah);
+      audioEl.src = url;
+      await new Promise((resolve) => {
+        if (audioEl.readyState >= 1) return resolve();
+        const done = () => { audioEl.removeEventListener('loadedmetadata', done); resolve(); };
+        audioEl.addEventListener('loadedmetadata', done);
+        setTimeout(resolve, 2000);          // jangan menggantung bila metadata lambat
+      });
+    }
+    state.surahKeys = state.surahKeys && state.surahKeys.length ? state.surahKeys : surahVerseKeys(surah);
+    return true;
+  }
+
+  // ayat yang sedang berbunyi pada posisi ms tertentu
+  function ayahAt(ms) {
+    const keys = state.surahKeys || [];
+    const verses = state.qul?.verses || {};
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const v = verses[keys[i]];
+      if (v && ms >= v.f - 60) return keys[i];   // toleransi 60 ms
+    }
+    return keys[0] || null;
+  }
+
+  function ayahTimes(verseKey) {
+    const v = state.qul?.verses?.[verseKey];
+    return v ? { from: v.f, to: v.t, segs: v.s || [] } : null;
+  }
+
+  // ── Playback ────────────────────────────────────────────────────────
+  async function playAyah(verseKey) {
+    if (!audioEl) initAudio();
+
+    const [surah, ayah] = verseKey.split(':').map(Number);
+    els.audioBar.hidden = false;
+    els.audioPlay.hidden = false;
+    els.audioPause.hidden = true;
+
+    const ok = await loadSurahAudio(surah);
+    if (!ok) {
+      showToast('Audio qari ini tidak tersedia', 'error');
+      return;
+    }
+    if (!state.qul) {
+      showToast('Data timing QUL belum termuat — highlight kata nonaktif', 'error');
+    }
+
+    const t = ayahTimes(verseKey);
+    if (t) {
+      try { audioEl.currentTime = t.from / 1000; } catch {}
+    }
+
+    await setCurrentAyah(verseKey, { force: true });
+
+    try {
+      await audioEl.play();
+      state.audioPlaying = true;
+      els.audioPlay.hidden = true;
+      els.audioPause.hidden = false;
+    } catch (err) {
+      if (err && err.name === 'NotAllowedError') {
+        showToast('Tekan tombol putar untuk memulai audio');
+        state.audioPlaying = false;
+        return;
+      }
+      showToast('Gagal memutar audio', 'error');
+      stopAudio();
+    }
+  }
+
+  // Perbarui seluruh UI untuk ayat yang sedang dibaca
+  async function setCurrentAyah(verseKey, { force = false } = {}) {
+    if (!force && state.audioCurrent && state.audioCurrent.verseKey === verseKey) return;
+    const [surah, ayah] = verseKey.split(':').map(Number);
+    state.audioCurrent = { surah, ayah, verseKey };
+
+    const info = await DataManager.getSurah(surah);
+    els.audioSurah.textContent = `${info?.name_simple || surah} (${surah})`;
+    els.audioAyah.textContent = `Ayat ${ayah}`;
+
+    // sorot baris/ayat yang sedang dibaca
+    document.querySelectorAll('.ayah-row.playing').forEach(el => el.classList.remove('playing'));
+    document.querySelectorAll('.mw.ayah-on').forEach(el => el.classList.remove('ayah-on'));
+    document.querySelectorAll('.mw[data-v]').forEach(el => {
+      if (el.dataset.v === verseKey) el.classList.add('ayah-on');
+    });
+    const row = document.querySelector(`.ayah-row[data-verse="${verseKey}"]`);
+    if (row) {
+      row.classList.add('playing');
+      if (state.pageMode === 'text') row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    updatePlayingHighlight();
+
+    // ikuti halaman mushaf kalau ayat ada di halaman lain
+    const targetPage = state.versePage && state.versePage.get(verseKey);
+    if (targetPage && targetPage !== state.currentPage) {
+      const playing = audioEl && !audioEl.paused;
+      await renderPage(targetPage);
+      if (playing) { /* renderPage tidak menyentuh audio */ }
+      document.querySelectorAll('.ayah-row.playing').forEach(el => el.classList.remove('playing'));
+      const row2 = document.querySelector(`.ayah-row[data-verse="${verseKey}"]`);
+      if (row2) row2.classList.add('playing');
+      updatePlayingHighlight();
+    }
+
+    await prepareFollowLine(verseKey);
+  }
+
+  // Baris teks ayat yang sedang dibaca (mode pindaian)
+  async function prepareFollowLine(verseKey) {
+    const bar = document.getElementById('followBar');
+    if (!bar) return;
+    const [surah, ayah] = verseKey.split(':').map(Number);
+    const verses = await DataManager.getVerses(surah);
+    const verse = verses.find(v => v.verse_number === ayah);
+    if (!verse) { bar.hidden = true; return; }
+    const info = await DataManager.getSurah(surah);
+    bar.hidden = false;
+    bar.innerHTML =
+      `<div class="follow-head"><span dir="rtl">${info?.name_arabic || ''}</span>` +
+      `<span>${info?.name_simple || surah} : ${ayah}</span></div>` +
+      `<div class="follow-words" dir="rtl">${wordsToSpans(verse.text_uthmani)}</div>`;
+  }
+
+  function clearFollowLine() {
+    const bar = document.getElementById('followBar');
+    if (bar) { bar.hidden = true; bar.innerHTML = ''; }
+  }
+
+  // Sorot kata sesuai posisi waktu (timing QUL, kata 1-based)
+  function highlightWordAt(ms) {
+    const cur = state.audioCurrent;
+    if (!cur) return;
+    const t = ayahTimes(cur.verseKey);
+    if (!t || !t.segs.length) return;
+
+    let word = -1;
+    for (const [w, start, end] of t.segs) {
+      if (ms >= start && ms < end) { word = w; break; }
+    }
+
+    // halaman layout: sorot langsung di halaman
+    const pageWords = document.querySelectorAll(`.mw[data-v="${cur.verseKey}"]`);
+    if (pageWords.length) {
+      pageWords.forEach(el => el.classList.add('ayah-on'));
+      document.querySelectorAll('.mw.word-on').forEach(el => el.classList.remove('word-on'));
+      if (word > 0) {
+        const target = document.querySelector(`.mw[data-v="${cur.verseKey}"][data-w="${word}"]`);
+        if (target) target.classList.add('word-on');
+      }
+      return;
+    }
+
+    // mode teks: sorot di dalam ayat
+    const scope = document.querySelector('.ayah-row.playing');
+    if (!scope) return;
+    const nodes = scope.querySelectorAll('.w');
+    if (!nodes.length) return;
+    const maxWord = Math.max(...t.segs.map(s => s[0]));
+    const scale = maxWord > 0 && nodes.length !== maxWord ? nodes.length / maxWord : 1;
+    const idx = word > 0 ? Math.min(nodes.length - 1, Math.round(word * scale) - 1) : -1;
+    nodes.forEach((n, i) => n.classList.toggle('on', i === idx));
+  }
+
+  function clearWordHighlight() {
+    document.querySelectorAll('.w.on').forEach(n => n.classList.remove('on'));
+    document.querySelectorAll('.mw.word-on').forEach(n => n.classList.remove('word-on'));
+    document.querySelectorAll('.mw.ayah-on').forEach(n => n.classList.remove('ayah-on'));
+  }
+
+  function onTimeUpdate() {
+    if (!audioEl) return;
+    const ms = audioEl.currentTime * 1000;
+
+    if (state.qul && state.playerSurah) {
+      const vk = ayahAt(ms);
+      if (vk) setCurrentAyah(vk);        // hanya berubah bila ayat berganti
+    }
+    highlightWordAt(ms);
+    updateAudioProgress();
+  }
+
+  function updateAudioProgress() {
+    if (!audioEl || !audioEl.duration) return;
+    const pct = (audioEl.currentTime / audioEl.duration) * 100;
+    els.progressFill.style.width = `${pct}%`;
+    const cur = formatTime(audioEl.currentTime);
+    const dur = formatTime(audioEl.duration);
+    els.audioTime.textContent = `${cur} / ${dur}`;
+  }
+
+  function pauseAudio() {
+    if (audioEl && !audioEl.paused) {
+      audioEl.pause();
+      state.audioPlaying = false;
+      els.audioPlay.hidden = false;
+      els.audioPause.hidden = true;
+      clearWordHighlight();
+    }
+  }
+
+  function resumeAudio() {
+    if (audioEl && audioEl.paused && audioEl.src) {
+      audioEl.play();
+      state.audioPlaying = true;
+      els.audioPlay.hidden = true;
+      els.audioPause.hidden = false;
+    }
+  }
+
+  function stopAudio() {
+    if (!audioEl) return;
+    audioEl.pause();
+    audioEl.removeAttribute('src');
+    audioEl.load();
+    state.audioPlaying = false;
+    state.audioCurrent = null;
+    state.playerSurah = null;
+    state.surahKeys = [];
+    els.audioPlay.hidden = false;
+    els.audioPause.hidden = true;
+    els.progressFill.style.width = '0%';
+    els.audioTime.textContent = '0:00 / 0:00';
+    document.querySelectorAll('.playing').forEach(el => el.classList.remove('playing'));
+    clearWordHighlight();
+    clearFollowLine();
+    updatePlayingHighlight();
+  }
+
+  function onAudioEnded() {
+    const cur = state.audioCurrent;
+    if (!cur) return;
+    if (state.repeatAyah) { playAyah(cur.verseKey); return; }
+    if (!state.autoPlayNext) { stopAudio(); return; }
+    if (cur.surah < 114) playAyah(`${cur.surah + 1}:1`);
+    else stopAudio();
+  }
+
+  function formatTime(sec) {
+    if (!isFinite(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function seekAudio(pct) {
+    if (audioEl && audioEl.duration) {
+      audioEl.currentTime = audioEl.duration * (pct / 100);
+    }
+  }
+
+  function stepAyah(delta) {
+    const cur = state.audioCurrent;
+    if (!cur) return;
+    const keys = state.surahKeys || [];
+    const i = keys.indexOf(cur.verseKey);
+    if (i >= 0) {
+      const next = keys[i + delta];
+      if (next) { playAyah(next); return; }
+      // pindah surat
+      if (delta > 0 && cur.surah < 114) { playAyah(`${cur.surah + 1}:1`); return; }
+      if (delta < 0 && cur.surah > 1) {
+        DataManager.getVerses(cur.surah - 1).then(vs => {
+          if (vs.length) playAyah(`${cur.surah - 1}:${vs.length}`);
+        });
+        return;
+      }
+    }
+    playAyah(cur.verseKey);
+  }
+
+  function prevAyah() { stepAyah(-1); }
+  function nextAyah() { stepAyah(1); }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Juz Grid
+  // ═══════════════════════════════════════════════════════════════
+  async function renderJuzGrid() {
+    const chapters = await DataManager.load('chapters');
+    els.juzGrid.innerHTML = '';
+    for (let j = 1; j <= 30; j++) {
+      const juzMap = await DataManager.load('juzMap');
+      const juzData = juzMap.find(jd => jd.juz === j);
+      let range = '';
+      if (juzData && juzData.verses.length) {
+        const first = juzData.verses[0];
+        const last = juzData.verses[juzData.verses.length - 1];
+        range = `${first.split(':')[0]}:${first.split(':')[1]} – ${last.split(':')[0]}:${last.split(':')[1]}`;
+      }
+      const card = document.createElement('div');
+      card.className = 'juz-card';
+      card.innerHTML = `
+        <div class="juz-number">${j}</div>
+        <div class="juz-label">Juz</div>
+        <div class="juz-range">${range}</div>
+      `;
+      card.addEventListener('click', () => {
+        // Go to first page of this juz
+        if (juzData && juzData.verses.length) {
+          const first = juzData.verses[0].split(':').map(Number);
+          const pageMap = DataManager.load('pageMap').then(pm => {
+            const pg = pm.find(p => p.verses.some(v => v.surah === first[0] && v.ayah === first[1]));
+            if (pg) renderPage(pg.page);
+          });
+        }
+        showView('mushaf');
+      });
+      els.juzGrid.appendChild(card);
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Search
+  // ═══════════════════════════════════════════════════════════════
+  let searchDebounce = null;
+  
+  function focusSearch() {
+    setTimeout(() => els.searchInput.focus(), 100);
+  }
+  
+  async function performSearch(query) {
+    if (!query.trim()) {
+      els.searchResults.innerHTML = '';
+      return;
+    }
+    state.searchQuery = query;
+    els.searchResults.innerHTML = '<div class="loading">Mencari...</div>';
+    
+    try {
+      const [versesData, chapters, translationIndo, translationEng] = await Promise.all([
+        DataManager.load('verses'),
+        DataManager.load('chapters'),
+        DataManager.load('translation_indo'),
+        DataManager.load('translation_eng'),
+      ]);
+      
+      const results = [];
+      const q = query.toLowerCase();
+      
+      for (const surahVerses of Object.values(versesData)) {
+        for (const verse of surahVerses) {
+          const verseKey = `${verse.surah}:${verse.verse_number}`;
+          const arabic = verse.text_uthmani;
+          const indo = translationIndo?.[verseKey] || '';
+          const eng = translationEng?.[verseKey] || '';
+          
+          if (arabic.includes(query) || indo.toLowerCase().includes(q) || eng.toLowerCase().includes(q)) {
+            const surahInfo = chapters.find(c => c.id === verse.surah);
+            results.push({ verse, surahInfo, verseKey, arabic, indo, eng });
+            if (results.length >= 50) break;
+          }
+        }
+        if (results.length >= 50) break;
+      }
+      
+      state.searchResults = results;
+      renderSearchResults(results, query);
+      
+    } catch (err) {
+      console.error('Search error:', err);
+      els.searchResults.innerHTML = '<div class="error-state">Gagal mencari</div>';
+    }
+  }
+  
+  function renderSearchResults(results, query) {
+    if (!results.length) {
+      els.searchResults.innerHTML = '<div class="empty-state">Tidak ada hasil untuk "' + escapeHtml(query) + '"</div>';
+      return;
+    }
+    const q = query.toLowerCase();
+    els.searchResults.innerHTML = results.map(r => {
+      const surah = r.surahInfo?.name_simple || r.verse.surah;
+      const ayah = r.verse.verse_number;
+      const verseKey = `${r.verse.surah}:${ayah}`;
+      const arabic = highlightMatch(r.arabic, query);
+      const indo = highlightMatch(r.indo, query);
+      const eng = highlightMatch(r.eng, query);
+      const translation = r.indo || r.eng || '';
+      return `
+        <div class="search-result" data-verse="${verseKey}">
+          <div class="search-result-header">
+            <span class="search-result-surah">${surah} : ${ayah}</span>
+            <span class="search-result-ayah">${verseKey}</span>
+          </div>
+          <div class="search-result-arabic" dir="rtl">${arabic}</div>
+          ${translation ? `<div class="search-result-translation">${indo || eng}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    
+    // Attach click to go to page
+    els.searchResults.querySelectorAll('.search-result').forEach(el => {
+      el.addEventListener('click', async () => {
+        const verseKey = el.dataset.verse;
+        const [surah, ayah] = verseKey.split(':').map(Number);
+        const page = state.versePage && state.versePage.get(verseKey);
+        if (page) {
+          renderPage(page);
+          showView('mushaf');
+          // Highlight verse
+          setTimeout(() => {
+            const ve = document.querySelector(`[data-verse="${verseKey}"]`);
+            if (ve) { ve.scrollIntoView({ behavior: 'smooth', block: 'center' }); ve.classList.add('playing'); setTimeout(() => ve.classList.remove('playing'), 2000); }
+          }, 100);
+        }
+      });
+    });
+  }
+  
+  function highlightMatch(text, query) {
+    if (!text || !query) return escapeHtml(text);
+    const escaped = escapeHtml(text);
+    const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+    return escaped.replace(regex, '<mark class="search-result-match">$1</mark>');
+  }
+  
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Bookmarks
+  // ═══════════════════════════════════════════════════════════════
+  async function renderBookmarks() {
+    if (!state.bookmarks.size) {
+      els.bookmarksList.innerHTML = '<p class="empty-state">Belum ada penanda. Tekan ikon bintang pada ayat untuk menandai.</p>';
+      return;
+    }
+    const [chapters, translationIndo, pageMap] = await Promise.all([
+      DataManager.load('chapters'),
+      DataManager.load('translation_indo'),
+      DataManager.load('pageMap'),
+    ]);
+
+    // verseKey -> {page, juz}
+    const locator = new Map();
+    for (const p of pageMap) {
+      for (const v of p.verses) locator.set(`${v.surah}:${v.ayah}`, { page: p.page, juz: v.juz });
+    }
+
+    const sorted = [...state.bookmarks].sort((a, b) => {
+      const [sa, aa] = a.split(':').map(Number);
+      const [sb, ab] = b.split(':').map(Number);
+      return sa - sb || aa - ab;
+    });
+
+    els.bookmarksList.innerHTML = sorted.map(key => {
+      const [surah, ayah] = key.split(':').map(Number);
+      const surahInfo = chapters.find(c => c.id === surah);
+      const tr = translationIndo?.[key] || '';
+      const loc = locator.get(key) || {};
+      return `
+        <div class="bookmark-item" data-verse="${key}">
+          <div class="bookmark-ayah">${surah}:${ayah}</div>
+          <div class="bookmark-content">
+            <div class="bookmark-surah">${surahInfo?.name_simple || surah} : ${ayah}</div>
+            <div class="bookmark-text">${tr}</div>
+            <div class="bookmark-meta">Halaman: ${loc.page ?? '—'} · Juz: ${loc.juz ?? '—'}</div>
+          </div>
+          <div class="bookmark-actions">
+            <button class="action-btn" data-action="goto" data-verse="${key}" aria-label="Buka ayat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></button>
+            <button class="action-btn active" data-action="remove" data-verse="${key}" aria-label="Hapus penanda"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Attach events
+    els.bookmarksList.querySelectorAll('[data-action="goto"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const verseKey = btn.dataset.verse;
+        const [surah, ayah] = verseKey.split(':').map(Number);
+        const page = state.versePage && state.versePage.get(verseKey);
+        if (page) { renderPage(page); showView('mushaf'); }
+      });
+    });
+    els.bookmarksList.querySelectorAll('[data-action="remove"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        toggleBookmark(btn.dataset.verse);
+      });
+    });
+  }
+  
+  function updateBookmarkButtons() {
+    document.querySelectorAll('[data-action="bookmark"]').forEach(btn => {
+      const key = btn.dataset.verse;
+      const marked = isBookmarked(key);
+      btn.classList.toggle('active', marked);
+      const svg = btn.querySelector('svg');
+      if (svg) svg.setAttribute('fill', marked ? 'currentColor' : 'none');
+    });
+  }
+  
+  // Helper: Arabic-Indic digits for ayah markers (mushaf style)
+  function toArabicDigits(n) {
+    const map = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    return String(n).replace(/\d/g, d => map[+d]);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Surah Modal
+  // ═══════════════════════════════════════════════════════════════
+  async function openSurahModal() {
+    const chapters = await DataManager.load('chapters');
+    els.surahList.innerHTML = chapters.map(c => `
+      <div class="surah-item" data-surah="${c.id}" role="option">
+        <div class="surah-item-name">${c.name_arabic}</div>
+        <div class="surah-item-meta">${c.name_simple} · ${c.translated_name?.name || c.name_id} · ${c.verses_count} ayat · hal. ${c.pages[0]}</div>
+      </div>
+    `).join('');
+    
+    els.surahList.querySelectorAll('.surah-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const surah = parseInt(item.dataset.surah);
+        goToSurah(surah);
+        els.surahModal.close();
+      });
+    });
+    
+    els.surahModal.showModal();
+  }
+  
+  function goToSurah(surah) {
+    state.currentSurah = surah;
+    const page = state.versePage && state.versePage.get(`${surah}:1`);
+    if (page) renderPage(page);
+    showView('mushaf');
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Page Modal
+  // ═══════════════════════════════════════════════════════════════
+  function openPageModal() {
+    // Quick jump buttons: every 10 pages
+    const btns = [];
+    for (let p = 1; p <= 604; p += 10) {
+      btns.push(`<button class="page-quick-btn" data-page="${p}">${p}</button>`);
+    }
+    els.pageQuick.innerHTML = btns.join('');
+    els.pageQuick.querySelectorAll('.page-quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        renderPage(parseInt(btn.dataset.page));
+        els.pageModal.close();
+      });
+    });
+    els.pageModal.showModal();
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Event Listeners
+  // ═══════════════════════════════════════════════════════════════
+  function bindEvents() {
+    // Drawer
+    els.btnMenu.addEventListener('click', openDrawer);
+    els.btnCloseDrawer.addEventListener('click', closeDrawer);
+    els.drawerOverlay.addEventListener('click', closeDrawer);
+    els.drawerItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        showView(item.dataset.view);
+      });
+    });
+    
+    // Header nav
+    els.surahNav.addEventListener('click', openSurahModal);
+    els.pageNav.addEventListener('click', openPageModal);
+    els.btnSettings.addEventListener('click', () => showView('settings'));
+    els.btnBookmark.addEventListener('click', () => showView('bookmarks'));
+    
+    // Mushaf toolbar
+    els.btnPrevPage.addEventListener('click', () => renderPage(state.currentPage - 1));
+    els.btnNextPage.addEventListener('click', () => renderPage(state.currentPage + 1));
+    els.mushafSelect.addEventListener('change', (e) => setMushaf(e.target.value));
+    els.mushafSelectSetting.addEventListener('change', (e) => setMushaf(e.target.value));
+    els.modeScan.addEventListener('click', () => { setPageMode('scan'); saveSettings(); });
+    els.modeText.addEventListener('click', () => { setPageMode('text'); saveSettings(); });
+    els.toggleArabic.addEventListener('click', () => {
+      state.showArabic = !state.showArabic;
+      els.toggleArabic.classList.toggle('active', state.showArabic);
+      els.toggleArabic.setAttribute('aria-pressed', state.showArabic);
+      renderPage(state.currentPage);
+    });
+    els.toggleTranslation.addEventListener('click', () => {
+      state.showTranslation = !state.showTranslation;
+      els.toggleTranslation.classList.toggle('active', state.showTranslation);
+      els.toggleTranslation.setAttribute('aria-pressed', state.showTranslation);
+      renderPage(state.currentPage);
+    });
+    els.toggleTajwid.addEventListener('click', () => {
+      state.showTajwid = !state.showTajwid;
+      els.toggleTajwid.classList.toggle('active', state.showTajwid);
+      els.toggleTajwid.setAttribute('aria-pressed', state.showTajwid);
+      // Tajwid butuh teks: pindah otomatis dari mode pindaian
+      if (state.showTajwid && state.pageMode === 'scan') {
+        setPageMode('text', false);
+        saveSettings();
+        showToast('Tajwid butuh mode teks — beralih ke mode Teks');
+      }
+      renderPage(state.currentPage);
+    });
+    els.toggleTafsir.addEventListener('click', () => {
+      state.showTafsir = !state.showTafsir;
+      els.toggleTafsir.classList.toggle('active', state.showTafsir);
+      els.toggleTafsir.setAttribute('aria-pressed', state.showTafsir);
+      renderPage(state.currentPage);
+    });
+    
+    // Audio
+    els.audioPlay.addEventListener('click', () => {
+      if (state.audioCurrent) resumeAudio();
+    });
+    els.audioPause.addEventListener('click', pauseAudio);
+    els.audioPrev.addEventListener('click', prevAyah);
+    els.audioNext.addEventListener('click', nextAyah);
+    els.progressBar.addEventListener('click', (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      seekAudio(pct);
+    });
+    els.volumeSlider.addEventListener('input', (e) => {
+      if (audioEl) audioEl.volume = parseFloat(e.target.value);
+    });
+    els.audioMute.addEventListener('click', () => {
+      if (audioEl) {
+        audioEl.muted = !audioEl.muted;
+        els.audioMute.querySelector('svg').innerHTML = audioEl.muted 
+          ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>'
+          : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>';
+      }
+    });
+    
+    // Search
+    els.searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchDebounce);
+      els.btnClearSearch.hidden = !e.target.value;
+      searchDebounce = setTimeout(() => performSearch(e.target.value), 300);
+    });
+    els.btnClearSearch.addEventListener('click', () => {
+      els.searchInput.value = '';
+      els.btnClearSearch.hidden = true;
+      performSearch('');
+    });
+    
+    // Settings
+    els.fontSizeArabic.addEventListener('input', (e) => {
+      state.fontSizeArabic = parseInt(e.target.value);
+      els.fontSizeArabicVal.textContent = `${state.fontSizeArabic}px`;
+      document.documentElement.style.setProperty('--font-size-arabic', `${state.fontSizeArabic}px`);
+      saveSettings();
+    });
+    els.fontSizeTrans.addEventListener('input', (e) => {
+      state.fontSizeTrans = parseInt(e.target.value);
+      els.fontSizeTransVal.textContent = `${state.fontSizeTrans}px`;
+      document.documentElement.style.setProperty('--font-size-trans', `${state.fontSizeTrans}px`);
+      saveSettings();
+    });
+    els.themeSelect.addEventListener('change', (e) => {
+      setTheme(e.target.value);
+      saveSettings();
+    });
+    els.pageModeSelect.addEventListener('change', (e) => {
+      setPageMode(e.target.value);
+      saveSettings();
+    });
+    els.showAyahNumbers.addEventListener('change', (e) => {
+      state.showAyahNumbers = e.target.checked;
+      saveSettings();
+    });
+    els.qariSelect.addEventListener('change', (e) => {
+      state.qari = e.target.value;
+      saveSettings();
+      // Qari berganti: buang timing & audio lama, muat ulang
+      state.qul = null;
+      state.qulKey = null;
+      state.playerSurah = null;
+      state.surahKeys = [];
+      if (state.audioCurrent) playAyah(state.audioCurrent.verseKey);
+    });
+    els.autoPlayNext.addEventListener('change', (e) => {
+      state.autoPlayNext = e.target.checked;
+      saveSettings();
+    });
+    els.repeatAyah.addEventListener('change', (e) => {
+      state.repeatAyah = e.target.checked;
+      saveSettings();
+    });
+    els.offlinePages.addEventListener('change', (e) => {
+      state.offlinePages = e.target.checked;
+      saveSettings();
+    });
+    if (els.btnReloadApp) els.btnReloadApp.addEventListener('click', forceUpdate);
+    els.btnClearCache.addEventListener('click', async () => {
+      if (confirm('Bersihkan semua cache? Halaman offline akan dihapus.')) {
+        await caches.delete('alkalam-pages');
+        await caches.delete('alkalam-data');
+        DataManager.clearCache();
+        showToast('Cache dibersihkan', 'success');
+      }
+    });
+    
+    // Modals
+    els.btnCloseSurahModal.addEventListener('click', () => els.surahModal.close());
+    els.btnClosePageModal.addEventListener('click', () => els.pageModal.close());
+    els.surahSearch.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      els.surahList.querySelectorAll('.surah-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+    els.pageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const page = parseInt(els.pageInput.value);
+        if (page >= 1 && page <= 604) {
+          renderPage(page);
+          els.pageModal.close();
+        }
+      }
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      switch (e.key) {
+        case 'ArrowLeft': renderPage(state.currentPage + 1); break; // RTL: left = next
+        case 'ArrowRight': renderPage(state.currentPage - 1); break;
+        case ' ': e.preventDefault(); if (state.audioPlaying) pauseAudio(); else if (state.audioCurrent) resumeAudio(); break;
+        case 'ArrowUp': if (audioEl) audioEl.volume = Math.min(1, audioEl.volume + 0.1); els.volumeSlider.value = audioEl.volume; break;
+        case 'ArrowDown': if (audioEl) audioEl.volume = Math.max(0, audioEl.volume - 0.1); els.volumeSlider.value = audioEl.volume; break;
+        case 'Escape': closeDrawer(); els.surahModal.close(); els.pageModal.close(); break;
+        case 's': if (!e.ctrlKey && !e.metaKey) { e.preventDefault(); els.searchInput.focus(); } break;
+      }
+    });
+    
+    // PWA install prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Could show custom install button
+    });
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Service Worker Registration
+  // ═══════════════════════════════════════════════════════════════
+  async function registerSW() {
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.register('./sw.js');
+        reg.update().catch(() => {});
+        console.log('SW registered:', reg.scope);
+      } catch (err) {
+        console.warn('SW registration failed:', err);
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // Init
+  // ═══════════════════════════════════════════════════════════════
+  async function init() {
+    initRefs();
+    showBuildTag();
+    watchSwUpdate();
+    loadSettings();
+    loadBookmarks();
+    bindEvents();
+    await registerSW();
+
+    // Deep-link support: ?page=12&tajwid=1&tafsir=1
+    const params = new URLSearchParams(location.search);
+    if (params.get('tajwid') === '1') {
+      state.showTajwid = true;
+      els.toggleTajwid.classList.add('active');
+      els.toggleTajwid.setAttribute('aria-pressed', 'true');
+    }
+    if (params.get('tafsir') === '1') {
+      state.showTafsir = true;
+      els.toggleTafsir.classList.add('active');
+      els.toggleTafsir.setAttribute('aria-pressed', 'true');
+    }
+    // Tajwid selalu butuh mode teks
+    if (state.showTajwid) setPageMode('text', false);
+    if (params.get('translation') === '0') {
+      state.showTranslation = false;
+      els.toggleTranslation.classList.remove('active');
+      els.toggleTranslation.setAttribute('aria-pressed', 'false');
+    }
+    const maxStart = pageCount();
+    const startPage = Math.min(maxStart, Math.max(1, parseInt(params.get('page') || '1', 10) || 1));
+    if (params.get('offline') === '1' && window.ALKALAM_CONFIG) {
+      const cfg = window.ALKALAM_CONFIG;
+      cfg.offline = true;
+      cfg.fontsLocal = cfg.fontsLocal || './data/fonts/';
+      Object.values(cfg.mushafs || {}).forEach(m => { m.fontsLocal = m.fontsLocal || './data/fonts/'; });
+    }
+
+    // Load required data first
+    try {
+      await DataManager.loadAll(true);
+      state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
+      await rebuildVersePage();
+    } catch (err) {
+      console.error('Initial load failed:', err);
+      showToast('Gagal memuat data utama', 'error');
+    }
+
+    // Render first page
+    await renderPage(startPage);
+    showView('mushaf');
+
+    // Listen for theme change
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (state.theme === 'auto') setTheme('auto');
+    });
+  }
+  
+  // Start when DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  
+  // Expose for debugging
+  window.AlKalam = {
+    state,
+    DataManager,
+    playAyah,
+    stopAudio,
+    audio: () => audioEl,
+    goPage: (p) => renderPage(p),
+  };
+})();

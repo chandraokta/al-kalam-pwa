@@ -1,0 +1,14 @@
+# Uji lokal (screenshot + harness CDP)
+_test/
+
+# Sistem
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Python
+__pycache__/
+*.pyc
+
+# Font offline (unduh dengan: python tools/fetch_layout.py fonts)
+data/fonts/
