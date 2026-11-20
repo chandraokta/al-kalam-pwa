@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-fit-scale';
+  const BUILD = '2026-11-22-no-clip';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1077,17 +1077,24 @@
    */
   function applyPageScale(sheet) {
     if (!sheet || !sheet.isConnected) return;
-    const pageEm = mushafKey() === 'indopak' ? 17.39 : 20.6;
+    const pageEm = mushafKey() === 'indopak' ? 17.69 : 20.6;
     sheet.style.setProperty('--msize', `${sheet.clientWidth / pageEm}px`);
-    for (let i = 0; i < 3; i++) {
-      const rows = [...sheet.querySelectorAll('.mline')].filter(l => (l.textContent || '').trim());
-      if (!rows.length) break;
-      const worst = rows.reduce((m, l) => Math.max(m, l.scrollWidth - l.clientWidth), 0);
-      if (worst <= 1) break;
-      const box = sheet.querySelector('.mushaf-page-lines');
+    const box = sheet.querySelector('.mushaf-page-lines');
+    const sheetRect0 = sheet.getBoundingClientRect();
+    for (let i = 0; i < 4; i++) {
       const avail = box.clientWidth || 1;
+      let worst = 0;
+      for (const el of sheet.querySelectorAll('.mline')) {
+        worst = Math.max(worst, el.scrollWidth - el.clientWidth);
+      }
+      for (const el of sheet.querySelectorAll('.msurah-band, .msurah-name, .msurah-meta, .mw, .mbasmalah')) {
+        const r = el.getBoundingClientRect();
+        if (!r.width) continue;
+        worst = Math.max(worst, Math.ceil(r.right - sheetRect0.right) + 2, Math.ceil(sheetRect0.left - r.left) + 2);
+      }
+      if (worst <= 1) break;
       const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || 26;
-      sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.996)}px`);
+      sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.994)}px`);
     }
   }
 

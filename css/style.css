@@ -282,8 +282,9 @@ svg { display: inline-block; vertical-align: middle; }
 
 /* bingkai ganda + sudut berornamen */
 .scan-sheet.mushaf-indopak {
-  /* IndoPak QUL: lebar teks 15,9em, tinggi 27,76em, + padding 0,75em */
-  aspect-ratio: 17.39 / 29.26;
+  /* IndoPak QUL: teks 15,89em x 27,76em, + padding 0,9em (ruang ekor huruf nastaleeq) */
+  aspect-ratio: 17.69 / 29.55;
+  padding: calc(var(--msize) * 0.9);
 }
 
 .page-frame {
@@ -348,12 +349,14 @@ svg { display: inline-block; vertical-align: middle; }
 /* judul surat */
 .msurah-band {
   position: relative;
-  display: block;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;   /* orn | nama | jumlah ayat */
+  align-items: center;
+  gap: calc(var(--msize) * 0.18);
   direction: rtl;
-  text-align: center;
   min-height: calc(var(--msize) * 0.9);
   line-height: 1.2;
-  padding: calc(var(--msize) * 0.10) calc(var(--msize) * 1.9);
+  padding: calc(var(--msize) * 0.10) calc(var(--msize) * 0.35);
   margin: 0 calc(var(--msize) * 0.15);
   background:
     linear-gradient(90deg, transparent, rgba(150,200,162,.20) 12%, rgba(150,200,162,.20) 88%, transparent),
@@ -363,19 +366,39 @@ svg { display: inline-block; vertical-align: middle; }
   border-radius: 3px;
   font-family: var(--font-arabic);
   box-shadow: 0 1px 0 rgba(255,255,255,.7) inset;
+  overflow: hidden;
 }
-[data-theme="dark"] .msurah-band { background: linear-gradient(180deg, #f2faf3, #e4f3e7); }
 .msurah-orn {
-  position: absolute; inset-inline-start: 6px; top: 50%; transform: translateY(-50%);
-  color: #6f9e7c; font-size: calc(var(--msize) * 0.5); line-height: 1;
+  color: #6f9e7c;
+  font-size: calc(var(--msize) * 0.5);
+  line-height: 1;
+  justify-self: start;
 }
 .msurah-name {
-  font-size: calc(var(--msize) * 0.62); color: #35624a; font-weight: 700; line-height: 1.2;
+  font-size: calc(var(--msize) * 0.62);
+  color: #35624a;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  direction: rtl;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .msurah-meta {
-  position: absolute; inset-inline-end: 6px; top: 50%; transform: translateY(-50%);
-  font-size: calc(var(--msize) * 0.36); color: #5f7d69;
-  font-family: var(--font-latin); white-space: nowrap; direction: ltr;
+  font-size: calc(var(--msize) * 0.36);
+  color: #5f7d69;
+  font-family: var(--font-latin);
+  line-height: 1.2;
+  direction: ltr;
+  justify-self: end;
+  white-space: nowrap;
+}
+/* layar sangat sempit: ornamen disembunyikan agar nama & jumlah ayat muat */
+@media (max-width: 420px) {
+  .msurah-orn { display: none; }
+  .msurah-band { padding-left: calc(var(--msize) * 0.2); padding-right: calc(var(--msize) * 0.2); }
 }
 
 /* basmalah */
