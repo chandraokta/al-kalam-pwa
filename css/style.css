@@ -262,16 +262,38 @@ svg { display: inline-block; vertical-align: middle; }
 ════════════════════════════════════════════════════════════════════════ */
 .scan-sheet {
   --msize: 26px;
+  --paper: #fffdf6;
+  --ink-line: #cfae5e;
   width: min(100%, 720px);
   aspect-ratio: 900 / 1200;
-  background: #fffdf6;
+  position: relative;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #fffef9 0%, var(--paper) 45%, #fbf4e2 100%);
   border: 1px solid #e2d9c3;
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0,0,0,.12), 0 18px 40px -18px rgba(0,0,0,.35);
-  padding: 18px 20px;
+  padding: 40px 34px 34px;
   display: flex;
   overflow: hidden;
 }
+
+/* bingkai ganda + sudut berornamen */
+.page-frame {
+  position: absolute; inset: 12px;
+  border: 1px solid rgba(180, 148, 70, .75);
+  border-radius: 4px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 4px rgba(180, 148, 70, .35);
+}
+.page-corner {
+  position: absolute; width: 26px; height: 26px;
+  background-repeat: no-repeat; background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23b4944a' stroke-width='1.1'%3E%3Cpath d='M2 14C2 7 7 2 14 2'/%3E%3Cpath d='M2 20C2 10 10 2 20 2' stroke-opacity='.45'/%3E%3Ccircle cx='12' cy='12' r='2.6'/%3E%3Cpath d='M12 6v2M12 16v2M6 12h2M16 12h2' stroke-opacity='.7'/%3E%3C/g%3E%3C/svg%3E");
+}
+.page-corner.tl { top: 4px; left: 4px; }
+.page-corner.tr { top: 4px; right: 4px; transform: scaleX(-1); }
+.page-corner.bl { bottom: 4px; left: 4px; transform: scaleY(-1); }
+.page-corner.br { bottom: 4px; right: 4px; transform: scale(-1, -1); }
 [data-theme="dark"] .scan-sheet { background: #fdfbf3; border-color: #cdc3a8; }
 
 .mushaf-page-lines {
@@ -281,16 +303,31 @@ svg { display: inline-block; vertical-align: middle; }
   flex-direction: column;
   direction: rtl;
 }
-/* grid 15 baris tetap, seperti halaman mushaf cetak */
+/* grid 15 baris; isi baris dijustify seperti teks cetak, bukan direntangkan kaku */
 .mline {
   flex: 0 0 calc(100% / 15);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .12em;
+  display: block;
+  align-content: center;
   font-size: var(--msize);
-  line-height: 1;
+  line-height: 1.55;
   white-space: nowrap;
+  overflow: hidden;
+  text-align: justify;
+  text-align-last: justify;
+  text-justify: inter-word;
+  word-spacing: .04em;
+  padding-top: .18em;
+}
+.mline.mline-short,
+.mline.mline-head,
+.mline.mline-basmalah,
+.mline.mline-empty {
+  text-align: center;
+  text-align-last: center;
+  white-space: normal;
+}
+@media (max-width: 560px) {
+  .mline { line-height: 1.5; }
 }
 .mline-empty { min-height: 0; }
 .mline-head, .mline-basmalah { justify-content: center; }
@@ -299,10 +336,16 @@ svg { display: inline-block; vertical-align: middle; }
 .msurah-band {
   width: 100%; text-align: center;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 2px 10px;
-  background: linear-gradient(180deg, #f6efdc, #efe4c8);
-  border: 1px solid #d9cba6; border-radius: 999px;
+  padding: 3px 14px;
+  background:
+    linear-gradient(90deg, transparent, rgba(207,174,94,.18) 12%, rgba(207,174,94,.18) 88%, transparent),
+    linear-gradient(180deg, #f8f1de, #efe3c4);
+  border-top: 1px solid #cdb37a;
+  border-bottom: 1px solid #cdb37a;
+  border-left: none; border-right: none;
+  border-radius: 3px;
   font-family: var(--font-arabic);
+  box-shadow: 0 1px 0 rgba(255,255,255,.7) inset;
 }
 [data-theme="dark"] .msurah-band { background: linear-gradient(180deg, #f7f0dd, #eee2c4); }
 .msurah-orn { color: #8a6d2f; font-size: .8em; }

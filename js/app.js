@@ -109,6 +109,7 @@
     els.btnFullscreen = $('btnFullscreen');
     els.btnHomeTop = $('btnHomeTop');
     els.btnQuickMushaf = $('btnQuickMushaf');
+    els.btnToolbarHome = $('btnToolbarHome');
     els.viewNav = $('viewNav');
     els.navBackMushaf = $('navBackMushaf');
     els.navHome = $('navHome');
@@ -146,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-nav-1';
+  const BUILD = '2026-11-21-page-ornament';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -830,7 +831,8 @@
         } else if (row.kind === 'bismillah') {
           htm += `<div class="mline mline-basmalah"><span class="mbasmalah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</span></div>`;
         } else if (row.kind === 'words') {
-          htm += `<div class="mline">`;
+          const short = (row.words || []).length < 3 ? ' mline-short' : '';
+          htm += `<div class="mline${short}">`;
           for (const [vk, pos, glyph, isEnd] of row.words) {
             if (mushafKey() === 'indopak') {
               // IndoPak: buang glyph PUA (waqf/penanda QCF) yang tak ada di font nastaleeq
@@ -839,10 +841,10 @@
                 const ayahNo = vk.split(':')[1];
                 htm += `<span class="mw mw-end-badge" data-v="${vk}" data-w="${pos}">${toArabicDigits(Number(ayahNo))}</span>`;
               } else if (clean) {
-                htm += `<span class="mw" data-v="${vk}" data-w="${pos}">${clean}</span>`;
+                htm += `<span class="mw" data-v="${vk}" data-w="${pos}">${clean}</span> `;
               }
             } else {
-              htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}">${glyph}</span>`;
+              htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}">${glyph}</span> `;
             }
           }
           htm += `</div>`;
@@ -855,7 +857,12 @@
     const style = fontFamily ? ` style="font-family:'${fontFamily}', serif"` : '';
     const mushafClass = mushafKey() === 'indopak' ? ' mushaf-indopak' : '';
     let html = `<div class="scan-page" data-page="${page}">`;
-    html += `<div class="scan-sheet${mushafClass}"><div class="mushaf-page-lines"${style}>${htm}</div></div>`;
+    html += `<div class="scan-sheet${mushafClass}">`;
+    html += `<div class="page-frame" aria-hidden="true">` +
+            `<span class="page-corner tl"></span><span class="page-corner tr"></span>` +
+            `<span class="page-corner bl"></span><span class="page-corner br"></span>` +
+            `</div>`;
+    html += `<div class="mushaf-page-lines"${style}>${htm}</div></div>`;
 
     // strip nomor ayat
     html += `<div class="scan-bar">`;
@@ -1793,6 +1800,7 @@
     if (els.btnFullscreen) els.btnFullscreen.addEventListener('click', toggleFullscreen);
     if (els.btnHomeTop) els.btnHomeTop.addEventListener('click', () => showView('home'));
     if (els.btnQuickMushaf) els.btnQuickMushaf.addEventListener('click', () => showView('mushaf'));
+    if (els.btnToolbarHome) els.btnToolbarHome.addEventListener('click', () => showView('home'));
     if (els.navBackMushaf) els.navBackMushaf.addEventListener('click', () => showView('mushaf'));
     if (els.navHome) els.navHome.addEventListener('click', () => showView('home'));
     if (els.navPrevView) {
