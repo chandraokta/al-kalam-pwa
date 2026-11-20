@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-tajwid-legend';
+  const BUILD = '2026-11-21-indopak-qul';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -996,7 +996,9 @@
 
     const sheet = els.mushafContainer.querySelector('.scan-sheet');
     if (sheet) {
-      const setScale = () => sheet.style.setProperty('--msize', `${sheet.clientWidth / 20.6}px`);
+      // ukuran tetap seperti QUL: Madani 19,1em, IndoPak 15,89em (+0,75em padding)
+      const pageEm = mushafKey() === 'indopak' ? 17.39 : 20.6;
+      const setScale = () => sheet.style.setProperty('--msize', `${sheet.clientWidth / pageEm}px`);
       setScale();
       new ResizeObserver(setScale).observe(sheet);
     }

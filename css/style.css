@@ -268,19 +268,24 @@ svg { display: inline-block; vertical-align: middle; }
   --ink-line: #9cc9a8;
   --ornament: #a8d5b5;
   width: min(100%, 720px);
-  aspect-ratio: 20.6 / 29.25;
+  aspect-ratio: 20.6 / 29.25;   /* Madani: 19,1em teks */
   position: relative;
   background:
     radial-gradient(120% 80% at 50% 0%, #fffef9 0%, var(--paper) 45%, #f7fbf4 100%);
   border: 1px solid #dfe8e0;
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0,0,0,.10), 0 18px 40px -18px rgba(0,0,0,.30);
-  padding: 0.75em;
+  padding: calc(var(--msize) * 0.75);   /* pakai ukuran teks halaman, bukan font induk */
   display: flex;
   overflow: hidden;
 }
 
 /* bingkai ganda + sudut berornamen */
+.scan-sheet.mushaf-indopak {
+  /* IndoPak QUL: lebar teks 15,9em, tinggi 27,76em, + padding 0,75em */
+  aspect-ratio: 17.39 / 29.26;
+}
+
 .page-frame {
   position: absolute; inset: 6px;
   border: 1px solid rgba(150, 200, 162, .85);
@@ -748,8 +753,17 @@ svg { display: inline-block; vertical-align: middle; }
   background: var(--bg-tertiary); color: var(--text-primary); font-size: .8125rem;
 }
 
-/* ── IndoPak: nastaleeq butuh garis lebih tinggi & rapat ────────────── */
-.scan-sheet.mushaf-indopak .mline { line-height: 1.35; font-size: calc(var(--msize) * 1.06); }
+/* ── IndoPak: nastaleeq — jarak kata normal (QUL hanya memakai -0,25em
+   untuk mushaf v2/Madani), garis lebih tinggi karena turunan huruf dalam ── */
+.scan-sheet.mushaf-indopak .mline {
+  line-height: 1.85;      /* sama dengan QUL */
+  font-size: var(--msize);
+  word-spacing: 0;        /* QUL tidak memakai jarak negatif untuk IndoPak */
+  letter-spacing: 0;
+  overflow: visible;      /* nastaleeq menjulur keluar kotak baris — jangan dipotong */
+}
+
+.scan-sheet.mushaf-indopak .mline.mline-center { word-spacing: 0; }
 .scan-sheet.mushaf-indopak .mushaf-page-lines { }
 .scan-sheet.mushaf-indopak .msurah-name,
 .scan-sheet.mushaf-indopak .mbasmalah,

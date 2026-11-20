@@ -48,7 +48,7 @@ window.ALKALAM_CONFIG = {
       pageCount: 610,
       fontPerPage: false,
       fontFamily: 'indopak-nastaleeq',
-      fontUrl: 'https://static-cdn.tarteel.ai/qul/fonts/nastaleeq/Hanafi/normal-v4.2.2/with-waqf-lazmi/font.woff2?v=3.2',
+      fontUrl: 'https://static-cdn.tarteel.ai/qul/fonts/nastaleeq/indopak-nastaleeq-waqf-lazim.woff2?v=3.4',
       fontsLocal: ''      // './data/fonts/' untuk mode offline
     }
   },

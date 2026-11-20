@@ -130,7 +130,7 @@ def build_fonts():
 
 
 INDOPAK_FONT = ("https://static-cdn.tarteel.ai/qul/fonts/nastaleeq/"
-                "Hanafi/normal-v4.2.2/with-waqf-lazmi/font.woff2?v=3.2")
+                "indopak-nastaleeq-waqf-lazim.woff2?v=3.2")
 
 
 def fetch_indopak_font():
