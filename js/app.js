@@ -106,6 +106,17 @@
     els.offlinePages = $('offlinePages');
     els.btnClearCache = $('btnClearCache');
     els.btnReloadApp = $('btnReloadApp');
+    els.btnFullscreen = $('btnFullscreen');
+    els.btnCenter = $('btnCenter');
+    els.viewHome = $('viewHome');
+    els.viewTajwid = $('viewTajwid');
+    els.tajwidGrid = $('tajwidGrid');
+    els.homeResume = $('homeResume');
+    els.homeResumeText = $('homeResumeText');
+    els.homeNote = $('homeNote');
+    els.btnResume = $('btnResume');
+    els.homeCards = document.querySelectorAll('.home-card');
+    els.surahPlaceFilter = $('surahPlaceFilter');
     // Modals
     els.surahModal = $('surahModal');
     els.surahList = $('surahList');
@@ -122,7 +133,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-mushaf-2-indopak';
+  const BUILD = '2026-11-21-batch-a';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -308,6 +319,180 @@
   }
   
   // ═══════════════════════════════════════════════════════════════
+  // Fitur: salin ayat, tajwid, sampul, layar penuh, tombol tengah
+  // ═══════════════════════════════════════════════════════════════
+
+  /** Salin ayat (Arab + terjemahan + rujukan) ke papan klip. */
+  async function copyAyah(verseKey) {
+    const [surah, ayah] = verseKey.split(':').map(Number);
+    const verses = await DataManager.getVerses(surah);
+    const verse = verses.find(v => v.verse_number === ayah);
+    const info = await DataManager.getSurah(surah);
+    const tr = await DataManager.getTranslation(verseKey, 'indo');
+    const lines = [
+      verse ? verse.text_uthmani : '',
+      '',
+      tr || '',
+      '',
+      `(${surahName(surah)} : ${ayah}) — ${surah}:${ayah}`,
+    ];
+    const text = lines.join('\n').trim();
+    const legacyCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      ta.remove();
+      return ok;
+    };
+
+    let done = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        done = true;
+      }
+    } catch { /* jatuh ke cara lama */ }
+    if (!done) done = legacyCopy();
+    if (done) showToast('Ayat disalin', 'success');
+    else showToast('Gagal menyalin ayat', 'error');
+  }
+
+  function surahName(surahId) {
+    const list = state.chapters || [];
+    const c = list.find(x => x.id === surahId);
+    return c ? c.name_simple : String(surahId);
+  }
+
+  /** Tampilkan tafsir lengkap untuk satu ayat (data sudah tersedia). */
+  async function showFullTafsir(verseKey) {
+    const full = await DataManager.getTafsir(verseKey, 'long');
+    if (!full) { showToast('Tafsir lengkap tidak tersedia', 'error'); return; }
+    showTafsirPanel(verseKey, full);
+  }
+
+  /** Panel tafsir lengkap (dialog sederhana, bisa digulir). */
+  function showTafsirPanel(verseKey, text) {
+    let dlg = document.getElementById('tafsirDialog');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'tafsirDialog';
+      dlg.className = 'modal tafsir-dialog';
+      dlg.innerHTML = `<div class="modal-content">
+          <header class="modal-header"><h3>Tafsir</h3>
+            <button class="icon-btn" data-close aria-label="Tutup">×</button></header>
+          <div class="modal-body"><p class="tafsir-ref"></p><div class="tafsir-full"></div></div>
+        </div>`;
+      document.body.appendChild(dlg);
+      dlg.querySelector('[data-close]').addEventListener('click', () => dlg.close());
+    }
+    const [surah, ayah] = verseKey.split(':');
+    dlg.querySelector('.tafsir-ref').textContent = `${surahName(Number(surah))} : ${ayah}`;
+    dlg.querySelector('.tafsir-full').innerHTML = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+    dlg.showModal();
+  }
+
+  /** Halaman referensi 18 hukum tajwid. */
+  function renderTajwidGrid() {
+    if (!els.tajwidGrid) return;
+    els.tajwidGrid.innerHTML = Object.entries(TAJWID_RULES)
+      .map(([key, [name, desc]]) => `
+        <div class="tajwid-card" data-rule="${key}">
+          <div class="tajwid-card-name">${name}</div>
+          <div class="tajwid-card-desc">${desc}</div>
+          <button class="tajwid-card-link" data-find-rule="${key}">Cari contoh di mushaf</button>
+        </div>`)
+      .join('');
+    els.tajwidGrid.querySelectorAll('[data-find-rule]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setPageMode('text');
+        state.showTajwid = true;
+        els.toggleTajwid.classList.add('active');
+        showView('mushaf');
+        showToast('Mode teks + tajwid aktif — warna menandai hukumnya');
+      });
+    });
+  }
+
+  /** Simpan posisi terakhir dibaca, tampilkan di sampul. */
+  function saveLastRead() {
+    try {
+      localStorage.setItem('alkalam_last', JSON.stringify({
+        page: state.currentPage,
+        mushaf: state.mushaf,
+        surah: state.currentSurah,
+        at: Date.now(),
+      }));
+    } catch {}
+  }
+
+  function renderHome() {
+    let last = state.lastRead || null;
+    if (!last) { try { last = JSON.parse(localStorage.getItem('alkalam_last') || 'null'); } catch {} }
+    if (last && last.page) {
+      els.homeResume.hidden = false;
+      els.homeResumeText.textContent =
+        `${surahName(last.surah || state.currentSurah)} · halaman ${last.page}` +
+        (last.mushaf === 'indopak' ? ' (IndoPak)' : ' (Madani)');
+    } else {
+      els.homeResume.hidden = true;
+    }
+    const marks = state.bookmarks ? state.bookmarks.size : 0;
+    els.homeNote.textContent = `${marks} penanda · ${state.mushaf === 'indopak' ? 'IndoPak' : 'Madani'} · ${pageCount()} halaman`;
+    els.btnResume.onclick = () => {
+      if (!last) return;
+      if (last.mushaf && last.mushaf !== state.mushaf) {
+        setMushaf(last.mushaf);
+      }
+      renderPage(last.page);
+      showView('mushaf');
+    };
+  }
+
+  /** Layar penuh (minimize/maximize versi DVD).
+   *  Bila browser menolak Fullscreen API, pakai "mode zen": header & drawer disembunyikan. */
+  async function toggleFullscreen() {
+    const zen = document.body.classList.contains('is-fullscreen');
+    try {
+      if (!zen && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+        document.body.classList.add('is-fullscreen');
+        return;
+      }
+      if (zen && document.fullscreenElement) {
+        await document.exitFullscreen();
+        document.body.classList.remove('is-fullscreen');
+        return;
+      }
+    } catch { /* lanjut ke mode zen */ }
+    // fallback / keluar dari mode zen
+    document.body.classList.toggle('is-fullscreen');
+    showToast(document.body.classList.contains('is-fullscreen')
+      ? 'Mode layar penuh (zen) aktif'
+      : 'Kembali ke tampilan normal');
+  }
+
+  /** Kembali ke ayat yang sedang dibaca ("tengah" pada DVD). */
+  function scrollToPlaying() {
+    const cur = state.audioCurrent;
+    if (!cur) { showToast('Belum ada bacaan yang diputar'); return; }
+    const target = document.querySelector(`.mw[data-v="${cur.verseKey}"].ayah-on`)
+      || document.querySelector(`.ayah-row[data-verse="${cur.verseKey}"]`)
+      || document.querySelector(`.scan-text-row[data-verse="${cur.verseKey}"]`);
+    if (!target) { showToast('Ayat tidak ada di halaman ini'); return; }
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target.classList.add('flash');
+    setTimeout(() => target.classList.remove('flash'), 1200);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // View Management
   // ═══════════════════════════════════════════════════════════════
   function showView(viewName) {
@@ -320,7 +505,9 @@
     // Scroll to top
     window.scrollTo(0, 0);
     // Load view-specific data
-    if (viewName === 'juz') renderJuzGrid();
+    if (viewName === 'home') renderHome();
+    else if (viewName === 'tajwid') renderTajwidGrid();
+    else if (viewName === 'juz') renderJuzGrid();
     else if (viewName === 'bookmarks') renderBookmarks();
     else if (viewName === 'search') focusSearch();
   }
@@ -427,10 +614,11 @@
     // Madani: font per halaman (lokal dulu bila mode offline)
     if (loadedFonts.has(page)) return `p${page}`;
     const name = `p${page}`;
-    const local = (mc.fontsLocal || CFG.fontsLocal || '').trim();
+    const cfg = window.ALKALAM_CONFIG || {};
+    const local = (mc.fontsLocal || cfg.fontsLocal || '').trim();
     const urls = [DataManager.getPageFontUrl(page, mushafKey())];
     if (local) {
-      const cdn = `${mc.fontsBase || CFG.fontsBase || ''}p${page}.woff2${mc.fontQuery || CFG.fontQuery || ''}`;
+      const cdn = `${mc.fontsBase || cfg.fontsBase || ''}p${page}.woff2${mc.fontQuery || cfg.fontQuery || ''}`;
       urls.push(cdn);
     }
     for (const u of [...new Set(urls)]) {
@@ -618,9 +806,12 @@
         html += `<button class="scan-num" data-play="${verseKey}" aria-label="Putar ayat ${meta.ayah}">${toArabicDigits(meta.ayah)}</button>`;
         html += `<div class="scan-text-body">`;
         if (state.showTranslation && tr) html += `<div class="scan-tr">${tr}</div>`;
-        if (state.showTafsir && taf) html += `<div class="scan-taf"><span>Tafsir:</span> ${taf}</div>`;
+        if (state.showTafsir && taf) html += `<div class="scan-taf"><span>Tafsir:</span> ${taf}` +
+          ` <button class="link-btn" data-long-tafsir="${verseKey}">lengkap</button></div>`;
         html += `</div>`;
-        html += `<button class="action-btn ${marked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="Penanda">` +
+        html += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat">` +
+                `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>` +
+                `<button class="action-btn ${marked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="Penanda">` +
                 `<svg width="16" height="16" viewBox="0 0 24 24" fill="${marked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
         html += `</div>`;
       }
@@ -641,6 +832,12 @@
     });
     els.mushafContainer.querySelectorAll('.mw').forEach(el => {
       el.addEventListener('click', () => playAyah(el.dataset.v));
+    });
+    els.mushafContainer.querySelectorAll('[data-action="copy"]').forEach(btn => {
+      btn.addEventListener('click', () => copyAyah(btn.dataset.verse));
+    });
+    els.mushafContainer.querySelectorAll('[data-long-tafsir]').forEach(btn => {
+      btn.addEventListener('click', () => showFullTafsir(btn.dataset.longTafsir));
     });
     els.mushafContainer.querySelectorAll('[data-action="bookmark"]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -673,6 +870,8 @@
     els.pageLabel.textContent = `Halaman ${page}`;
     els.btnPrevPage.disabled = page === 1;
     els.btnNextPage.disabled = page === maxPage;
+
+    saveLastRead();
 
     // Keep the URL shareable (no reload)
     try {
@@ -750,6 +949,7 @@
         }
         html += `<div class="ayah-actions">`;
         html += `<button class="action-btn" data-action="play" data-verse="${verseKey}" aria-label="Putar ayat" title="Putar"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`;
+        html += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>`;
         html += `<button class="action-btn ${bookmarked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}" title="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}"><svg width="18" height="18" viewBox="0 0 24 24" fill="${bookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
         html += `</div>`;
         html += `</div>`;
@@ -800,6 +1000,12 @@
       });
     });
     // Bookmark buttons
+    els.mushafContainer.querySelectorAll('[data-action="copy"]').forEach(btn => {
+      btn.addEventListener('click', (e) => copyAyah(e.currentTarget.dataset.verse));
+    });
+    els.mushafContainer.querySelectorAll('[data-long-tafsir]').forEach(btn => {
+      btn.addEventListener('click', () => showFullTafsir(btn.dataset.longTafsir));
+    });
     els.mushafContainer.querySelectorAll('[data-action="bookmark"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const verseKey = e.currentTarget.dataset.verse;
@@ -1425,12 +1631,24 @@
   // ═══════════════════════════════════════════════════════════════
   // Surah Modal
   // ═══════════════════════════════════════════════════════════════
+  let surahPlaceFilter = 'all';
+
+  function applySurahFilters() {
+    const q = (els.surahSearch.value || '').toLowerCase();
+    els.surahList.querySelectorAll('.surah-item').forEach(item => {
+      const okPlace = surahPlaceFilter === 'all' || item.dataset.place === surahPlaceFilter;
+      const okText = !q || item.textContent.toLowerCase().includes(q);
+      item.style.display = okPlace && okText ? '' : 'none';
+    });
+  }
+
   async function openSurahModal() {
     const chapters = await DataManager.load('chapters');
     els.surahList.innerHTML = chapters.map(c => `
-      <div class="surah-item" data-surah="${c.id}" role="option">
+      <div class="surah-item" data-surah="${c.id}" data-place="${c.revelation_place || ''}" role="option">
         <div class="surah-item-name">${c.name_arabic}</div>
-        <div class="surah-item-meta">${c.name_simple} · ${c.translated_name?.name || c.name_id} · ${c.verses_count} ayat · hal. ${c.pages[0]}</div>
+        <div class="surah-item-meta">${c.name_simple} · ${c.verses_count} ayat · hal. ${c.pages?.[0] ?? '—'}</div>
+        <div class="surah-item-tags">${c.revelation_place === 'makkah' ? 'Makkiyah' : 'Madaniyah'}${c.revelation_order ? ` · turun ke-${c.revelation_order}` : ''}</div>
       </div>
     `).join('');
     
@@ -1490,6 +1708,12 @@
     els.surahNav.addEventListener('click', openSurahModal);
     els.pageNav.addEventListener('click', openPageModal);
     els.btnSettings.addEventListener('click', () => showView('settings'));
+    if (els.btnFullscreen) els.btnFullscreen.addEventListener('click', toggleFullscreen);
+    if (els.btnCenter) els.btnCenter.addEventListener('click', scrollToPlaying);
+    els.homeCards.forEach(card => card.addEventListener('click', () => showView(card.dataset.go)));
+    document.addEventListener('fullscreenchange', () => {
+      document.body.classList.toggle('is-fullscreen', !!document.fullscreenElement);
+    });
     els.btnBookmark.addEventListener('click', () => showView('bookmarks'));
     
     // Mushaf toolbar
@@ -1626,13 +1850,17 @@
     // Modals
     els.btnCloseSurahModal.addEventListener('click', () => els.surahModal.close());
     els.btnClosePageModal.addEventListener('click', () => els.pageModal.close());
-    els.surahSearch.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase();
-      els.surahList.querySelectorAll('.surah-item').forEach(item => {
-        const text = item.textContent.toLowerCase();
-        item.style.display = text.includes(q) ? '' : 'none';
+    els.surahSearch.addEventListener('input', applySurahFilters);
+    if (els.surahPlaceFilter) {
+      els.surahPlaceFilter.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          els.surahPlaceFilter.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          surahPlaceFilter = chip.dataset.place;
+          applySurahFilters();
+        });
       });
-    });
+    }
     els.pageInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         const page = parseInt(els.pageInput.value);
@@ -1725,15 +1953,20 @@
     try {
       await DataManager.loadAll(true);
       state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
+      state.chapters = await DataManager.load('chapters');
       await rebuildVersePage();
     } catch (err) {
       console.error('Initial load failed:', err);
       showToast('Gagal memuat data utama', 'error');
     }
 
+    // Simpan posisi terakhir SEBELUM render pertama menimpanya
+    try { state.lastRead = JSON.parse(localStorage.getItem('alkalam_last') || 'null'); } catch { state.lastRead = null; }
+
     // Render first page
     await renderPage(startPage);
-    showView('mushaf');
+    const hasDeepLink = params.has('page');
+    showView(hasDeepLink ? 'mushaf' : 'home');
 
     // Listen for theme change
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {

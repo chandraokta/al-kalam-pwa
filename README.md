@@ -20,6 +20,10 @@ browser dari data layout + font (Madani QCF per halaman, atau IndoPak nastaleeq)
 |---|---|
 | ![](docs/layar-highlight.png) | ![](docs/layar-cari.png) |
 
+| Sampul / beranda | Hukum Tajwid |
+|---|---|
+| ![](docs/layar-sampul.png) | ![](docs/layar-tajwid.png) |
+
 | Mode teks + tajwid | Cari ayat |
 |---|---|
 | ![](docs/layar-tajwid.png) | ![](docs/layar-cari.png) |
@@ -39,9 +43,15 @@ browser dari data layout + font (Madani QCF per halaman, atau IndoPak nastaleeq)
 | Tajwid interaktif | 18 hukum tajwid diwarnai; **klik penanda** → nama + penjelasan |
 | Terjemahan | Indonesia (Kemenag) & Inggris, bisa dimatikan |
 | Tafsir | tafsir ringkas Indonesia per ayat |
-| Index | per surat (114), per juz (30), per halaman (604) |
+| Index | per surat (114) dengan filter **Makkiyah/Madaniyah** + urutan turun, per juz (30), per halaman |
 | Cari | Arab, Indonesia, Inggris — hasil bisa diklik langsung ke halaman |
 | Penanda | simpan ayat (tersimpan di perangkat) |
+| **Salin ayat** | tombol salin per ayat: Arab + terjemahan + rujukan `(2:255)` |
+| **Hukum Tajwid** | halaman referensi 18 hukum + tombol cari contohnya di mushaf |
+| **Sampul** | beranda dengan "Terakhir dibaca" dan pintasan Mushaf/Juz/Cari/Penanda |
+| **Layar penuh** | Fullscreen API; bila ditolak browser, otomatis mode zen |
+| **Tombol tengah** | lompat (gulir) ke ayat yang sedang dibaca |
+| **Tafsir lengkap** | tombol "lengkap" pada tafsir ringkas (data 2,3 MB sudah tersedia) |
 | Pengaturan | mode halaman, ukuran font, tema (terang/gelap/sepia/auto), nomor ayat, qari, ulangi ayat |
 | Offline | halaman & data yang sudah dibuka tersimpan (service worker + IndexedDB) |
 | Deep link | `?page=2&tajwid=1&tafsir=1` bisa dibagikan |
