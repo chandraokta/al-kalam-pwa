@@ -22,7 +22,9 @@
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
-      <h1 class="app-title">Al-Kalam</h1>
+      <button class="app-title-btn" id="btnHomeTop" title="Ke sampul" aria-label="Ke sampul">
+        <span class="app-title">Al-Kalam</span>
+      </button>
     </div>
     <div class="header-center">
       <div class="surah-nav" id="surahNav" role="combobox" aria-label="Pilih Surat" aria-expanded="false">
@@ -35,6 +37,11 @@
       </div>
     </div>
     <div class="header-right">
+      <button class="icon-btn" id="btnQuickMushaf" aria-label="Ke mushaf" title="Ke mushaf">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+      </button>
       <button class="icon-btn" id="btnFullscreen" aria-label="Layar penuh" title="Layar penuh">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"></path>
@@ -100,6 +107,21 @@
 
   <!-- Main Content -->
   <main class="app-main" id="appMain" role="main">
+    <nav class="view-nav" id="viewNav" aria-label="Navigasi tampilan" hidden>
+      <button class="view-nav-btn primary" id="navBackMushaf">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"></path><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Mushaf
+      </button>
+      <button class="view-nav-btn" id="navHome">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5 12 3l9 6.5V21H3z"></path><path d="M9 21v-7h6v7"></path></svg>
+        Sampul
+      </button>
+      <button class="view-nav-btn" id="navPrevView">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        Kembali
+      </button>
+      <span class="view-nav-label" id="viewNavLabel"></span>
+    </nav>
     <!-- View: Sampul / beranda -->
     <section class="view" id="viewHome" data-view="home" role="region" aria-label="Sampul" hidden>
       <div class="home-cover">

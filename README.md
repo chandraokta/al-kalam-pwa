@@ -24,6 +24,10 @@ browser dari data layout + font (Madani QCF per halaman, atau IndoPak nastaleeq)
 |---|---|
 | ![](docs/layar-sampul.png) | ![](docs/layar-tajwid.png) |
 
+| Tema gelap (arang hangat + sage) |
+|---|
+| ![](docs/layar-gelap.png) |
+
 | Mode teks + tajwid | Cari ayat |
 |---|---|
 | ![](docs/layar-tajwid.png) | ![](docs/layar-cari.png) |
@@ -52,7 +56,8 @@ browser dari data layout + font (Madani QCF per halaman, atau IndoPak nastaleeq)
 | **Layar penuh** | Fullscreen API; bila ditolak browser, otomatis mode zen |
 | **Tombol tengah** | lompat (gulir) ke ayat yang sedang dibaca |
 | **Tafsir lengkap** | tombol "lengkap" pada tafsir ringkas (data 2,3 MB sudah tersedia) |
-| Pengaturan | mode halaman, ukuran font, tema (terang/gelap/sepia/auto), nomor ayat, qari, ulangi ayat |
+| Pengaturan | mushaf, mode halaman, ukuran font, tema (terang/**gelap arang-hangat**/sepia/auto), nomor ayat, qari, ulangi ayat |
+| **Navigasi kembali** | bar kontekstual di tiap tampilan: tombol **Mushaf**, **Sampul**, dan **Kembali ke tampilan sebelumnya**; judul di header juga menuju sampul |
 | Offline | halaman & data yang sudah dibuka tersimpan (service worker + IndexedDB) |
 | Deep link | `?page=2&tajwid=1&tafsir=1` bisa dibagikan |
 

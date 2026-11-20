@@ -107,6 +107,13 @@
     els.btnClearCache = $('btnClearCache');
     els.btnReloadApp = $('btnReloadApp');
     els.btnFullscreen = $('btnFullscreen');
+    els.btnHomeTop = $('btnHomeTop');
+    els.btnQuickMushaf = $('btnQuickMushaf');
+    els.viewNav = $('viewNav');
+    els.navBackMushaf = $('navBackMushaf');
+    els.navHome = $('navHome');
+    els.navPrevView = $('navPrevView');
+    els.viewNavLabel = $('viewNavLabel');
     els.btnCenter = $('btnCenter');
     els.viewHome = $('viewHome');
     els.viewTajwid = $('viewTajwid');
@@ -139,7 +146,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-21-cover-2';
+  const BUILD = '2026-11-21-nav-1';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -548,12 +555,34 @@
   // ═══════════════════════════════════════════════════════════════
   // View Management
   // ═══════════════════════════════════════════════════════════════
+  const VIEW_LABELS = {
+    home: 'Sampul', mushaf: 'Mushaf', juz: 'Daftar Juz', search: 'Cari Ayat',
+    bookmarks: 'Penanda', settings: 'Pengaturan', tajwid: 'Hukum Tajwid',
+  };
+
   function showView(viewName) {
+    if (state.currentView && state.currentView !== viewName) {
+      state.prevView = state.currentView;
+    }
     state.currentView = viewName;
     els.views.forEach(v => v.hidden = v.dataset.view !== viewName);
     els.drawerItems.forEach(item => {
       item.classList.toggle('active', item.dataset.view === viewName);
     });
+    if (els.viewNav) {
+      const isMushaf = viewName === 'mushaf';
+      els.viewNav.hidden = isMushaf;
+      if (els.viewNavLabel) els.viewNavLabel.textContent = VIEW_LABELS[viewName] || '';
+      if (els.navHome) els.navHome.hidden = viewName === 'home';
+      if (els.navPrevView) {
+        const back = state.prevView && state.prevView !== viewName ? state.prevView : 'mushaf';
+        // jangan dobel dengan tombol Mushaf/Sampul yang sudah ada
+        const redundant = back === 'home' || back === 'mushaf' || viewName === 'home';
+        els.navPrevView.hidden = redundant;
+        els.navPrevView.lastChild.textContent = ' ' + (VIEW_LABELS[back] || 'Kembali');
+        els.navPrevView.dataset.target = back;
+      }
+    }
     closeDrawer();
     // Scroll to top
     window.scrollTo(0, 0);
@@ -1762,6 +1791,16 @@
     els.pageNav.addEventListener('click', openPageModal);
     els.btnSettings.addEventListener('click', () => showView('settings'));
     if (els.btnFullscreen) els.btnFullscreen.addEventListener('click', toggleFullscreen);
+    if (els.btnHomeTop) els.btnHomeTop.addEventListener('click', () => showView('home'));
+    if (els.btnQuickMushaf) els.btnQuickMushaf.addEventListener('click', () => showView('mushaf'));
+    if (els.navBackMushaf) els.navBackMushaf.addEventListener('click', () => showView('mushaf'));
+    if (els.navHome) els.navHome.addEventListener('click', () => showView('home'));
+    if (els.navPrevView) {
+      els.navPrevView.addEventListener('click', () => {
+        const target = els.navPrevView.dataset.target || 'mushaf';
+        showView(target === state.currentView ? 'mushaf' : target);
+      });
+    }
     if (els.btnCenter) els.btnCenter.addEventListener('click', scrollToPlaying);
     els.homeCards.forEach(card => card.addEventListener('click', () => showView(card.dataset.go)));
     document.addEventListener('fullscreenchange', () => {
