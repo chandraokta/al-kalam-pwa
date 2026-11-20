@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-indopak-610';
+  const BUILD = '2026-11-22-fit-scale';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -997,25 +997,12 @@
     const sheet = els.mushafContainer.querySelector('.scan-sheet');
     if (sheet) {
       // ukuran tetap seperti QUL: Madani 19,1em, IndoPak 15,89em (+0,75em padding)
-      const pageEm = mushafKey() === 'indopak' ? 17.39 : 20.6;
-      const fitWidth = () => {
-        // bila ada baris yang lebih lebar dari kotaknya, perkecil font sampai pas
-        for (let i = 0; i < 3; i++) {
-          const rows = [...sheet.querySelectorAll('.mline')].filter(l => (l.textContent || '').trim());
-          const worst = rows.reduce((m, l) => Math.max(m, l.scrollWidth - l.clientWidth), 0);
-          if (worst <= 1) break;
-          const box = sheet.querySelector('.mushaf-page-lines');
-          const avail = box.clientWidth || 1;
-          const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || 26;
-          sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.996)}px`);
-        }
-      };
-      const setScale = () => {
-        sheet.style.setProperty('--msize', `${sheet.clientWidth / pageEm}px`);
-        fitWidth();
-      };
-      setScale();
-      new ResizeObserver(setScale).observe(sheet);
+      applyPageScale(sheet);
+      // font halaman dimuat asinkron: ukur ulang setelah siap
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => applyPageScale(sheet)).catch(() => {});
+      }
+      new ResizeObserver(() => applyPageScale(sheet)).observe(sheet);
     }
 
     els.mushafContainer.querySelectorAll('[data-play]').forEach(btn => {
@@ -1081,6 +1068,27 @@
 
     const pageMap = await DataManager.load('pageMap');
     return (pageMap || []).find(p => p.page === Number(page)) || null;
+  }
+
+  /**
+   * Hitung ukuran font halaman: lebar lembar / em teks, lalu perkecil bila ada
+   * baris yang lebih lebar dari kotaknya. Dipakai saat render, resize, dan
+   * setelah font selesai dimuat.
+   */
+  function applyPageScale(sheet) {
+    if (!sheet || !sheet.isConnected) return;
+    const pageEm = mushafKey() === 'indopak' ? 17.39 : 20.6;
+    sheet.style.setProperty('--msize', `${sheet.clientWidth / pageEm}px`);
+    for (let i = 0; i < 3; i++) {
+      const rows = [...sheet.querySelectorAll('.mline')].filter(l => (l.textContent || '').trim());
+      if (!rows.length) break;
+      const worst = rows.reduce((m, l) => Math.max(m, l.scrollWidth - l.clientWidth), 0);
+      if (worst <= 1) break;
+      const box = sheet.querySelector('.mushaf-page-lines');
+      const avail = box.clientWidth || 1;
+      const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || 26;
+      sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.996)}px`);
+    }
   }
 
   async function renderPage(page) {
@@ -2127,6 +2135,18 @@
     
     // PWA install prompt
     let deferredPrompt;
+    // jendela berubah ukuran (atau ponsel diputar): hitung ulang skala halaman
+    let resizeTimer = null;
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const sheet = els.mushafContainer.querySelector('.scan-sheet');
+        if (sheet) applyPageScale(sheet);
+      }, 120);
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
