@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-fullpage2';
+  const BUILD = '2026-11-23-transfull';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1123,13 +1123,49 @@
   }
 
   /** Kembali ke ayat yang sedang dibaca ("tengah" pada DVD). */
+  /** Geser halaman terjemahan/tafsir di lembar sebelah ke ayat yang dibaca. */
+  function scrollTranslationTo(verseKey) {
+    if (!verseKey) return false;
+    const row = document.querySelector(`.trans-sheet .scan-text-row[data-verse="${verseKey}"]`);
+    if (!row) return false;
+    const body = row.closest('.trans-body');
+    if (!body) return false;
+    const target = () => {
+      const rb = row.getBoundingClientRect();
+      const bb = body.getBoundingClientRect();
+      const d = (rb.top + rb.bottom) / 2 - (bb.top + bb.bottom) / 2;
+      if (Math.abs(d) > 20) body.scrollTo({ top: Math.max(0, body.scrollTop + d), behavior: 'smooth' });
+    };
+    if (body.scrollHeight > body.clientHeight + 4) { target(); return true; }
+    // isi belum meluber: gulir kotak lembar bila lembar lebih tinggi dari layar
+    return scrollSheetTo(row);
+  }
+
   /** Dipanggil setiap sorotan ayat berubah: geser lembar tempat ayat itu berada. */
   function followPlaying(verseKey) {
     if (!verseKey) return;
     const el = document.querySelector(`.mw[data-v="${verseKey}"]`);
-    if (el) { scrollSheetTo(el); return; }
-    const row = document.querySelector(`.ayah-row[data-verse="${verseKey}"], .scan-text-row[data-verse="${verseKey}"]`);
-    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (el) scrollSheetTo(el);
+    // halaman terjemahan/tafsir di lembar sebelah ikut bergulir
+    const row = document.querySelector(`.trans-sheet .scan-text-row[data-verse="${verseKey}"]`);
+    if (row) {
+      const body = row.closest('.trans-body');
+      if (body && body.scrollHeight > body.clientHeight + 4) {
+        const rb = row.getBoundingClientRect();
+        const bb = body.getBoundingClientRect();
+        const d = (rb.top + rb.bottom) / 2 - (bb.top + bb.bottom) / 2;
+        if (Math.abs(d) > 24) body.scrollTo({ top: Math.max(0, body.scrollTop + d), behavior: 'smooth' });
+      } else if (!scrollSheetTo(row)) {
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+      return;
+    }
+    const textRow = document.querySelector(`.ayah-row[data-verse="${verseKey}"], .scan-text-row[data-verse="${verseKey}"]`);
+    if (textRow) { textRow.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    // target belum ada (lembar baru sedang digambar): coba sekali lagi
+    if (!followPlaying._retry) {
+      followPlaying._retry = setTimeout(() => { followPlaying._retry = null; followPlaying(verseKey); }, 500);
+    }
   }
 
   function scrollToPlaying() {
@@ -1972,6 +2008,12 @@
     if (seq !== undefined && seq !== state._renderSeq) return;    // dibatalkan render baru
     els.mushafContainer.innerHTML = html;
 
+    // setelah lembar baru terpasang, gulir ke ayat yang sedang diputar
+    if (state.audioCurrent && state.audioCurrent.verseKey) {
+      const vkNow = state.audioCurrent.verseKey;
+      setTimeout(() => followPlaying(vkNow), 380);
+    }
+
     // Info Kata: tekan lama / klik kanan pada kata mushaf
     let wordTimer = null;
     const cancelWord = () => { if (wordTimer) { clearTimeout(wordTimer); wordTimer = null; } };
@@ -2179,13 +2221,22 @@
       const DESIGN_WT = 720;
       sheet.style.setProperty('--design-w', `${DESIGN_WT}px`);
       sheet.style.setProperty('--msize', `${DESIGN_WT / 22}px`);
+      sheet.classList.add('trans-full');
+      sheet.style.setProperty('--trans-scale', '1');
       const boxWT = stageT ? stageT.clientWidth : DESIGN_WT;
       const topYT = stageT ? stageT.getBoundingClientRect().top : 0;
-      const availHT = Math.max(320, window.innerHeight - topYT - 20);
-      const scaleT = Math.min(1, boxWT / DESIGN_WT, availHT / (sheet.offsetHeight || 1)) || 1;
+      const barT = document.getElementById('audioBar');
+      const barHT = (barT && !barT.hidden) ? barT.offsetHeight + 8 : 0;
+      const availHT = Math.max(280, window.innerHeight - topYT - barHT - 14);
+      const scaleT = Math.min(1, boxWT / DESIGN_WT) || 1;
       sheet.style.setProperty('--page-scale', String(scaleT));
-      if (stageT) stageT.style.height = `${Math.round(sheet.offsetHeight * scaleT)}px`;
-      scheduleTransFit(sheet);
+      // lembar terjemahan seukuran lembar mushaf (penuh); isinya bergulir
+      // di dalam .trans-body sehingga kepala halaman tetap terlihat
+      sheet.style.removeProperty('height');
+      if (stageT) {
+        stageT.classList.remove('page-viewport');
+        stageT.style.height = `${availHT}px`;
+      }
       return;
     }
     const stage = sheet.parentElement;
@@ -2641,6 +2692,7 @@
     // sorot baris/ayat yang sedang dibaca
     document.querySelectorAll('.ayah-row.playing').forEach(el => el.classList.remove('playing'));
     followPlaying(verseKey);
+    scrollTranslationTo(verseKey);
     document.querySelectorAll('.mw.ayah-on').forEach(el => el.classList.remove('ayah-on'));
     document.querySelectorAll('.mw[data-v]').forEach(el => {
       if (el.dataset.v === verseKey) el.classList.add('ayah-on');

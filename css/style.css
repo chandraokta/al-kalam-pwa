@@ -1992,3 +1992,14 @@ body.is-fullscreen .app-main { margin-top: 0; }
   background: rgba(90, 125, 100, .35); border-radius: 999px;
 }
 .scan-spread { align-items: flex-start; }
+
+/* ═══ Halaman terjemahan penuh: tinggi mengikuti isi, menggulir bersama lembar ═══ */
+.scan-sheet.trans-sheet.trans-full {
+  overflow: hidden;
+}
+.scan-sheet.trans-sheet.trans-full .trans-body {
+  flex: 1 1 0;
+  overflow-y: auto;
+  max-height: none;
+  min-height: 0;
+}
