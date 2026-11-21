@@ -1933,3 +1933,21 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .qz-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
 .qz-result.ok { color: #0b6b00; font-weight: 600; }
 .qz-result.bad { color: #a80006; font-weight: 600; }
+
+/* sembunyikan seluruh baris (mode ayat) */
+.mline.hide-ayah .mw { filter: blur(7px); opacity: .3; }
+.mline.hide-ayah .mw-end,
+.mline.hide-ayah .mw-end-badge { filter: none; opacity: 1; }
+.mline.hide-ayah.revealed .mw { filter: none; opacity: 1; }
+
+/* banner pengingat */
+.hifz-remind {
+  border: 1px solid rgba(202, 138, 4, .55);
+  background: rgba(250, 204, 21, .12);
+  color: #7a5a00;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: .88rem;
+  margin-bottom: 14px;
+}
+[data-theme="dark"] .hifz-remind { color: #fcd34d; }

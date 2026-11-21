@@ -30,6 +30,7 @@
       audioRate: 1,
       recorder: false,
       tilawa: false,
+      remind: true,            // banner pengingat bila belum murajaah
     },
     days: {},                 // 'YYYY-MM-DD' -> { pages:[], ayahs:n, reviewed:n, flags:n }
     pages: {},                // '42' -> { status:'lancar'|'sedang'|'lemah', perfect:n, mistakes:n, last:ts }
@@ -143,10 +144,12 @@
   }
 
   // ── data bantu dari aplikasi ────────────────────────────────────────────
+  function pageMapArray(pm) {
+    return Array.isArray(pm) ? pm : ((pm && pm.pages) || []);
+  }
   async function pageMapIndex() {
     const dm = window.AlKalam && window.AlKalam.DataManager;
-    const pm = await dm.load('pageMap');
-    return (pm && pm.pages) || [];
+    return pageMapArray(await dm.load('pageMap'));
   }
   async function juzPages() {
     const pages = await pageMapIndex();
@@ -198,7 +201,11 @@
 
     const flaggedCount = Object.values(S.flagged).reduce((a, b) => a + b.length, 0);
 
+    const needRemind = S.settings.remind && !doneToday && new Date().getHours() >= 17;
+    const surahCard = await surahProgressCard();
+
     return `
+      ${needRemind ? `<div class="hifz-remind">Belum ada murajaah hari ini — sisihkan beberapa menit untuk mengulang hafalan.</div>` : ''}
       <div class="hifz-cards">
         <div class="hifz-card">
           <span class="hifz-k">Target hari ini</span>
@@ -221,6 +228,7 @@
           <strong class="hifz-v">${flaggedCount}</strong>
           <span class="hifz-muted">dari mode tandai salah</span>
         </div>
+        ${surahCard}
       </div>
 
       <h3 class="hifz-h">Ulangan hari ini</h3>
@@ -251,6 +259,30 @@
         <i style="height:${Math.round((d.n / max) * 100)}%"></i>
         <span>${d.k.slice(8)}</span>
       </div>`).join('')}</div>`;
+  }
+
+  async function surahProgressCard() {
+    try {
+      const dm = window.AlKalam.DataManager;
+      const [chapters, pm] = await Promise.all([dm.load('chapters'), dm.load('pageMap')]);
+      const page = window.AlKalam.state.currentPage || 1;
+      const pages = pageMapArray(pm);
+      const here = pages.find((p) => p.page === page);
+      const surahNo = here && here.verses && here.verses[0] && here.verses[0].surah;
+      if (!surahNo) return '';
+      const ch = chapters.find((c) => c.id === surahNo);
+      if (!ch || !ch.pages) return '';
+      const [a, b] = ch.pages;
+      let done = 0;
+      for (let p = a; p <= b; p++) if (S.pages[p] && S.pages[p].status !== 'none') done++;
+      const total = b - a + 1;
+      return `<div class="hifz-card">
+        <span class="hifz-k">Surah ini</span>
+        <strong class="hifz-v">${done} / ${total} hal</strong>
+        <span class="hifz-muted">${esc(ch.name_simple || '')}</span>
+        <div class="hifz-bar"><i style="width:${Math.round((done / total) * 100)}%"></i></div>
+      </div>`;
+    } catch { return ''; }
   }
 
   async function renderProgress() {
@@ -337,7 +369,9 @@
         <input id="hifzPause" type="number" min="0" max="10000" step="250" value="${s.repeatPause}"></label>
       <label class="setting-row"><span>Kecepatan audio</span>
         ${sel('hifzRate', s.audioRate, [['0.75', '0,75×'], ['0.9', '0,9×'], ['1', '1×'], ['1.25', '1,25×']])}</label>
-      <p class="hifz-muted">Mode sembunyikan dan ulangan A-B aktif di tampilan mushaf.</p>
+      <label class="setting-row"><span>Pengingat harian</span>
+        ${sel('hifzRemind', s.remind ? '1' : '0', [['1', 'Aktif'], ['0', 'Mati']])}</label>
+      <p class="hifz-muted">Pengingat tampil di tab Hari Ini bila sampai sore belum ada murajaah.</p>
 
       <h3 class="hifz-h">Periksa bacaan (Tilawa · Beta)</h3>
       <div class="hifz-card">
@@ -377,9 +411,13 @@
     });
 
     const start = view.querySelector('[data-hifz="start"]');
-    if (start) start.addEventListener('click', () => {
-      window.AlKalam.goPage(window.AlKalam.state.currentPage || 1);
+    if (start) start.addEventListener('click', async () => {
+      const page = window.AlKalam.state.currentPage || 1;
+      await window.AlKalam.goPage(page);
+      if (S.settings.hideMode === 'off') S.settings.hideMode = 'kata';
+      save();
       document.querySelector('.drawer-item[data-view="mushaf"]')?.click();
+      setTimeout(() => { decorate(); syncButtons(); flash('Mode hafalan aktif — ketuk kata untuk membuka'); }, 260);
     });
 
     view.querySelector('[data-hifz="listen"]')?.addEventListener('click', listenJuz);
@@ -407,7 +445,9 @@
     bindNum('hifzRepeat', 'repeatCount', (v) => clamp(Number(v) || 3, 1, 20));
     bindNum('hifzPause', 'repeatPause', (v) => clamp(Number(v) || 0, 0, 10000));
     const hide = view.querySelector('#hifzHide');
-    if (hide) hide.addEventListener('change', () => { S.settings.hideMode = hide.value; save(); window.AlKalamHifz?.applyHideMode?.(); });
+    if (hide) hide.addEventListener('change', () => { S.settings.hideMode = hide.value; save(); decorate(); syncButtons(); });
+    const remind = view.querySelector('#hifzRemind');
+    if (remind) remind.addEventListener('change', () => { S.settings.remind = remind.value === '1'; save(); render(); });
     const rate = view.querySelector('#hifzRate');
     if (rate) rate.addEventListener('change', () => {
       S.settings.audioRate = Number(rate.value);
@@ -431,7 +471,7 @@
     const [s, a] = String(vk).split(':').map(Number);
     const dm = window.AlKalam.DataManager;
     const pm = await dm.load('pageMap');
-    const pages = (pm && pm.pages) || [];
+    const pages = pageMapArray(pm);
     const hit = pages.find((p) => (p.verses || []).some((v) => v.surah === s && v.ayah === a));
     if (hit) window.AlKalam.goPage(hit.page);
   }
@@ -526,7 +566,7 @@
     const dm = window.AlKalam.DataManager;
     const page = window.AlKalam.state.currentPage || 1;
     const pm = await dm.load('pageMap');
-    const pages = (pm && pm.pages) || [];
+    const pages = pageMapArray(pm);
     const here = pages.find((p) => p.page === page);
     const juz = here && here.verses && here.verses[0] && here.verses[0].juz;
     if (!juz) { flash('Juz tidak diketahui'); return; }
@@ -770,7 +810,11 @@
     const root = mushafRoot();
     if (!root) return;
     const hide = S.settings.hideMode !== 'off';
-    root.querySelectorAll('.mline').forEach((l) => l.classList.toggle('hide-mode', hide));
+    const byAyah = S.settings.hideMode === 'ayat';
+    root.querySelectorAll('.mline').forEach((l) => {
+      l.classList.toggle('hide-mode', hide && !byAyah);
+      l.classList.toggle('hide-ayah', hide && byAyah);
+    });
     root.querySelectorAll('.mw[data-v]').forEach((w) => {
       const flagged = isFlagged(w.dataset.v, Number(w.dataset.w));
       w.classList.toggle('is-flagged', flagged);
@@ -794,7 +838,8 @@
     }
     if (hide) {
       e.preventDefault(); e.stopPropagation();
-      w.classList.add('revealed');
+      if (S.settings.hideMode === 'ayat') w.closest('.mline')?.classList.add('revealed');
+      else w.classList.add('revealed');
     }
   }
 
@@ -860,6 +905,14 @@
     render();
     initMushaf();
     window.AlKalamHifz.applyHideMode = decorate;
+
+    // gambar ulang setiap kali tampilan Hafalan dibuka (halaman bisa berubah)
+    const view = el('viewHifz');
+    if (view) {
+      new MutationObserver(() => { if (!view.hidden) render(); })
+        .observe(view, { attributes: true, attributeFilter: ['hidden'] });
+      document.querySelector('.drawer-item[data-view="hifz"]')?.addEventListener('click', () => setTimeout(render, 60));
+    }
   }
 
   window.AlKalamHifz = {
