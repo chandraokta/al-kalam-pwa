@@ -1270,6 +1270,18 @@ body.is-fullscreen .app-main { margin-top: 0; }
 }
 .tajwid-legend[hidden] { display: none; }
 .tajwid-legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+/* legenda untuk mushaf Madani: warna mengikuti font QCF v4-tajweed (KFGQPC) */
+.tajwid-legend.kfgqpc .tajwid-legend-dot.mad { background: #537fff; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.ghunnah { background: #ff7e1e; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.idgham { background: #58b800; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.idgham_wo { background: #169200; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.ikhfa { background: #d500b7; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.ikhfa_shafawi { background: #9400a8; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.iqlab { background: #26bffd; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.qalqalah { background: #dd0008; }
+.tajwid-legend.kfgqpc .tajwid-legend-dot.silent { background: #aaaaaa; }
+.tajwid-legend-note { color: var(--text-muted); font-style: italic; }
 .tajwid-legend-dot {
   width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);

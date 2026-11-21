@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-tajwid-tip';
+  const BUILD = '2026-11-23-kfgqpc-legend';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -237,9 +237,17 @@
     return tajTipEl;
   }
   function showTajTip(rule, x, y) {
-    const info = TAJWID_RULES[rule];
-    const name = info ? info[0] : (rule || 'Tajwid');
-    const desc = info ? info[1] : '';
+    const many = String(rule || '').split('|').filter(Boolean);
+    let name, desc;
+    if (many.length > 1) {
+      name = many.map(r => (TAJWID_RULES[r] ? TAJWID_RULES[r][0] : r)).join(' · ');
+      desc = many.map(r => (TAJWID_RULES[r] ? TAJWID_RULES[r][1] : '')).filter(Boolean).join(' ');
+    } else {
+      const one = many[0] || rule;
+      const info = TAJWID_RULES[one];
+      name = info ? info[0] : (one || 'Tajwid');
+      desc = info ? info[1] : '';
+    }
     const el = tajTip();
     if (el.dataset.rule === rule && el.classList.contains('on')) {
       el.style.left = `${Math.min(x + 14, window.innerWidth - 280)}px`;
@@ -406,10 +414,31 @@
     return map;
   })();
 
+  // legenda khusus mushaf Madani: warna mengikuti font QCF v4-tajweed (KFGQPC)
+  const KFGQPC_LEGEND = [
+    ['mad', 'Mad'],
+    ['ghunnah', 'Ghunnah'],
+    ['idgham', 'Idgham (dengung)'],
+    ['idgham_wo', 'Idgham (tanpa dengung)'],
+    ['ikhfa', 'Ikhfa'],
+    ['ikhfa_shafawi', 'Ikhfa syafawi'],
+    ['iqlab', 'Iqlab'],
+    ['qalqalah', 'Qalqalah'],
+    ['silent', 'Tidak dibaca'],
+  ];
+
   function tajwidLegendHtml() {
-    return TAJWID_GROUPS.map(([g, label]) =>
+    // Madani memakai font berwarna (v4-tajweed) → palet KFGQPC
+    const isKfgqpc = mushafKey() === 'madani';
+    const items = isKfgqpc
+      ? KFGQPC_LEGEND
+      : TAJWID_GROUPS.map(([g, label]) => [g, label]);
+    const html = items.map(([g, label]) =>
       `<span class="tajwid-legend-item"><span class="tajwid-legend-dot ${g}"></span>${label}</span>`
     ).join('');
+    return html + (isKfgqpc
+      ? '<span class="tajwid-legend-item tajwid-legend-note">warna font KFGQPC</span>'
+      : '');
   }
 
   const wordRuleCache = new Map();
@@ -1133,12 +1162,12 @@
 
     // IndoPak tidak punya font berwarna → warnai per kata dengan data tajwid
     const wordTintOn = !!state.showTajwid && mushafKey() === 'indopak';
-    const letterByVerse = new Map();      // vk -> daftar kata markup (per huruf)
+    const letterByVerse = new Map();      // vk -> Map(ordinal → kata markup)
     const wordOrdinal = new Map();        // vk -> nomor kata teks yang sedang ditulis
     // peta: ayat → (posisi kata → grup tajwid). Hanya kata teks (penanda nomor
     // ayat tidak dihitung), supaya indeks sejajar dengan markup tajwid.
     const tintByVerse = new Map();
-    if (wordTintOn) {
+    if (wordTintOn || tajweedPage) {
       const textPos = new Map();                 // vk -> [{ pos, base }] urut
       for (const row of buildRows(layout, page, chapters) || []) {
         if (row.kind !== 'words') continue;
@@ -1228,7 +1257,19 @@
                 htm += `<span class="mw${tint}" data-v="${vk}" data-w="${pos}">${inner}</span> `;
               }
             } else {
-              htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}">${glyph}</span> `;
+              // Madani: warna sudah dari font v4-tajweed; kita simpan hukumnya
+              // untuk tooltip (per kata, karena huruf tidak bisa dipisah)
+              let attrs = '';
+              if (tajweedPage && !isEnd) {
+                const ord = wordOrdinal.get(vk) || 0;
+                wordOrdinal.set(vk, ord + 1);
+                const mw = letterByVerse.get(vk)?.get(ord);
+                if (mw) {
+                  const names = [...new Set((mw.rules || []).filter(Boolean))];
+                  if (names.length) attrs = ` data-rules="${names.join(' ')}"`;
+                }
+              }
+              htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}"${attrs}>${glyph}</span> `;
             }
           }
           htm += `</div>`;
@@ -1321,7 +1362,7 @@
 
     // legenda warna tajwid (tampil saat tajwid aktif)
     if (state.showTajwid) {
-      html += `<div class="tajwid-legend" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
+      html += `<div class="tajwid-legend${mushafKey() === 'madani' ? ' kfgqpc' : ''}" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
     }
 
     // strip nomor ayat
@@ -1626,7 +1667,7 @@
       
       html += `</div>`;
       if (state.showTajwid) {
-        html += `<div class="tajwid-legend" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
+        html += `<div class="tajwid-legend${mushafKey() === 'madani' ? ' kfgqpc' : ''}" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
       }
       els.mushafContainer.innerHTML = html;
       
@@ -2606,14 +2647,16 @@
     // PWA install prompt
     let deferredPrompt;
     // tooltip hukum tajwid di halaman (hover & sentuh)
-    const tajTarget = (e) => (e.target && e.target.closest ? e.target.closest('.tj[data-rule]') : null);
+    const tajTarget = (e) => (e.target && e.target.closest ? e.target.closest('.tj[data-rule], .mw[data-rules]') : null);
+    const tajRuleOf = (el) => el.dataset.rule
+      || (el.dataset.rules || '').split(/\s+/).filter(Boolean).join('|');
     document.addEventListener('mouseover', (e) => {
       const t = tajTarget(e);
-      if (t) showTajTip(t.dataset.rule, e.clientX, e.clientY);
+      if (t) showTajTip(tajRuleOf(t), e.clientX, e.clientY);
     });
     document.addEventListener('mousemove', (e) => {
       const t = tajTarget(e);
-      if (t) showTajTip(t.dataset.rule, e.clientX, e.clientY);
+      if (t) showTajTip(tajRuleOf(t), e.clientX, e.clientY);
     });
     document.addEventListener('mouseout', (e) => {
       if (tajTarget(e)) hideTajTip();
@@ -2621,7 +2664,7 @@
     document.addEventListener('pointerdown', (e) => {
       const t = tajTarget(e);
       if (t) {
-        showTajTip(t.dataset.rule, e.clientX, e.clientY);
+        showTajTip(tajRuleOf(t), e.clientX, e.clientY);
         clearTimeout(showTajTip._t);
         showTajTip._t = setTimeout(hideTajTip, 3000);
       }
