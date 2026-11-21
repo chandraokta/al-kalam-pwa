@@ -775,7 +775,11 @@
       const vk = usable[rnd(usable.length)];
       const arr = words[vk];
       const idx = kind === 'next' ? arr.length - 1 : 1 + rnd(arr.length - 1);
-      const shown = arr.map((w, i) => (i === idx ? '<span class="qz-blank">…</span>' : esc(w.ar))).join(' ');
+      // tampilkan maksimal 10 kata di sekitar bagian yang ditanyakan
+      const from = Math.max(0, idx - 9);
+      const shown = arr.slice(from, idx + 1)
+        .map((w, i) => (from + i === idx ? '<span class="qz-blank">…</span>' : esc(w.ar)))
+        .join(' ');
       const answer = arr[idx].ar;
       const pool = [];
       for (const k2 of usable) for (const w of words[k2]) if (w.ar && w.ar !== answer) pool.push(w.ar);
@@ -801,7 +805,7 @@
       const opts = shuffle([partner, ...others]).map((k) => ({ vk: k, ar: vkOf(k).text_uthmani || '' }));
       q = {
         prompt: `Manakah ayat yang paling mirip dengan ${vk}?`,
-        arabic: vkOf(vk).text_uthmani || '', options: opts.map((o) => o.vk),
+        arabic: esc((vkOf(vk).text_uthmani || '').slice(0, 220)), options: opts.map((o) => o.vk),
         showArabic: opts, answer: partner, verse: vk, arabicBig: true,
       };
     }
@@ -812,7 +816,7 @@
   function renderQuiz(q) {
     const body = el('hifzBody');
     const optHtml = q.showArabic
-      ? q.showArabic.map((o) => `<button class="qz-opt arabic" data-ans="${o.vk}" dir="rtl">${esc(o.ar)}</button>`).join('')
+      ? q.showArabic.map((o) => `<button class="qz-opt arabic" data-ans="${o.vk}" dir="rtl">${esc(o.ar.length > 120 ? o.ar.slice(0, 120) + ' …' : o.ar)}</button>`).join('')
       : q.options.map((o) => `<button class="qz-opt arabic" data-ans="${o}" dir="rtl">${esc(o)}</button>`).join('');
     body.innerHTML = `
       <div class="qz-card">

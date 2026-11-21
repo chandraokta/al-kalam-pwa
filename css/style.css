@@ -1921,7 +1921,7 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .qz-ar { font-family: var(--font-arabic); font-size: 1.35rem; line-height: 2; text-align: right; margin: 8px 0 14px; color: var(--text-primary); }
 .qz-ar.big { font-size: 1.6rem; }
 .qz-blank { display: inline-block; min-width: 3.2em; border-bottom: 2px dashed var(--accent-secondary); color: var(--text-muted); }
-.qz-opts { display: flex; flex-direction: column; gap: 8px; }
+.qz-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
 .qz-opt {
   text-align: right; background: var(--bg-tertiary); border: 1px solid var(--border-color);
   border-radius: 10px; padding: 10px 14px; cursor: pointer; color: var(--text-primary);
@@ -1951,3 +1951,13 @@ body.is-fullscreen .app-main { margin-top: 0; }
   margin-bottom: 14px;
 }
 [data-theme="dark"] .hifz-remind { color: #fcd34d; }
+
+/* kuis: pastikan teks membungkus dan opsi selebar kartu */
+.qz-card { max-width: 100%; overflow: hidden; }
+.qz-ar, .qz-tr { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.qz-opts { width: 100%; }
+.qz-opt { width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.qz-ar { max-height: 9em; overflow: hidden; }
+
+/* opsi kuis: ubin ringkas */
+.qz-opt { min-height: 56px; display: flex; align-items: center; justify-content: flex-end; }
