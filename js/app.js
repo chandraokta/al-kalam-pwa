@@ -160,7 +160,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-tajwid-page';
+  const BUILD = '2026-11-23-verse-marks';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -621,6 +621,47 @@
    * HTML satu kata IndoPak dengan warna per huruf, mengacu pada markup tajwid
    * yang sama dengan mode Teks (sumber kebenaran).
    */
+  // ── Peta meta ayat (juz, hizb, rubu', sajdah) untuk penanda di halaman ──
+  let verseMetaMap = null;
+  async function verseMeta() {
+    if (verseMetaMap) return verseMetaMap;
+    const bySurah = await DataManager.load('verses');
+    const all = [];
+    for (const s of Object.keys(bySurah)) for (const a of bySurah[s]) all.push(a);
+    const map = new Map();
+    for (let i = 0; i < all.length; i++) {
+      const a = all[i], n = all[i + 1];
+      map.set(`${a.surah}:${a.verse_number}`, {
+        juz: a.juz_number,
+        hizb: a.hizb_number,
+        rub: a.rub_el_hizb_number,
+        sajdah: a.sajdah_number,
+        rubEnd: !n || n.rub_el_hizb_number !== a.rub_el_hizb_number,
+        hizbEnd: !n || n.hizb_number !== a.hizb_number,
+        juzEnd: !n || n.juz_number !== a.juz_number,
+      });
+    }
+    verseMetaMap = map;
+    return map;
+  }
+
+  /** Penanda tambahan sesudah nomor ayat: sajdah, rubu', akhir juz. */
+  function verseMarksHtml(meta) {
+    if (!meta) return '';
+    let out = '';
+    if (meta.sajdah) {
+      out += `<span class="mk mk-sajdah" title="Ayat Sajdah (sujud tilawah)" aria-label="Ayat sajdah">\u06E9</span>`;
+    }
+    if (meta.rubEnd) {
+      out += `<span class="mk mk-rub" title="Batas rubu\u2019 al-hizb" aria-label="Batas rubu">\u06DE</span>`;
+    }
+    if (meta.juzEnd) {
+      out += `<span class="mk mk-juz" title="Akhir Juz ${meta.juz}" aria-label="Akhir juz ${meta.juz}">${toArabicDigits(meta.juz)}</span>`;
+    }
+    return out;
+  }
+
+
   function tintedWordHtml(text, markupWord) {
     if (!markupWord) return null;
     const base = baseLetters(text);
@@ -1355,6 +1396,7 @@
     }
 
     const rows = buildRows(layout, page, chapters);
+    const vm = await verseMeta();
     let htm = '';
     if (!rows) {
       htm = `<div class="mline mline-empty">Layout halaman tidak tersedia</div>`;
@@ -1383,7 +1425,8 @@
               const clean = String(glyph).replace(/[\uE000-\uF8FF]/g, '').trim();
               if (isEnd) {
                 const ayahNo = vk.split(':')[1];
-                htm += `<span class="mw mw-end-badge" data-v="${vk}" data-w="${pos}">${toArabicDigits(Number(ayahNo))}</span>`;
+                htm += `<span class="mw mw-end-badge" data-v="${vk}" data-w="${pos}">${toArabicDigits(Number(ayahNo))}</span>` +
+                       verseMarksHtml(vm.get(vk));
               } else if (clean) {
                 let tint = '';
                 let inner = clean;
@@ -1412,7 +1455,8 @@
                   if (names.length) attrs = ` data-rules="${names.join(' ')}"`;
                 }
               }
-              htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}"${attrs}>${glyph}</span> `;
+              htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}"${attrs}>${glyph}</span>` +
+                     (isEnd ? verseMarksHtml(vm.get(vk)) + ' ' : ' ');
             }
           }
           htm += `</div>`;

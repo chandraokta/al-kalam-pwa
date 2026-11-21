@@ -1534,3 +1534,37 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .tajwid-list .taj-page-name { color: var(--text-primary); }
 .tajwid-list .taj-page-count { color: var(--text-muted); }
 .tajwid-list .taj-page-desc { color: var(--text-secondary); }
+
+/* ═══ Penanda tambahan di halaman: sajdah, rubu', akhir juz ═══ */
+.mk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  font-family: var(--font-arabic);
+  font-size: .62em;
+  line-height: 1;
+  border-radius: 50%;
+  padding: .18em .3em;
+  margin: 0 .1em;
+  user-select: none;
+}
+.mk-sajdah {
+  color: #7a2e00;
+  background: rgba(255, 126, 30, .18);
+  border: 1px solid rgba(255, 126, 30, .55);
+}
+.mk-rub {
+  color: #1e40af;
+  background: rgba(64, 80, 255, .12);
+  border: 1px solid rgba(64, 80, 255, .45);
+}
+.mk-juz {
+  font-family: var(--font-latin);
+  font-size: .55em;
+  color: #2d6a4f;
+  background: rgba(45, 106, 79, .1);
+  border: 1px solid rgba(45, 106, 79, .45);
+  border-radius: 999px;
+  padding: .15em .45em;
+}
