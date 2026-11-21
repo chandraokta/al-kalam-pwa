@@ -18,6 +18,7 @@
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
     pageBorder: 'simple',  // 'simple' = garis ganda tipis | 'none' = tanpa bingkai
+    madaniTajwid: 'tint',  // 'tint' = warna aplikasi per huruf | 'font' = font QCF KFGQPC
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
@@ -110,6 +111,7 @@
     els.pageFontScaleVal = $('pageFontScaleVal');
     els.indopakFontSelect = $('indopakFontSelect');
     els.pageBorderSelect = $('pageBorderSelect');
+    els.madaniTajwidSelect = $('madaniTajwidSelect');
     els.qariSelect = $('qariSelect');
     els.autoPlayNext = $('autoPlayNext');
     els.repeatAyah = $('repeatAyah');
@@ -157,7 +159,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-kfgqpc-legend';
+  const BUILD = '2026-11-23-madani-tint';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -308,6 +310,7 @@
       pageFontScale: state.pageFontScale,
       indopakFont: state.indopakFont,
       pageBorder: state.pageBorder,
+      madaniTajwid: state.madaniTajwid,
     };
     localStorage.setItem('alkalam_settings', JSON.stringify(settings));
   }
@@ -339,6 +342,7 @@
     state.indopakFont = ['qul', 'light', 'compact'].includes(state.indopakFont) ? state.indopakFont : 'qul';
     // 'classic'/'green' (versi lama) dipetakan ke 'simple'
     if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
+    if (!['tint', 'font'].includes(state.madaniTajwid)) state.madaniTajwid = 'tint';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -357,6 +361,7 @@
     if (els.pageFontScaleVal) els.pageFontScaleVal.textContent = `${state.pageFontScale}%`;
     if (els.indopakFontSelect) els.indopakFontSelect.value = state.indopakFont;
     if (els.pageBorderSelect) els.pageBorderSelect.value = state.pageBorder;
+    if (els.madaniTajwidSelect) els.madaniTajwidSelect.value = state.madaniTajwid;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
     els.qariSelect.value = state.qari;
     els.autoPlayNext.checked = state.autoPlayNext;
@@ -429,7 +434,7 @@
 
   function tajwidLegendHtml() {
     // Madani memakai font berwarna (v4-tajweed) → palet KFGQPC
-    const isKfgqpc = mushafKey() === 'madani';
+    const isKfgqpc = mushafKey() === 'madani' && state.madaniTajwid === 'font';
     const items = isKfgqpc
       ? KFGQPC_LEGEND
       : TAJWID_GROUPS.map(([g, label]) => [g, label]);
@@ -510,7 +515,7 @@
     if (verseLettersCache.has(verseKey)) return verseLettersCache.get(verseKey);
     const all = await DataManager.load('tajwid');
     const words = tajwidSegments((all && all[verseKey]) || '');
-    const data = words.map(w => ({ base: baseLetters(w.text), rules: wordLetterRules(w) }));
+    const data = words.map(w => ({ text: w.text, base: baseLetters(w.text), rules: wordLetterRules(w) }));
     verseLettersCache.set(verseKey, data);
     return data;
   }
@@ -519,6 +524,36 @@
    * HTML satu kata IndoPak dengan warna per huruf.
    * null bila jumlah huruf dasar tidak sama (pemanggil pakai cadangan per kata).
    */
+  /** Tulis satu kata dari segmen markup tajwid (untuk Madani mode warna aplikasi). */
+  function tajweedWordHtml(markupWord) {
+    if (!markupWord || !markupWord.text) return null;
+    const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    // markupWord.text masih teks Uthmani biasa; aturan per huruf ada di .rules
+    const rules = markupWord.rules || [];
+    const chars = [...markupWord.text];
+    // hitung indeks huruf dasar untuk tiap karakter
+    let html = "";
+    let buf = "", cur = null, idx = 0;
+    const flush = () => {
+      if (!buf) return;
+      const g = cur ? RULE_TO_GROUP[cur] : null;
+      html += g ? `<span class="tj tj-${g}" data-rule="${cur}">${esc(buf)}</span>` : esc(buf);
+      buf = "";
+    };
+    for (const ch of chars) {
+      const isMark = AR_MARKS_RE.test(ch);
+      let g = cur;
+      if (!isMark) {
+        g = (rules[idx] !== undefined ? rules[idx] : null);
+        idx += 1;
+        if (g !== cur) { flush(); cur = g; }
+      }
+      buf += ch;
+    }
+    flush();
+    return html;
+  }
+
   /** Selaraskan aturan markup ke huruf dasar IndoPak (tahan beda ortografi). */
   function alignLetterRules(base, markupBase, rules) {
     if (!rules || !rules.length) return null;
@@ -1157,11 +1192,16 @@
 
   /** Bangun HTML satu lembar halaman (dipakai mode satu & dua halaman). */
   async function buildSheetHtml(page, chapters, layout) {
-    const tajweedPage = !!state.showTajwid && mushafKey() === 'madani';
-    const fontFamily = await ensureMushafFont(page, tajweedPage);
+    const madaniTint = mushafKey() === 'madani' && state.madaniTajwid === 'tint';
+    // font berwarna hanya dipakai bila mode 'font'
+    const tajweedPage = !!state.showTajwid && mushafKey() === 'madani'
+      && state.madaniTajwid === 'font';
+    const fontFamily = madaniTint && state.showTajwid
+      ? 'Amiri'                                   // teks Uthmani untuk warna per huruf
+      : await ensureMushafFont(page, tajweedPage);
 
     // IndoPak tidak punya font berwarna → warnai per kata dengan data tajwid
-    const wordTintOn = !!state.showTajwid && mushafKey() === 'indopak';
+    const wordTintOn = !!state.showTajwid && (mushafKey() === 'indopak' || madaniTint);
     const letterByVerse = new Map();      // vk -> Map(ordinal → kata markup)
     const wordOrdinal = new Map();        // vk -> nomor kata teks yang sedang ditulis
     // peta: ayat → (posisi kata → grup tajwid). Hanya kata teks (penanda nomor
@@ -1186,6 +1226,10 @@
         let mapping;
         if (markupWords.length === items.length) {
           mapping = items.map((_, i) => i);
+        } else if (mushafKey() === 'madani') {
+          // Madani: glyph halaman berupa kode PUA, jadi kata dipetakan menurut urutan
+          mapping = items.map((_, i) => Math.min(markupWords.length - 1,
+            Math.round(i * (markupWords.length - 1) / Math.max(1, items.length - 1))));
         } else {
           mapping = alignWords(items.map(x => x.base), markupWords.map(w => w.base));
         }
@@ -1256,9 +1300,18 @@
                 }
                 htm += `<span class="mw${tint}" data-v="${vk}" data-w="${pos}">${inner}</span> `;
               }
+            } else if (madaniTint && state.showTajwid && isEnd) {
+              // nomor ayat: pakai angka Arab, bukan glyph PUA
+              const ayahNo = vk.split(':')[1];
+              htm += `<span class="mw mw-end-badge" data-v="${vk}" data-w="${pos}">${toArabicDigits(Number(ayahNo))}</span> `;
+            } else if (madaniTint && state.showTajwid && !isEnd) {
+              // Madani dengan warna aplikasi: pakai teks Uthmani per huruf
+              const ord = wordOrdinal.get(vk) || 0;
+              wordOrdinal.set(vk, ord + 1);
+              const mw = letterByVerse.get(vk)?.get(ord);
+              const inner = (mw && tajweedWordHtml(mw)) || glyph;
+              htm += `<span class="mw" data-v="${vk}" data-w="${pos}">${inner}</span> `;
             } else {
-              // Madani: warna sudah dari font v4-tajweed; kita simpan hukumnya
-              // untuk tooltip (per kata, karena huruf tidak bisa dipisah)
               let attrs = '';
               if (tajweedPage && !isEnd) {
                 const ord = wordOrdinal.get(vk) || 0;
@@ -1362,7 +1415,7 @@
 
     // legenda warna tajwid (tampil saat tajwid aktif)
     if (state.showTajwid) {
-      html += `<div class="tajwid-legend${mushafKey() === 'madani' ? ' kfgqpc' : ''}" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
+      html += `<div class="tajwid-legend${(mushafKey() === 'madani' && state.madaniTajwid === 'font') ? ' kfgqpc' : ''}" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
     }
 
     // strip nomor ayat
@@ -1667,7 +1720,7 @@
       
       html += `</div>`;
       if (state.showTajwid) {
-        html += `<div class="tajwid-legend${mushafKey() === 'madani' ? ' kfgqpc' : ''}" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
+        html += `<div class="tajwid-legend${(mushafKey() === 'madani' && state.madaniTajwid === 'font') ? ' kfgqpc' : ''}" aria-label="Legenda warna tajwid">${tajwidLegendHtml()}</div>`;
       }
       els.mushafContainer.innerHTML = html;
       
@@ -2461,6 +2514,13 @@
     if (els.indopakFontSelect) {
       els.indopakFontSelect.addEventListener('change', (e) => {
         state.indopakFont = e.target.value;
+        saveSettings();
+        renderPage(state.currentPage);
+      });
+    }
+    if (els.madaniTajwidSelect) {
+      els.madaniTajwidSelect.addEventListener('change', (e) => {
+        state.madaniTajwid = e.target.value;
         saveSettings();
         renderPage(state.currentPage);
       });
