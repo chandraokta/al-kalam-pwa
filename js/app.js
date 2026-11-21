@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-followup2';
+  const BUILD = '2026-11-23-fullpage';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1123,6 +1123,15 @@
   }
 
   /** Kembali ke ayat yang sedang dibaca ("tengah" pada DVD). */
+  /** Dipanggil setiap sorotan ayat berubah: geser lembar tempat ayat itu berada. */
+  function followPlaying(verseKey) {
+    if (!verseKey) return;
+    const el = document.querySelector(`.mw[data-v="${verseKey}"]`);
+    if (el) { scrollSheetTo(el); return; }
+    const row = document.querySelector(`.ayah-row[data-verse="${verseKey}"], .scan-text-row[data-verse="${verseKey}"]`);
+    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
   function scrollToPlaying() {
     const cur = state.audioCurrent;
     if (!cur) { showToast('Belum ada bacaan yang diputar'); return; }
@@ -1130,7 +1139,7 @@
       || document.querySelector(`.ayah-row[data-verse="${cur.verseKey}"]`)
       || document.querySelector(`.scan-text-row[data-verse="${cur.verseKey}"]`);
     if (!target) { showToast('Ayat tidak ada di halaman ini'); return; }
-    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (!scrollSheetTo(target)) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
     target.classList.add('flash');
     setTimeout(() => target.classList.remove('flash'), 1200);
   }
@@ -2235,14 +2244,32 @@
       sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.995)}px`);
     }
 
-    // 4) skala utuh: muat lebar DAN tinggi layar agar halaman terlihat penuh
+    // 4) halaman penuh: muat LEBAR saja; tinggi halaman boleh terpotong dan
+    //    tiap lembar punya gulirannya sendiri (halaman yang dibaca bergerak,
+    //    halaman lain tetap di atas)
     const boxW = stage ? stage.clientWidth : DESIGN_W;
     const topY = stage ? stage.getBoundingClientRect().top : 0;
-    const availH = Math.max(320, window.innerHeight - topY - 20);
-    const designH = sheet.offsetHeight || 1;
-    const scale = Math.min(1, boxW / DESIGN_W, availH / designH) || 1;
+    const availH = Math.max(320, window.innerHeight - topY - 14);
+    const scale = Math.min(1, boxW / DESIGN_W) || 1;
     sheet.style.setProperty('--page-scale', String(scale));
-    if (stage) stage.style.height = `${Math.round(sheet.offsetHeight * scale)}px`;
+    if (stage) {
+      stage.classList.add('page-viewport');
+      stage.style.height = `${availH}px`;
+    }
+  }
+
+  /** Gulir HANYA lembar yang memuat ayat aktif, sampai ayat itu terlihat. */
+  function scrollSheetTo(el) {
+    if (!el) return false;
+    const box = el.closest('.page-viewport');
+    if (!box) return false;
+    if (box.scrollHeight <= box.clientHeight + 4) return false;
+    const tb = el.getBoundingClientRect();
+    const bb = box.getBoundingClientRect();
+    const delta = (tb.top + tb.bottom) / 2 - (bb.top + bb.bottom) / 2;
+    if (Math.abs(delta) < 24) return true;
+    box.scrollTo({ top: Math.max(0, box.scrollTop + delta), behavior: 'smooth' });
+    return true;
   }
 
   async function renderPage(page, keepActive) {
@@ -2610,6 +2637,7 @@
 
     // sorot baris/ayat yang sedang dibaca
     document.querySelectorAll('.ayah-row.playing').forEach(el => el.classList.remove('playing'));
+    followPlaying(verseKey);
     document.querySelectorAll('.mw.ayah-on').forEach(el => el.classList.remove('ayah-on'));
     document.querySelectorAll('.mw[data-v]').forEach(el => {
       if (el.dataset.v === verseKey) el.classList.add('ayah-on');

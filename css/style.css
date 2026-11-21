@@ -1978,3 +1978,17 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .wp-row { cursor: default; display: flex; justify-content: space-between; align-items: center; }
 .wp-sub { color: var(--text-muted); font-size: .78rem; }
 .wp-actions { display: flex; gap: 6px; }
+
+/* ═══ Halaman penuh: tiap lembar punya gulir sendiri ═══ */
+.scan-sheet-box.page-viewport {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-bottom: 24px;
+}
+.scan-sheet-box.page-viewport::-webkit-scrollbar { width: 6px; }
+.scan-sheet-box.page-viewport::-webkit-scrollbar-thumb {
+  background: rgba(90, 125, 100, .35); border-radius: 999px;
+}
+.scan-spread { align-items: flex-start; }
