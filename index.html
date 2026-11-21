@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=2026-11-23-qul-e">
+  <link rel="stylesheet" href="css/style.css?v=2026-11-23-qul-f">
 </head>
 <body>
   <!-- App Shell -->
@@ -228,7 +228,7 @@
             <option value="madani">Madani</option>
             <option value="indopak">IndoPak</option>
           </select>
-          <button class="btn btn-sm" id="btnSurahInfo" title="Info surat" aria-label="Info surat">ⓘ</button>
+          <button class="btn btn-sm" id="btnSurahInfo" title="Info surat" aria-label="Info surat">ⓘ Info</button>
           <div class="mode-switch" role="group" aria-label="Mode halaman">
             <button class="btn btn-sm mode-btn active" id="modeScan" aria-pressed="true" title="Halaman mushaf dirender dari font QCF">Mushaf</button>
             <button class="btn btn-sm mode-btn" id="modeText" aria-pressed="false" title="Tampilkan teks (untuk tajwid & tafsir)">Teks</button>
@@ -295,6 +295,8 @@
     <!-- View: Settings -->
     <section class="view" id="viewSettings" data-view="settings" role="region" aria-label="Pengaturan" hidden>
       <div class="view-header"><h2>Pengaturan</h2></div>
+      <p class="setting-hint" style="margin-bottom:12px">Semua sumber QUL yang baru ada di sini: terjemahan, tafsir, varian IndoPak, dan qari.</p>
+      <h3 class="setting-section">Sumber teks &amp; mushaf</h3>
       <div class="settings-grid">
         <div class="setting-card">
           <h3>Tampilan</h3>
@@ -401,6 +403,7 @@
         </div>
         <div class="setting-card">
           <h3>Audio</h3>
+          <h3 class="setting-section">Audio &amp; qari</h3>
           <label class="setting-row">
             <span>Qari</span>
             <select id="qariSelect" aria-label="Pilih Qari">
@@ -500,6 +503,6 @@
   </script>
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/app.js?v=2026-11-23-qul-e"></script>
+  <script src="js/app.js?v=2026-11-23-qul-f"></script>
 </body>
 </html>

@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qul-e';
+  const BUILD = '2026-11-23-qul-f';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1797,10 +1797,8 @@
       headHtml = `<div class="page-head" aria-hidden="true">` +
         `<span class="ph-surah" data-surah="${surahNo}" title="Info surat">${surahNo}. ${ch ? (ch.name_simple || '') : ''}</span>` +
         `<span class="ph-page">${toArabicDigits(page)}</span>` +
-        `<span class="ph-juz" title="${juz ? 'Juz ' + juz : ''}${vm.get(firstVk)?.manzil ? ' · Manzil ' + vm.get(firstVk).manzil : ''}${vm.get(firstVk)?.ruku ? ' · Ruku\u2019 ' + vm.get(firstVk).ruku : ''}">` +
+        `<span class="ph-juz" title="Manzil ${vm.get(firstVk)?.manzil || '-'} · Ruku\u2019 ${vm.get(firstVk)?.ruku || '-'}">` +
           `${juz ? 'Juz ' + juz : ''}` +
-          `${vm.get(firstVk)?.manzil ? ' · M' + vm.get(firstVk).manzil : ''}` +
-          `${vm.get(firstVk)?.ruku ? ' · R' + vm.get(firstVk).ruku : ''}` +
         `</span>` +
         `</div>`;
     }

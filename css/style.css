@@ -1805,3 +1805,47 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .sim-tr { font-size: .85rem; color: var(--text-secondary); line-height: 1.6; }
 
 .mi-sub { margin-top: 12px; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+
+/* ═══ Kepala halaman: huruf lebih besar ═══ */
+.page-head {
+  font-size: calc(var(--msize, 32px) * 0.44);
+  height: calc(var(--msize, 32px) * 0.78);
+}
+.page-head .ph-surah { font-weight: 700; letter-spacing: .015em; }
+.page-head .ph-page {
+  font-size: 1.12em;
+  font-weight: 700;
+  min-width: 2.9em;
+  padding: .2em .6em;
+  border-width: 1.5px;
+}
+.page-head .ph-juz { font-weight: 600; opacity: .95; }
+
+/* ═══ Basmalah: font tersendiri (bukan font halaman) & tidak rapat ═══ */
+.mline-basmalah .mbasmalah,
+.mbasmalah-inline {
+  font-family: 'Amiri', 'Scheherazade New', serif !important;
+  font-size: calc(var(--msize, 32px) * 0.9) !important;
+  line-height: 1.55 !important;
+  letter-spacing: .015em;
+  word-spacing: .18em;
+  color: #14110a;
+}
+
+/* nama surat di kepala halaman: terlihat bisa diklik */
+.page-head .ph-surah {
+  pointer-events: auto;
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(90, 125, 100, .55);
+  padding-bottom: 1px;
+}
+.page-head .ph-surah:hover { color: #2d6a4f; border-bottom-color: #2d6a4f; }
+
+/* judul bagian pada layar Pengaturan */
+.setting-section {
+  margin: 18px 0 8px;
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
