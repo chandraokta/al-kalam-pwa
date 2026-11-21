@@ -182,7 +182,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-manzil';
+  const BUILD = '2026-11-24-kfgqpc';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1317,7 +1317,8 @@
 
   /** Ganti mushaf (Madani ↔ IndoPak): layout, peta halaman, font. */
   async function setMushaf(key) {
-    if (key !== 'indopak' && key !== 'madani') key = 'madani';
+    const known = (window.ALKALAM_CONFIG && window.ALKALAM_CONFIG.mushafs) || {};
+    if (!known[key]) key = 'madani';
     if (state.mushaf === key && state.versePage && state.versePage.size) return;
     state.mushaf = key;
     saveSettings();
@@ -1364,7 +1365,8 @@
 
     // Madani: font per halaman — v2 biasa, atau v4-tajweed (huruf berwarna)
     const wantTajweed = tajweed && !!mc.fontsTajweedBase;
-    const name = wantTajweed ? `p${page}v4` : `p${page}`;
+    const verTag = ((mc.fontsBase || '').match(/quran_fonts\/([^/]+)\//) || [])[1] || 'v2';
+    const name = wantTajweed ? `p${page}-${verTag}-tajweed` : `p${page}-${verTag}`;
     if (loadedFonts.has(name)) return name;
 
     const cfg = window.ALKALAM_CONFIG || {};

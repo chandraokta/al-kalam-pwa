@@ -42,6 +42,24 @@ window.ALKALAM_CONFIG = {
       fontsTajweedBase: 'https://static-cdn.tarteel.ai/qul/fonts/quran_fonts/v4-tajweed/woff2/',
       fontsLocal: ''      // isi './data/fonts/' bila font disimpan lokal
     },
+    'kfgqpc-v1': {
+      label: 'KFGQPC V1 · 604 halaman (1405H)',
+      layout: 'layout-kfgqpc-v1.json.gz',
+      pageCount: 604,
+      fontPerPage: true,
+      fontsBase: 'https://static-cdn.tarteel.ai/qul/fonts/quran_fonts/v1/woff2/',
+      fontQuery: '?v=3.2',
+      fontsLocal: ''
+    },
+    'kfgqpc-v4': {
+      label: 'KFGQPC V4 · 604 halaman (1441H)',
+      layout: 'layout-kfgqpc-v4.json.gz',
+      pageCount: 604,
+      fontPerPage: true,
+      fontsBase: 'https://static-cdn.tarteel.ai/qul/fonts/quran_fonts/v4/woff2/',
+      fontQuery: '?v=3.2',
+      fontsLocal: ''
+    },
     indopak: {
       label: 'IndoPak · 15 baris (Qudratullah)',
       layout: 'layout-indopak.json.gz',

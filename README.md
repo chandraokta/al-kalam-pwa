@@ -68,6 +68,8 @@ semua data disimpan sebagai `.json.gz` dan dimuat sesuai kebutuhan.
 | `layout.json.gz` | 370 KB | layout Madani 604 halaman |
 | `layout-indopak.json.gz` | 590 KB | IndoPak 15 garis (610 hlm.) |
 | `layout-indopak-16.json.gz` | 590 KB | IndoPak 16 garis (548 hlm.) |
+| `layout-kfgqpc-v1.json.gz` | 371 KB | KFGQPC V1 1405H (604 hlm.) |
+| `layout-kfgqpc-v4.json.gz` | 368 KB | KFGQPC V4 1441H (604 hlm.) |
 | `chapters.json.gz` | 6 KB | 114 surat + info |
 | `verses_by_chapter.json.gz` | 752 KB | 6.236 ayat + metadata (juz/hizb/rub/ruku/manzil/sajda) |
 | `page_map.json.gz` | 34 KB | ayat per halaman |
