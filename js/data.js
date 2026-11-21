@@ -35,6 +35,8 @@ const DataManager = (() => {
     { id: 'translation_translit', file: 'translation_translit.json.gz', required: false },
     // tafsir tambahan
     { id: 'tafsir_muyassar', file: 'tafsir_muyassar.json.gz', required: false },
+    { id: 'words', file: 'words.json.gz', required: false },
+    { id: 'similar', file: 'similar.json.gz', required: false },
     { id: 'meta', file: 'meta.json.gz', required: true },
   ];
   

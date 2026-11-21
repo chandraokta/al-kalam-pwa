@@ -167,7 +167,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qul-b';
+  const BUILD = '2026-11-23-qul-c';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -291,6 +291,78 @@
     const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
     document.addEventListener('keydown', onKey);
     return ov;
+  }
+
+  // ── Ayat serupa (mutashabihat) dari indeks lokal ──
+  async function showSimilar(verseKey) {
+    const sim = await DataManager.load('similar');
+    const list = (sim && sim[verseKey]) || [];
+    if (!list.length) { showToast('Tidak ada ayat serupa yang terdeteksi', 'info'); return; }
+    const verses = await DataManager.load('verses');
+    const findVerse = (vk) => {
+      const [s, a] = String(vk).split(':').map(Number);
+      return (verses[String(s)] || []).find(v => v.verse_number === a);
+    };
+    const rows = [];
+    for (const [vk, score] of list) {
+      const v = findVerse(vk);
+      const tr = await trFor(vk);
+      rows.push(`<div class="sim-row">` +
+        `<div class="sim-head"><button class="link-btn" data-goto-page="${vk}">${vk}</button>` +
+        `<span class="sim-score">${Math.round(score * 100)}% mirip</span></div>` +
+        `<div class="sim-ar" dir="rtl">${v ? (v.text_uthmani || '') : ''}</div>` +
+        `<div class="sim-tr">${tr || ''}</div>` +
+        `</div>`);
+    }
+    openModal(`<div class="mi-head"><span class="mi-name">Ayat serupa \u00b7 ${verseKey}</span></div>` +
+      `<div class="mi-body sim-list">${rows.join('')}</div>`, { wide: true });
+
+    document.querySelectorAll('[data-goto-page]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const vk = e.currentTarget.dataset.gotoPage;
+        const [s, a] = vk.split(':').map(Number);
+        const pg = await pageOfVerse(s, a);
+        document.getElementById('appModal')?.remove();
+        if (pg) { state.activePage = pg; await goPage(pg); }
+      });
+    });
+  }
+
+  /** Halaman mushaf untuk sebuah ayat (dari page_map). */
+  async function pageOfVerse(surah, ayah) {
+    const pm = await DataManager.load('pageMap');
+    const pages = (pm && pm.pages) || [];
+    const hit = pages.find(p => (p.verses || []).some(v => v.surah === surah && v.ayah === ayah));
+    return hit ? hit.page : null;
+  }
+
+  // ── Info Kata: arti & transliterasi per kata (QUL word-by-word) ──
+  async function showWordInfo(verseKey, position) {
+    const data = await DataManager.load('words');
+    const list = data?.[verseKey];
+    if (!list || !list.length) { showToast('Data kata belum tersedia', 'error'); return; }
+    const idx = Math.max(0, Math.min(list.length - 1, (Number(position) || 1) - 1));
+    const w = list[idx];
+    const [surah] = String(verseKey).split(':').map(Number);
+    const chapters = await DataManager.load('chapters');
+    const ch = chapters.find(c => c.id === surah);
+    openModal(
+      `<div class="mi-head"><span class="mi-ar" dir="rtl">${w.ar || ''}</span>` +
+      `<span class="mi-name">${verseKey}${ch ? ' \u00b7 ' + (ch.name_simple || '') : ''}</span></div>` +
+      `<div class="mi-body">` +
+      `<div class="mi-row"><span class="mi-key">Transliterasi</span><span class="mi-val">${w.tl || '-'}</span></div>` +
+      `<div class="mi-row"><span class="mi-key">Arti</span><span class="mi-val">${w.tr || '-'}</span></div>` +
+      `<div class="mi-row"><span class="mi-key">Kata ke-</span><span class="mi-val">${idx + 1} dari ${list.length}</span></div>` +
+      `</div>` +
+      `<div class="mi-actions"><button class="btn" data-word-all="${verseKey}">Lihat semua kata</button></div>`
+    );
+    const btn = document.querySelector('[data-word-all]');
+    if (btn) btn.addEventListener('click', async () => {
+      const rows = list.map((it, i) =>
+        `<div class="mi-row"><span class="mi-key">${i + 1}. ${it.tl || ''}</span><span class="mi-val">${it.tr || ''}</span></div>`).join('');
+      openModal(`<div class="mi-head"><span class="mi-name">Kata per kata \u00b7 ${verseKey}</span></div>` +
+        `<div class="mi-body">${rows}</div>`, { wide: true });
+    });
   }
 
   // ── Info Surat: data dari chapters + verses (QUL) ──
@@ -1815,6 +1887,7 @@
           if (state.showTafsir && taf) out += `<div class="scan-taf"><span>Tafsir:</span> ${taf}` +
             ` <button class="link-btn" data-long-tafsir="${verseKey}">lengkap</button></div>`;
           out += `</div>`;
+          out += `<button class="action-btn" data-action="similar" data-verse="${verseKey}" aria-label="Ayat serupa" title="Ayat serupa">\u2248</button>`;
           out += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat">` +
                   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>` +
                   `<button class="action-btn ${marked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="Penanda">` +
@@ -1844,6 +1917,29 @@
     html += `</div>`;
     if (seq !== undefined && seq !== state._renderSeq) return;    // dibatalkan render baru
     els.mushafContainer.innerHTML = html;
+
+    // Info Kata: tekan lama / klik kanan pada kata mushaf
+    let wordTimer = null;
+    const cancelWord = () => { if (wordTimer) { clearTimeout(wordTimer); wordTimer = null; } };
+    els.mushafContainer.addEventListener('pointerdown', (e) => {
+      const w = e.target.closest && e.target.closest('.mw[data-v]');
+      if (!w) return;
+      cancelWord();
+      wordTimer = setTimeout(() => {
+        wordTimer = null;
+        showWordInfo(w.dataset.v, w.dataset.w);
+      }, 550);
+    });
+    ['pointerup', 'pointermove', 'pointercancel', 'scroll'].forEach((ev) =>
+      els.mushafContainer.addEventListener(ev, cancelWord, { passive: true }));
+    els.mushafContainer.addEventListener('contextmenu', (e) => {
+      const end = e.target.closest && e.target.closest('.mw-end, .mw-end-badge');
+      if (end && end.dataset.v) { e.preventDefault(); showSimilar(end.dataset.v); return; }
+      const w = e.target.closest && e.target.closest('.mw[data-v]');
+      if (!w) return;
+      e.preventDefault();
+      showWordInfo(w.dataset.v, w.dataset.w);
+    });
 
     // klik nama surat di kepala halaman -> Info Surat
     els.mushafContainer.querySelectorAll('.ph-surah').forEach((el) => {
@@ -1892,6 +1988,9 @@
     });
     els.mushafContainer.querySelectorAll('.mw').forEach(el => {
       el.addEventListener('click', () => playAyah(el.dataset.v));
+    });
+    els.mushafContainer.querySelectorAll('[data-action="similar"]').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); showSimilar(btn.dataset.verse); });
     });
     els.mushafContainer.querySelectorAll('[data-action="copy"]').forEach(btn => {
       btn.addEventListener('click', () => copyAyah(btn.dataset.verse));
@@ -2203,6 +2302,7 @@
         }
         html += `<div class="ayah-actions">`;
         html += `<button class="action-btn" data-action="play" data-verse="${verseKey}" aria-label="Putar ayat" title="Putar"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`;
+        html += `<button class="action-btn" data-action="similar" data-verse="${verseKey}" aria-label="Ayat serupa" title="Ayat serupa">≈</button>`;
         html += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>`;
         html += `<button class="action-btn ${bookmarked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}" title="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}"><svg width="18" height="18" viewBox="0 0 24 24" fill="${bookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
         html += `</div>`;
@@ -2257,6 +2357,9 @@
       });
     });
     // Bookmark buttons
+    els.mushafContainer.querySelectorAll('[data-action="similar"]').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); showSimilar(btn.dataset.verse); });
+    });
     els.mushafContainer.querySelectorAll('[data-action="copy"]').forEach(btn => {
       btn.addEventListener('click', (e) => copyAyah(e.currentTarget.dataset.verse));
     });

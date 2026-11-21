@@ -1795,3 +1795,11 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .mi-key { color: var(--text-muted); }
 .mi-val { color: var(--text-primary); font-weight: 600; text-align: right; }
 .mi-actions { margin-top: 14px; display: flex; justify-content: flex-end; }
+
+/* ═══ Ayat serupa ═══ */
+.sim-list { gap: 14px; }
+.sim-row { border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; background: var(--bg-tertiary); }
+.sim-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.sim-score { font-size: .75rem; color: var(--text-muted); }
+.sim-ar { font-family: var(--font-arabic); font-size: 1.25rem; line-height: 1.9; color: var(--text-primary); margin-bottom: 4px; }
+.sim-tr { font-size: .85rem; color: var(--text-secondary); line-height: 1.6; }
