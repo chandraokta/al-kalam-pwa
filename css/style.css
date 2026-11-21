@@ -2006,3 +2006,23 @@ body.is-fullscreen .app-main { margin-top: 0; }
 
 /* tampilan mushaf: dokumen tidak ikut bergulir, hanya tiap lembar */
 html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
+
+/* ═══ Kontrol tambahan bilah audio ═══ */
+.audio-extra { display: flex; align-items: center; gap: 10px; }
+.aex { display: flex; flex-direction: column; gap: 1px; font-size: 0.58rem; color: var(--text-muted); letter-spacing: .02em; }
+.aex > span { text-transform: uppercase; }
+.audio-select {
+  font: inherit; font-size: 0.75rem; padding: 3px 6px; max-width: 172px;
+  border: 1px solid var(--border-color); border-radius: 7px;
+  background: var(--bg-card); color: var(--text-primary); cursor: pointer;
+}
+.audio-select:focus { outline: 2px solid var(--accent-primary); outline-offset: 1px; }
+#audioAutoNext.on { color: var(--accent-primary); }
+#audioAutoNext.off { opacity: .45; }
+#audioAB.armed { color: #b8860b; }
+
+@media (max-width: 900px) {
+  .audio-extra { order: 4; width: 100%; flex-wrap: wrap; gap: 8px; }
+  .audio-bar { height: auto; flex-wrap: wrap; padding: 10px 14px; }
+  .audio-progress { order: 3; width: 100%; max-width: none; }
+}

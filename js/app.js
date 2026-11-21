@@ -37,6 +37,12 @@
     segments: null,          // penanda waktu per kata untuk ayat yang diputar
     autoPlayNext: true,
     repeatAyah: false,
+    repeatMode: 'off',        // off | ayah | page | ab
+    repeatTimes: 3,           // untuk mode 'ayah'
+    repeatLeft: 3,
+    audioRate: 1,
+    loopA: null,
+    loopB: null,
     offlinePages: true,
     bookmarks: new Set(),
     audioPlaying: false,
@@ -125,6 +131,13 @@
     els.qariSelect = $('qariSelect');
     els.autoPlayNext = $('autoPlayNext');
     els.repeatAyah = $('repeatAyah');
+    els.audioQari = $('audioQari');
+    els.audioRepeat = $('audioRepeat');
+    els.audioRepeatCount = $('audioRepeatCount');
+    els.audioRate = $('audioRate');
+    els.audioAB = $('audioAB');
+    els.audioAutoNext = $('audioAutoNext');
+    els.aexCountWrap = $('aexCountWrap');
     els.offlinePages = $('offlinePages');
     els.btnClearCache = $('btnClearCache');
     els.btnReloadApp = $('btnReloadApp');
@@ -169,7 +182,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-bersih';
+  const BUILD = '2026-11-23-audiobar';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -545,6 +558,10 @@
     if (!DataManager.getReciter(state.qari)) state.qari = 'alafasy';
     state.autoPlayNext = state.autoPlayNext !== false;
     state.repeatAyah = state.repeatAyah || false;
+    state.repeatMode = state.repeatMode || 'off';
+    state.repeatTimes = Number(state.repeatTimes) || 3;
+    state.repeatLeft = state.repeatTimes;
+    state.audioRate = Number(state.audioRate) || 1;
     state.offlinePages = state.offlinePages !== false;
     state.showAyahNumbers = state.showAyahNumbers !== false;
     state.spreadMode = ['auto', 'one', 'two'].includes(state.spreadMode) ? state.spreadMode : 'auto';
@@ -582,6 +599,7 @@
     els.qariSelect.value = state.qari;
     els.autoPlayNext.checked = state.autoPlayNext;
     els.repeatAyah.checked = state.repeatAyah;
+    initAudioExtras();
     els.offlinePages.checked = state.offlinePages;
     // CSS variables
     document.documentElement.style.setProperty('--font-size-arabic', `${state.fontSizeArabic}px`);
@@ -2591,6 +2609,110 @@
   }
 
   // ── Playback ────────────────────────────────────────────────────────
+  /** Isi & sambungkan kontrol tambahan di bilah audio. */
+  function initAudioExtras() {
+    const reciters = (window.ALKALAM_CONFIG && window.ALKALAM_CONFIG.reciters) || [];
+    if (els.audioQari) {
+      els.audioQari.innerHTML = reciters
+        .map(r => `<option value="${r.key}">${r.name}</option>`)
+        .join('');
+      els.audioQari.value = state.qari;
+      els.audioQari.addEventListener('change', (e) => {
+        const v = e.target.value;
+        if (els.qariSelect) {
+          els.qariSelect.value = v;
+          els.qariSelect.dispatchEvent(new Event('change'));
+        }
+      });
+    }
+
+    if (els.audioRepeatCount) {
+      els.audioRepeatCount.innerHTML = [1, 2, 3, 4, 5]
+        .map(n => `<option value="${n}">${n}×</option>`).join('');
+      els.audioRepeatCount.value = String(state.repeatTimes);
+    }
+    syncAudioExtras();
+
+    els.audioRepeat?.addEventListener('change', (e) => {
+      state.repeatMode = e.target.value;
+      state.repeatLeft = state.repeatTimes;
+      syncAudioExtras();
+      showToast(`Ulang: ${e.target.selectedOptions[0].textContent}`);
+    });
+    els.audioRepeatCount?.addEventListener('change', (e) => {
+      state.repeatTimes = Number(e.target.value) || 1;
+      state.repeatLeft = state.repeatTimes;
+      syncAudioExtras();
+    });
+    els.audioRate?.addEventListener('change', (e) => {
+      state.audioRate = Number(e.target.value) || 1;
+      if (audioEl) audioEl.playbackRate = state.audioRate;
+      syncAudioExtras();
+    });
+    els.audioAutoNext?.addEventListener('click', () => {
+      state.autoPlayNext = !state.autoPlayNext;
+      if (els.autoPlayNext) els.autoPlayNext.checked = state.autoPlayNext;
+      saveSettings();
+      syncAudioExtras();
+      showToast(state.autoPlayNext ? 'Lanjut otomatis aktif' : 'Lanjut otomatis mati');
+    });
+    els.audioAB?.addEventListener('click', () => {
+      const cur = state.audioCurrent;
+      if (!cur) return;
+      if (!state.loopA) {
+        state.loopA = cur.verseKey;
+        state.loopB = null;
+        showToast(`A ditandai: ayat ${cur.ayah}`);
+      } else if (!state.loopB) {
+        state.loopB = cur.verseKey;
+        state.repeatMode = 'ab';
+        showToast(`B ditandai: ayat ${cur.ayah} — A-B aktif`);
+      } else {
+        state.loopA = null;
+        state.loopB = null;
+        if (state.repeatMode === 'ab') state.repeatMode = 'off';
+        showToast('Penanda A-B dihapus');
+      }
+      syncAudioExtras();
+    });
+  }
+
+  function syncAudioExtras() {
+    if (els.audioRepeat) els.audioRepeat.value = state.repeatMode;
+    if (els.audioRepeatCount) els.audioRepeatCount.value = String(state.repeatTimes);
+    if (els.aexCountWrap) els.aexCountWrap.hidden = state.repeatMode !== 'ayah';
+    if (els.audioRate) els.audioRate.value = String(state.audioRate);
+    if (els.audioAutoNext) {
+      els.audioAutoNext.classList.toggle('on', !!state.autoPlayNext);
+      els.audioAutoNext.classList.toggle('off', !state.autoPlayNext);
+    }
+    if (els.audioAB) {
+      els.audioAB.classList.toggle('armed', !!(state.loopA && state.loopB));
+      els.audioAB.title = state.loopB ? `A-B: ${state.loopA} → ${state.loopB}`
+        : state.loopA ? `A: ${state.loopA} — tekan untuk B` : 'Tandai A-B';
+    }
+    if (els.audioQari) els.audioQari.value = state.qari;
+  }
+
+  /** Ayat-ayat pada satu halaman. */
+  async function pageVerses(verseKey) {
+    const pm = await DataManager.load('pageMap');
+    const page = (pm || []).find(p => (p.verses || []).some(v => v.verse_key === verseKey));
+    return page ? { page: page.page, verses: page.verses.map(v => v.verse_key) } : null;
+  }
+
+  /** Lanjut ke ayat dalam halaman yang sama; habis -> awal halaman (atau surat berikutnya). */
+  async function advanceInPage(cur, { restartPage = false } = {}) {
+    const info = await pageVerses(cur.verseKey);
+    if (!info) { nextAyah(); return; }
+    const i = info.verses.indexOf(cur.verseKey);
+    const nextV = info.verses[i + 1];
+    if (nextV) { playAyah(nextV); return; }
+    if (restartPage) { playAyah(info.verses[0]); return; }
+    if (cur.surah < 114) playAyah(`${cur.surah + 1}:1`);
+    else stopAudio();
+  }
+
   async function playAyah(verseKey) {
     if (!audioEl) initAudio();
 
@@ -2615,6 +2737,14 @@
     }
 
     await setCurrentAyah(verseKey, { force: true });
+
+    // kecepatan & hitungan ulangan
+    audioEl.playbackRate = Number(state.audioRate) || 1;
+    if (state._lastPlayed !== verseKey) {
+      state._lastPlayed = verseKey;
+      state.repeatLeft = state.repeatTimes;
+    }
+    syncAudioExtras();
 
     try {
       await audioEl.play();
@@ -2796,10 +2926,32 @@
   function onAudioEnded() {
     const cur = state.audioCurrent;
     if (!cur) return;
+
+    switch (state.repeatMode) {
+      case 'ab':
+        if (state.loopA && state.loopB && cur.verseKey === state.loopB) { playAyah(state.loopA); return; }
+        nextAyah();
+        return;
+      case 'ayah':
+        if (state.repeatLeft > 1) {
+          state.repeatLeft -= 1;
+          playAyah(cur.verseKey);
+          syncAudioExtras();
+          return;
+        }
+        state.repeatLeft = state.repeatTimes;
+        nextAyah();
+        return;
+      case 'page':
+        advanceInPage(cur, { restartPage: true });
+        return;
+      default:
+        break;
+    }
+
     if (state.repeatAyah) { playAyah(cur.verseKey); return; }
     if (!state.autoPlayNext) { stopAudio(); return; }
-    if (cur.surah < 114) playAyah(`${cur.surah + 1}:1`);
-    else stopAudio();
+    advanceInPage(cur);
   }
 
   function formatTime(sec) {
