@@ -575,6 +575,7 @@ svg { display: inline-block; vertical-align: middle; }
   display: flex;
   flex-direction: column;
   direction: rtl;
+  min-width: 0;
 }
 /* grid 15 baris; isi baris dijustify seperti teks cetak, bukan direntangkan kaku */
 .mline {

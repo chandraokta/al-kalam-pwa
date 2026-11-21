@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-tajwid-audit';
+  const BUILD = '2026-11-22-margin';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1451,7 +1451,7 @@
     }
 
     // 2) ukuran font: acuan tetap seperti QUL; hanya mengecil bila halaman lebih padat
-    const padEm = state.pageBorder === 'none' ? 1.7 : 2.7;
+    const padEm = state.pageBorder === 'none' ? 2.0 : 3.0;   /* 1,5em per sisi: beri ruang ekor huruf */
     const baseEm = mushafKey() === 'indopak' ? 17.4 : 19.1;   // lebar acuan (em)
     maxEm = Math.max(maxEm, baseEm);
     sheet.style.setProperty('--page-pad', String(padEm / 2));   /* per sisi, dalam em huruf halaman */
@@ -1460,19 +1460,27 @@
     font = Math.max(20, Math.min(44, font));
     sheet.style.setProperty('--msize', `${font}px`);
 
-    // 3) jaring pengaman: bila masih ada yang melewati tepi lembar, kecilkan sedikit
-    const rect0 = sheet.getBoundingClientRect();
-    for (let i = 0; i < 6; i++) {
+    // 3) jaring pengaman: isi halaman harus berada di dalam KOTAK ISI
+    //    (bukan hanya di dalam lembar) supaya margin kiri & kanan sama
+    for (let i = 0; i < 8; i++) {
+      const cs2 = getComputedStyle(sheet);
+      const sr2 = sheet.getBoundingClientRect();
+      const k = sr2.width / (sheet.offsetWidth || 1);          // skala transform
+      const innerL = sr2.left + parseFloat(cs2.paddingLeft) * k;
+      const innerR = sr2.right - parseFloat(cs2.paddingRight) * k;
+      if (!(innerR > innerL)) break;
       let worst = 0;
-      for (const el of sheet.querySelectorAll('.msurah-band, .msurah-name, .msurah-meta, .mw, .mbasmalah, .mline')) {
+      for (const el of pageLines.querySelectorAll('.mw, .msurah-band, .mbasmalah')) {
         const r = el.getBoundingClientRect();
         if (!r.width) continue;
-        worst = Math.max(worst, Math.ceil(r.right - rect0.right) + 2, Math.ceil(rect0.left - r.left) + 2);
+        worst = Math.max(worst,
+          Math.ceil(r.right - innerR) + 1,
+          Math.ceil(innerL - r.left) + 1);
       }
       if (worst <= 1) break;
       const avail = pageLines.clientWidth || 1;
       const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || font;
-      sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.994)}px`);
+      sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.995)}px`);
     }
 
     // 4) skala utuh ke lebar layar
