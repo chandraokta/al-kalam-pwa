@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-simple-border';
+  const BUILD = '2026-11-22-ornament';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1221,12 +1221,14 @@
       rows.forEach((r, i) => { [r.style.whiteSpace, r.style.display, r.style.width] = saved[i]; });
     }
 
-    // 2) ukuran font agar baris terlebar mengisi halaman (padding 0,9em kiri+kanan)
+    // 2) ukuran font: acuan tetap seperti QUL; hanya mengecil bila halaman lebih padat
     const padEm = state.pageBorder === 'none' ? 1.7 : 2.7;
+    const baseEm = mushafKey() === 'indopak' ? 17.4 : 19.1;   // lebar acuan (em)
+    maxEm = Math.max(maxEm, baseEm);
     sheet.style.setProperty('--page-pad', String(padEm / 2));   /* per sisi, dalam em huruf halaman */
     const userScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100)) / 100;
     let font = (DESIGN_W / (maxEm + padEm)) * userScale;
-    font = Math.max(20, Math.min(64, font));
+    font = Math.max(20, Math.min(44, font));
     sheet.style.setProperty('--msize', `${font}px`);
 
     // 3) jaring pengaman: bila masih ada yang melewati tepi lembar, kecilkan sedikit
