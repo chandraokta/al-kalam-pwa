@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-transfull2';
+  const BUILD = '2026-11-23-bersih';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2166,59 +2166,6 @@
    * mengisi sisa — tidak ada yang terpotong dan ujung baris tetap sama.
    */
   /** Sesuaikan ukuran huruf halaman terjemahan agar mengisi ruang yang ada. */
-  /** Tinggi isi sebenarnya (scrollHeight tidak bisa < clientHeight). */
-  function transContentHeight(body) {
-    const cs = getComputedStyle(body);
-    const gap = parseFloat(cs.rowGap) || 0;
-    const padT = parseFloat(cs.paddingTop) || 0;
-    const padB = parseFloat(cs.paddingBottom) || 0;
-    const kids = [...body.children];
-    if (!kids.length) return padT + padB;
-    return padT + padB + kids.reduce((a, k) => a + k.offsetHeight, 0) + gap * (kids.length - 1);
-  }
-
-  function fitTransSheet(sheet) {
-    const body = sheet.querySelector('.trans-body');
-    if (!body) return false;
-    const avail = body.clientHeight;
-    if (!avail) return false;
-
-    const setScale = (sc) => sheet.style.setProperty('--trans-scale', String(sc));
-    const fits = (sc) => { setScale(sc); return transContentHeight(body) <= avail - 2; };
-
-    // 1) skala terbesar yang masih muat (isi tidak meluber)
-    let lo = 0.95, hi = 2.8;
-    if (!fits(lo)) { setScale(lo); return true; }        // sudah penuh: biarkan bergulir
-    for (let i = 0; i < 14; i++) {
-      const mid = (lo + hi) / 2;
-      if (fits(mid)) lo = mid; else hi = mid;
-    }
-    // 2) rapatkan ke atas agar isi mengisi halaman (tidak menyisakan ruang)
-    let best = lo;
-    for (let i = 0; i < 40; i++) {
-      const next = Math.min(2.8, best + 0.005);
-      setScale(next);
-      if (transContentHeight(body) <= avail - 2) best = next; else break;
-    }
-    setScale(best);
-    return true;
-  }
-
-  /** Jalankan fit beberapa kali sampai tata letak & font stabil. */
-  function scheduleTransFit(sheet) {
-    sheet._transFitFor = null;
-    const run = () => {
-      if (!sheet.isConnected) return;
-      fitTransSheet(sheet);
-    };
-    run();
-    requestAnimationFrame(run);
-    setTimeout(run, 60);
-    setTimeout(run, 220);
-    setTimeout(run, 600);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(run).catch(() => {});
-  }
-
   function applyPageScale(sheet) {
     if (!sheet || !sheet.isConnected) return;
     // lembar terjemahan: cukup diskalakan, tidak perlu mengukur font mushaf
