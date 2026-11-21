@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=2026-11-23-qul-f">
+  <link rel="stylesheet" href="css/style.css?v=2026-11-23-hifz">
 </head>
 <body>
   <!-- App Shell -->
@@ -85,6 +85,10 @@
       <a href="#tajwid" class="drawer-item" data-view="tajwid">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"></path><path d="M5 8h14"></path><path d="M5 16h14"></path></svg>
         <span>Hukum Tajwid</span>
+      </a>
+      <a href="#hifz" class="drawer-item" data-view="hifz">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-4.35-7-10a7 7 0 0 1 14 0c0 5.65-7 10-7 10z"></path><circle cx="12" cy="11" r="2.5"></circle></svg>
+        <span>Hafalan</span>
       </a>
       <a href="#search" class="drawer-item" data-view="search">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -203,6 +207,18 @@
       <div class="view-header"><h2>Hukum Tajwid</h2></div>
       <p class="setting-hint" style="margin-bottom:16px">Delapan belas hukum yang dipakai untuk mewarnai halaman. Tekan salah satu untuk melihat contoh penerapannya di mushaf.</p>
       <div class="tajwid-grid" id="tajwidGrid"></div>
+    </section>
+
+    <!-- View: Hafalan & Murajaah -->
+    <section class="view" id="viewHifz" data-view="hifz" role="region" aria-label="Hafalan dan murajaah" hidden>
+      <div class="view-header"><h2>Hafalan &amp; Murajaah</h2></div>
+      <div class="hifz-tabs" role="tablist">
+        <button class="hifz-tab active" data-hifz-tab="today" role="tab">Hari Ini</button>
+        <button class="hifz-tab" data-hifz-tab="progress" role="tab">Progres</button>
+        <button class="hifz-tab" data-hifz-tab="quiz" role="tab">Uji</button>
+        <button class="hifz-tab" data-hifz-tab="settings" role="tab">Setelan</button>
+      </div>
+      <div id="hifzBody"><p class="hifz-muted">Memuat…</p></div>
     </section>
 
     <!-- View: Mushaf -->
@@ -503,6 +519,7 @@
   </script>
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/app.js?v=2026-11-23-qul-f"></script>
+  <script src="js/app.js?v=2026-11-23-hifz"></script>
+<script src="js/hifz.js?v=2026-11-23-hifz"></script>
 </body>
 </html>

@@ -1849,3 +1849,87 @@ body.is-fullscreen .app-main { margin-top: 0; }
   text-transform: uppercase;
   color: var(--text-muted);
 }
+
+/* ═══ Hafalan & Murajaah ═══ */
+.hifz-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.hifz-tab {
+  border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);
+  padding: 7px 14px; border-radius: 999px; cursor: pointer; font-size: .875rem;
+}
+.hifz-tab.active { background: var(--accent-primary); border-color: var(--accent-primary); color: #fff; font-weight: 600; }
+.hifz-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.hifz-card {
+  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px;
+  padding: 14px; display: flex; flex-direction: column; gap: 6px;
+}
+.hifz-k { font-size: .78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.hifz-v { font-size: 1.3rem; color: var(--text-primary); }
+.hifz-muted { color: var(--text-muted); font-size: .85rem; }
+.hifz-bar { height: 6px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden; }
+.hifz-bar i { display: block; height: 100%; background: var(--accent-primary); }
+.hifz-h { margin: 20px 0 10px; font-size: .95rem; color: var(--text-primary); }
+.hifz-list { display: flex; flex-direction: column; gap: 8px; }
+.hifz-due {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; text-align: left; color: var(--text-primary); font-size: .9rem;
+}
+.hifz-due:hover { border-color: var(--accent-primary); }
+.hifz-due span { color: var(--text-muted); font-size: .78rem; }
+.hifz-week { display: flex; gap: 8px; align-items: flex-end; height: 90px; }
+.hifz-weekcol { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 100%; }
+.hifz-weekcol i { display: block; width: 100%; background: var(--accent-secondary); border-radius: 4px 4px 0 0; min-height: 2px; }
+.hifz-weekcol span { font-size: .68rem; color: var(--text-muted); }
+.hifz-juzgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 8px; }
+.hifz-juz {
+  position: relative; overflow: hidden; height: 52px; border-radius: 10px;
+  border: 1px solid var(--border-color); background: var(--bg-tertiary);
+  color: var(--text-secondary); font-weight: 700; cursor: pointer;
+}
+.hifz-juz.part { background: rgba(64, 145, 108, .18); color: var(--text-primary); }
+.hifz-juz.full { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+.hifz-juz i { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--accent-tertiary); }
+.hifz-heat { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+.hm-col { display: flex; flex-direction: column; gap: 3px; }
+.hm { width: 12px; height: 12px; border-radius: 3px; background: var(--bg-tertiary); display: block; }
+.hm.l1 { background: rgba(64, 145, 108, .25); }
+.hm.l2 { background: rgba(64, 145, 108, .45); }
+.hm.l3 { background: rgba(64, 145, 108, .7); }
+.hm.l4 { background: var(--accent-primary); }
+.hifz-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.hifz-actions label.btn { display: inline-flex; align-items: center; cursor: pointer; }
+
+/* ═══ Mode hafalan di halaman mushaf ═══ */
+.mline.hide-mode .mw { filter: blur(6px); opacity: .35; cursor: pointer; }
+.mline.hide-mode .mw.revealed { filter: none; opacity: 1; }
+.mline.hide-mode .mw-end,
+.mline.hide-mode .mw-end-badge { filter: none; opacity: 1; }
+.mw.is-flagged { box-shadow: inset 0 -2px 0 #dc2626; }
+.mw.is-flagged::after { content: ""; }
+.hifz-flash {
+  position: fixed; left: 50%; bottom: calc(var(--audio-bar-h, 0px) + 18px); transform: translate(-50%, 8px);
+  background: #1f2937; color: #f9fafb; font-size: .82rem; padding: 8px 14px; border-radius: 999px;
+  opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none; z-index: 9400;
+}
+.hifz-flash.on { opacity: 1; transform: translate(-50%, 0); }
+.hifz-tools { gap: 4px; }
+
+/* ═══ Kuis hafalan ═══ */
+.qz-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 18px; }
+.qz-prompt { font-size: .85rem; color: var(--text-muted); margin-bottom: 10px; }
+.qz-tr { font-size: .95rem; line-height: 1.7; color: var(--text-primary); margin-bottom: 12px; }
+.qz-ar { font-family: var(--font-arabic); font-size: 1.35rem; line-height: 2; text-align: right; margin: 8px 0 14px; color: var(--text-primary); }
+.qz-ar.big { font-size: 1.6rem; }
+.qz-blank { display: inline-block; min-width: 3.2em; border-bottom: 2px dashed var(--accent-secondary); color: var(--text-muted); }
+.qz-opts { display: flex; flex-direction: column; gap: 8px; }
+.qz-opt {
+  text-align: right; background: var(--bg-tertiary); border: 1px solid var(--border-color);
+  border-radius: 10px; padding: 10px 14px; cursor: pointer; color: var(--text-primary);
+}
+.qz-opt.arabic { font-family: var(--font-arabic); font-size: 1.15rem; line-height: 1.9; }
+.qz-opt:hover { border-color: var(--accent-primary); }
+.qz-opt.right { background: rgba(22, 146, 0, .18); border-color: #169200; }
+.qz-opt.wrong { background: rgba(221, 0, 8, .14); border-color: #dd0008; }
+.qz-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+.qz-result.ok { color: #0b6b00; font-weight: 600; }
+.qz-result.bad { color: #a80006; font-weight: 600; }

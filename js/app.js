@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qul-f';
+  const BUILD = '2026-11-23-hifz';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1140,7 +1140,7 @@
   // ═══════════════════════════════════════════════════════════════
   const VIEW_LABELS = {
     home: 'Sampul', mushaf: 'Mushaf', juz: 'Daftar Juz', search: 'Cari Ayat',
-    bookmarks: 'Penanda', settings: 'Pengaturan', tajwid: 'Hukum Tajwid',
+    bookmarks: 'Penanda', settings: 'Pengaturan', tajwid: 'Hukum Tajwid', hifz: 'Hafalan',
   };
 
   function showView(viewName) {
@@ -3531,5 +3531,6 @@
     stopAudio,
     audio: () => audioEl,
     goPage: (p) => renderPage(p),
+    resolvePageData,
   };
 })();
