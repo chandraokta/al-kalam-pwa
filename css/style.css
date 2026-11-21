@@ -1973,3 +1973,8 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .wp-day > div { display: flex; gap: 6px; flex-wrap: wrap; }
 .wp-juz { border: 1px solid var(--border-color); background: var(--bg-tertiary); border-radius: 8px; width: 34px; height: 30px; cursor: pointer; color: var(--text-secondary); font-size: .8rem; }
 .wp-juz.done { background: var(--accent-primary); border-color: var(--accent-primary); color: #fff; }
+
+/* baris aksi pada daftar hafalan */
+.wp-row { cursor: default; display: flex; justify-content: space-between; align-items: center; }
+.wp-sub { color: var(--text-muted); font-size: .78rem; }
+.wp-actions { display: flex; gap: 6px; }

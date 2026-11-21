@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-tilawa';
+  const BUILD = '2026-11-23-followup';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');

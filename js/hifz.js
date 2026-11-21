@@ -40,6 +40,7 @@
     days: {},                 // 'YYYY-MM-DD' -> { pages:[], ayahs:n, reviewed:n, flags:n }
     pages: {},                // '42' -> { status:'lancar'|'sedang'|'lemah', perfect:n, mistakes:n, last:ts }
     srs: {},                  // '2:255' -> { due:ts, ivl:1, ease:2.5, reps:0, lapses:0 }
+    pageSrs: {},              // '42' -> { due:ts, ivl:1, reps:0 }  (ulangan tingkat halaman)
     flagged: {},              // '2:255' -> [posisi kata…]
     verses: {},               // '2:255' -> { status:'lancar'|'lemah', last:ts }
     weekly: null,             // [[juz…] × 7] jadwal murajaah
@@ -99,7 +100,28 @@
     S.pages[page] = { status, perfect: status === 'lancar' ? (p.perfect || 0) + 1 : (p.perfect || 0),
       mistakes, last: Date.now() };
     if (mistakes) S.days[todayKey()] && (S.days[todayKey()].flags = (S.days[todayKey()].flags || 0) + mistakes);
+
+    // jadwalkan ulangan tingkat halaman
+    const ps = S.pageSrs[page] || { reps: 0, ivl: 1 };
+    if (status === 'lancar') {
+      ps.reps = (ps.reps || 0) + 1;
+      ps.ivl = ps.reps <= 1 ? 2 : ps.reps === 2 ? 5 : Math.min(60, Math.round((ps.ivl || 1) * 2.2));
+    } else {
+      ps.reps = 0;
+      ps.ivl = 1;                      // besok diulang
+    }
+    ps.due = Date.now() + ps.ivl * DAY;
+    S.pageSrs[page] = ps;
+    log('halaman', `halaman ${page} ${status} · ulang ${ps.ivl} hari lagi`);
     save();
+    return ps;
+  }
+
+  function duePages() {
+    const now = Date.now();
+    return Object.entries(S.pageSrs || {})
+      .filter(([, c]) => c.due <= now)
+      .sort((a, b) => a[1].due - b[1].due);
   }
   function flagWord(verseKey, pos) {
     const arr = S.flagged[verseKey] || [];
@@ -210,13 +232,17 @@
     const st = streak();
     const d = dayRec();
     const due = dueVerses(30);
+    const dPages = duePages();
     const target = Math.max(1, Number(S.settings.pageTarget) || 1);
     const doneToday = (d.pages || []).length;
     const pct = clamp(Math.round((doneToday / target) * 100), 0, 100);
 
-    const dueHtml = due.length
-      ? due.slice(0, 8).map(([vk, c]) => `<button class="hifz-due" data-open="${vk}">${vk}<span>ulang · ${Math.round(c.ivl)} hari</span></button>`).join('')
-      : `<p class="hifz-muted">Belum ada antrean ulangan. Tandai halaman setelah murajaah agar masuk antrean.</p>`;
+    const pageHtml = dPages.slice(0, 6).map(([pg, c]) =>
+      `<button class="hifz-due" data-gopage="${pg}">Halaman ${pg}<span>jatuh tempo · interval ${Math.round(c.ivl)} hari</span></button>`).join('');
+    const verseHtml = due.slice(0, 6).map(([vk, c]) =>
+      `<button class="hifz-due" data-open="${vk}">${vk}<span>ulang · ${Math.round(c.ivl)} hari</span></button>`).join('');
+    const dueHtml = (pageHtml + verseHtml)
+      || `<p class="hifz-muted">Belum ada antrean ulangan. Tandai halaman setelah murajaah agar masuk antrean.</p>`;
 
     const flaggedCount = Object.values(S.flagged).reduce((a, b) => a + b.length, 0);
 
@@ -241,8 +267,8 @@
         </div>
         <div class="hifz-card">
           <span class="hifz-k">Antrean ulangan</span>
-          <strong class="hifz-v">${due.length} ayat</strong>
-          <span class="hifz-muted">${Object.keys(S.srs).length} ayat terjadwal</span>
+          <strong class="hifz-v">${due.length} ayat · ${dPages.length} hal</strong>
+          <span class="hifz-muted">${Object.keys(S.srs).length} ayat · ${Object.keys(S.pageSrs || {}).length} halaman terjadwal</span>
         </div>
         <div class="hifz-card">
           <span class="hifz-k">Kata ditandai</span>
@@ -378,6 +404,15 @@
     return plan;
   }
 
+  function flaggedListHtml() {
+    const items = [];
+    for (const [vk, arr] of Object.entries(S.flagged || {})) for (const pos of arr) items.push({ vk, pos });
+    if (!items.length) return `<p class="hifz-muted">Belum ada kata ditandai. Aktifkan tombol "Tandai" lalu klik kata yang sering salah.</p>`;
+    return `<div class="hifz-list">${items.slice(0, 12).map(({ vk, pos }) => `
+      <div class="hifz-due wp-row"><span>${vk} · kata ${pos}<span class="wp-sub">ditandai</span></span>
+      <span class="wp-actions"><button class="btn btn-sm" data-open="${vk}">Buka</button><button class="btn btn-sm" data-unflag="${vk}:${pos}">Hapus</button></span></div>`).join('')}</div>`;
+  }
+
   function weeklyPlanCard() {
     const plan = ensureWeekly();
     const day = todayIndex();
@@ -442,8 +477,12 @@
 
       <h3 class="hifz-h">Halaman perlu diulang</h3>
       ${weak.length ? `<div class="hifz-list">${weak.map(([p, v]) => `
-        <button class="hifz-due" data-gopage="${p}">Halaman ${p}<span>${v.status === 'lemah' ? 'lemah' : (v.mistakes || 0) + ' kesalahan'}</span></button>`).join('')}</div>`
+        <div class="hifz-due wp-row"><span>Halaman ${p}<span class="wp-sub">${v.status === 'lemah' ? 'lemah' : (v.mistakes || 0) + ' kesalahan'}${(S.pageSrs[p] ? ' · ulang ' + Math.max(0, Math.ceil((S.pageSrs[p].due - Date.now()) / DAY)) + ' hari' : '')}</span></span>
+        <span class="wp-actions"><button class="btn btn-sm" data-gopage="${p}">Buka</button><button class="btn btn-sm btn-primary" data-train="${p}">Latih</button></span></div>`).join('')}</div>`
         : `<p class="hifz-muted">Belum ada data. Tandai hasil murajaah pada halaman untuk mengisi daftar ini.</p>`}
+
+      <h3 class="hifz-h">Kata yang ditandai</h3>
+      ${flaggedListHtml()}
 
       <h3 class="hifz-h">Jadwal mingguan</h3>
       <div class="hifz-weekplan">
@@ -540,6 +579,23 @@
 
     view.querySelectorAll('[data-open]').forEach((b) => {
       b.addEventListener('click', () => openVerse(b.dataset.open));
+    });
+    view.querySelectorAll('[data-train]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        await window.AlKalam.goPage(Number(b.dataset.train));
+        tab = 'quiz';
+        view.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === 'quiz'));
+        render();
+        setTimeout(() => startQuiz('next'), 400);
+      });
+    });
+    view.querySelectorAll('[data-unflag]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const [vk, pos] = b.dataset.unflag.split(':');
+        unflagWord(vk, Number(pos));
+        decorate();
+        render();
+      });
     });
     view.querySelectorAll('[data-gopage]').forEach((b) => {
       b.addEventListener('click', () => window.AlKalam.goPage(Number(b.dataset.gopage)));
@@ -1129,7 +1185,7 @@
     get state() { return S; },
     save, markPageDone, markPageStatus, flagWord, unflagWord, isFlagged,
     srsRate, dueVerses, render, mount, todayKey,
-    decorate, flash, startQuiz, markVerse, verseStatus, listenJuz, toggleRecording, playRecording, startTilawa, stopTilawa,
+    decorate, flash, startQuiz, markVerse, verseStatus, duePages, listenJuz, toggleRecording, playRecording, startTilawa, stopTilawa,
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
