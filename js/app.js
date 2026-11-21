@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-hifz5';
+  const BUILD = '2026-11-23-tilawa';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');

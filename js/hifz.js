@@ -678,11 +678,11 @@
     tilawaStatus('Memuat mesin… (sekali unduh ~68 MB)');
     try {
       const mod = await import('https://esm.sh/@tilawa/core@next/web');
-      const tierOpt = S.settings.tilawaTier === 'auto' ? undefined : S.settings.tilawaTier;
-      tilawa = await mod.createTilawa(Object.assign(
-        { onProgress: (p) => tilawaStatus(`Mengunduh model… ${Math.round((p.fraction || 0) * 100)}%`) },
-        tierOpt ? { tier: tierOpt } : {}
-      ));
+      const tierOpt = S.settings.tilawaTier === 'auto' ? 'full' : S.settings.tilawaTier;
+      // runtime onnxruntime-web diambil dari CDN (host bawaan tilawa.dev tidak tersedia)
+      const wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/';
+      const onProgress = (p) => tilawaStatus(`Mengunduh model… ${Math.round((p.fraction || 0) * 100)}%`);
+      tilawa = await mod.createTilawa({ tier: tierOpt, wasmPaths, onProgress });
       const page = window.AlKalam.state.currentPage || 1;
       const pd = await window.AlKalam.resolvePageData(page);
       const vs = (pd && pd.verses) || [];
@@ -692,15 +692,27 @@
         confirm: { after: 'next-word' },
         minConfidence: Number(S.settings.tilawaMinConf) || 0.6,
       });
+      let mistakes = 0;
+      const inPassage = (loc) => loc && loc.surah === from.surah
+        && loc.ayah >= from.fromAyah && loc.ayah <= from.toAyah;
       tilawaSession.subscribe((e) => {
+        if (e.type === 'position' && e.observed && e.observed[0]) {
+          const w = e.observed[0].word || {};
+          if (w.surah) tilawaStatus(`Mendengarkan… posisi ${w.surah}:${w.ayah} kata ${w.word}`);
+          return;
+        }
         if (e.type === 'checker' && e.state === 'confirmed') {
           const loc = e.location || {};
+          // hanya laporkan yang masih di dalam halaman yang diperiksa
+          if (!inPassage(loc)) return;
+          mistakes += 1;
           tilawaLog(`${e.errorClass} · ${loc.surah}:${loc.ayah} kata ${loc.word}`, 'bad');
+          tilawaStatus(`Mendengarkan… ${mistakes} isyarat sejauh ini`);
         }
       });
       tilawaMic = await tilawa.listen(tilawaSession);
       document.querySelector('[data-hifz="tilawaStop"]')?.removeAttribute('hidden');
-      tilawaStatus(`Mendengarkan halaman ${page}… bacalah dengan tenang.`);
+      tilawaStatus(`Mendengarkan halaman ${page} (${from.surah}:${from.fromAyah}-${from.toAyah})… bacalah dengan tenang.`);
     } catch (err) {
       const msg = String(err && err.message ? err.message : err);
       tilawaStatus('Tidak bisa memulai: ' + msg);
