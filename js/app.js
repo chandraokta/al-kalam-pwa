@@ -21,6 +21,7 @@
     pageBorder: 'simple',
     pagePalette: 'soft',
     translationSlug: 'indo',   // terjemahan aktif
+    translationLang: 'id',     // bahasa terjemahan terpilih
     tafsirSlug: 'short',       // tafsir aktif   // 'soft' = hijau muda & kuning | 'vivid' = warna legenda
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     activePage: null,      // halaman yang sedang dibaca (null = halaman kanan pasangan)
@@ -118,6 +119,7 @@
     els.fontSizeTrans = $('fontSizeTrans');
     els.fontSizeTransVal = $('fontSizeTransVal');
     els.themeSelect = $('themeSelect');
+    els.langSelect = $('langSelect');
     els.showAyahNumbers = $('showAyahNumbers');
     els.pageModeSelect = $('pageModeSelect');
     els.mushafSelect = $('mushafSelect');
@@ -182,7 +184,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-kfgqpc';
+  const BUILD = '2026-11-24-lang';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -461,6 +463,10 @@
   }
 
   // ── Terjemahan & tafsir terpilih (dengan cadangan) ──
+  const DEFAULT_OF_LANG = { id: 'indo', en: 'kfh', ur: 'urdu', tr: 'turkish', latin: 'translit' };
+  const LANG_OF_TRANSLATION = Object.fromEntries(
+    Object.entries(DEFAULT_OF_LANG).map(([lang, slug]) => [slug, lang]));
+
   const TRANSLATION_OPTIONS = [
     ['indo', 'Indonesia'], ['kemenag', 'Kemenag RI'], ['kfh', 'King Fahad Complex'],
     ['saheeh', 'Saheeh International'], ['pickthall', 'M. Pickthall'],
@@ -533,6 +539,7 @@
       pageBorder: state.pageBorder,
       pagePalette: state.pagePalette,
       translationSlug: state.translationSlug,
+      translationLang: state.translationLang,
       tafsirSlug: state.tafsirSlug,
     };
     localStorage.setItem('alkalam_settings', JSON.stringify(settings));
@@ -572,6 +579,7 @@
     if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
     if (!['soft', 'vivid'].includes(state.pagePalette)) state.pagePalette = 'soft';
     if (!TRANSLATION_OPTIONS.some(o => o[0] === state.translationSlug)) state.translationSlug = 'indo';
+    if (!state.translationLang) state.translationLang = LANG_OF_TRANSLATION[state.translationSlug] || 'id';
     if (!TAFSIR_OPTIONS.some(o => o[0] === state.tafsirSlug)) state.tafsirSlug = 'short';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
@@ -593,6 +601,7 @@
     if (els.pageBorderSelect) els.pageBorderSelect.value = state.pageBorder;
     if (els.pagePaletteSelect) els.pagePaletteSelect.value = state.pagePalette;
     if (els.translationSelect) els.translationSelect.value = state.translationSlug;
+    if (els.langSelect) els.langSelect.value = state.translationLang || 'id';
     if (els.indopakLinesSelect) els.indopakLinesSelect.value = state.indopakLines;
     if (els.tafsirSelect) els.tafsirSelect.value = state.tafsirSlug;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -3398,6 +3407,21 @@
         saveSettings();
         renderPage(state.currentPage);
       });
+
+      if (els.langSelect) {
+        els.langSelect.addEventListener('change', (e) => {
+          const lang = e.target.value;
+          state.translationLang = lang;
+          const slug = DEFAULT_OF_LANG[lang];
+          if (slug && TRANSLATION_OPTIONS.some(o => o[0] === slug)) {
+            state.translationSlug = slug;
+            if (els.translationSelect) els.translationSelect.value = slug;
+          }
+          saveSettings();
+          renderPage(state.currentPage);
+          showToast(`Bahasa terjemahan: ${e.target.selectedOptions[0].textContent}`);
+        });
+      }
     }
     if (els.tafsirSelect) {
       els.tafsirSelect.addEventListener('change', (e) => {
