@@ -671,6 +671,25 @@ svg { display: inline-block; vertical-align: middle; }
 .ayah-chip.playing { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
 
 .scan-texts { width: min(100%, 760px); display: flex; flex-direction: column; gap: 10px; }
+
+/* mode dua halaman: daftar terjemahan dipecah per halaman (kolom) */
+.scan-texts.scan-texts-2 {
+  width: 100%;
+  max-width: none;
+  flex-direction: row-reverse;   /* halaman pertama (kanan) di kanan */
+  align-items: flex-start;
+  gap: 20px;
+}
+.scan-texts-2 .scan-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@media (max-width: 900px) {
+  .scan-texts.scan-texts-2 { flex-direction: column; }
+}
 .scan-text-row { display: flex; gap: 10px; align-items: flex-start;
   background: var(--bg-card); border: 1px solid var(--border-color);
   border-radius: var(--radius-md); padding: 12px; }

@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-start-mushaf';
+  const BUILD = '2026-11-23-pages-2col';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1376,35 +1376,54 @@
     }
     html += `</div>`;
 
-    // terjemahan / tafsir
+    // terjemahan / tafsir (dua kolom bila dua halaman)
     if (state.showTranslation || state.showTafsir) {
-      html += `<div class="scan-texts">`;
-      let currentSurah = null;
-      for (const { meta } of verses) {
-        const verseKey = `${meta.surah}:${meta.ayah}`;
-        const tr = await DataManager.getTranslation(verseKey, 'indo') ||
-                   await DataManager.getTranslation(verseKey, 'eng');
-        const taf = state.showTafsir ? await DataManager.getTafsir(verseKey, 'short') : '';
-        const marked = isBookmarked(verseKey);
-        if (meta.surah !== currentSurah) {
-          currentSurah = meta.surah;
-          const info = chapters.find(c => c.id === meta.surah);
-          html += `<div class="scan-surah-sep"><span dir="rtl">${info?.name_arabic || ''}</span> ${info?.name_simple || ''}</div>`;
+      const rowsHtml = async (items) => {
+        let out = '';
+        let currentSurah = null;
+        for (const { meta } of items) {
+          const verseKey = `${meta.surah}:${meta.ayah}`;
+          const tr = await DataManager.getTranslation(verseKey, 'indo') ||
+                     await DataManager.getTranslation(verseKey, 'eng');
+          const taf = state.showTafsir ? await DataManager.getTafsir(verseKey, 'short') : '';
+          const marked = isBookmarked(verseKey);
+          if (meta.surah !== currentSurah) {
+            currentSurah = meta.surah;
+            const info = chapters.find(c => c.id === meta.surah);
+            out += `<div class="scan-surah-sep"><span dir="rtl">${info?.name_arabic || ''}</span> ${info?.name_simple || ''}</div>`;
+          }
+          out += `<div class="scan-text-row" data-verse="${verseKey}">`;
+          out += `<button class="scan-num" data-play="${verseKey}" aria-label="Putar ayat ${meta.ayah}">${toArabicDigits(meta.ayah)}</button>`;
+          out += `<div class="scan-text-body">`;
+          if (state.showTranslation && tr) out += `<div class="scan-tr">${tr}</div>`;
+          if (state.showTafsir && taf) out += `<div class="scan-taf"><span>Tafsir:</span> ${taf}` +
+            ` <button class="link-btn" data-long-tafsir="${verseKey}">lengkap</button></div>`;
+          out += `</div>`;
+          out += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat">` +
+                  `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>` +
+                  `<button class="action-btn ${marked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="Penanda">` +
+                  `<svg width="16" height="16" viewBox="0 0 24 24" fill="${marked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
+          out += `</div>`;
         }
-        html += `<div class="scan-text-row" data-verse="${verseKey}">`;
-        html += `<button class="scan-num" data-play="${verseKey}" aria-label="Putar ayat ${meta.ayah}">${toArabicDigits(meta.ayah)}</button>`;
-        html += `<div class="scan-text-body">`;
-        if (state.showTranslation && tr) html += `<div class="scan-tr">${tr}</div>`;
-        if (state.showTafsir && taf) html += `<div class="scan-taf"><span>Tafsir:</span> ${taf}` +
-          ` <button class="link-btn" data-long-tafsir="${verseKey}">lengkap</button></div>`;
+        return out;
+      };
+
+      if (pair.length > 1) {
+        // kelompokkan ayat menurut halamannya, lalu tampilkan dua kolom
+        const byPage = new Map(pair.map(p => [p, []]));
+        for (const item of verses) {
+          const vk = `${item.meta.surah}:${item.meta.ayah}`;
+          const pg = (state.versePage && state.versePage.get(vk)) || pair[0];
+          (byPage.get(pg) || byPage.get(pair[0])).push(item);
+        }
+        html += `<div class="scan-texts scan-texts-2">`;
+        for (const p of pair) {
+          html += `<div class="scan-col" data-page="${p}">` + await rowsHtml(byPage.get(p) || []) + `</div>`;
+        }
         html += `</div>`;
-        html += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat">` +
-                `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>` +
-                `<button class="action-btn ${marked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="Penanda">` +
-                `<svg width="16" height="16" viewBox="0 0 24 24" fill="${marked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
-        html += `</div>`;
+      } else {
+        html += `<div class="scan-texts">` + await rowsHtml(verses) + `</div>`;
       }
-      html += `</div>`;
     }
     html += `</div>`;
     if (seq !== undefined && seq !== state._renderSeq) return;    // dibatalkan render baru
