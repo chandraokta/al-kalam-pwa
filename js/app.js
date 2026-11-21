@@ -19,6 +19,7 @@
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
     pageBorder: 'simple',  // 'simple' = garis ganda tipis | 'none' = tanpa bingkai
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
+    activePage: null,      // halaman yang sedang dibaca (null = halaman kanan pasangan)
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
     showTranslation: false,
@@ -157,7 +158,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-trans-page';
+  const BUILD = '2026-11-23-trans-swap';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1156,7 +1157,7 @@
   }
 
   /** Lembar terjemahan untuk menggantikan halaman sebelah pada mode dua halaman. */
-  async function buildTranslationSheetHtml(page, chapters) {
+  async function buildTranslationSheetHtml(page, chapters, otherPage) {
     const pd = await resolvePageData(page);
     const versesData = await DataManager.load('verses');
     const items = ((pd && pd.verses) || [])
@@ -1200,7 +1201,9 @@
       `<div class="scan-sheet trans-sheet pb-${borderVariant === 'none' ? 'none' : 'simple'}">` +
       borderHtml +
       `<div class="trans-head"><strong>Terjemahan${state.showTafsir ? ' & Tafsir' : ''}</strong>` +
-      `<span>${info ? info.name_simple : ''} · halaman ${toArabicDigits(page)}${juz ? ' · Juz ' + juz : ''}</span></div>` +
+      `<span>${info ? info.name_simple : ''} · halaman ${toArabicDigits(page)}${juz ? ' · Juz ' + juz : ''}</span>` +
+      `<button type="button" class="page-swap" data-swap="${otherPage}">baca halaman ${toArabicDigits(otherPage)}</button>` +
+      `</div>` +
       `<div class="trans-body">${rows}</div>` +
       `</div></div>`;
   }
@@ -1398,15 +1401,21 @@
       g.items.push(item);
     }
 
-    // bila terjemahan/tafsir aktif pada dua halaman, lembar kiri jadi halaman terjemahan
+    // bila terjemahan/tafsir aktif pada dua halaman, lembar yang TIDAK sedang
+    // dibaca berubah menjadi halaman terjemahan (halaman aktif tetap mushaf)
     const showText = state.showTranslation || state.showTafsir;
     const transOnPage = showText && pair.length > 1;
+    const activePage = (state.activePage && pair.includes(state.activePage))
+      ? state.activePage
+      : state.currentPage;
+    const activeIdx = Math.max(0, pair.indexOf(activePage));
+    const transIdx = pair.length > 1 ? (activeIdx === 0 ? 1 : 0) : -1;
     const sheets = [];
     for (let idx = 0; idx < pair.length; idx++) {
       const p = pair[idx];
       let html;
-      if (transOnPage && idx === 1) {
-        html = await buildTranslationSheetHtml(pair[0], chapters);
+      if (transOnPage && idx === transIdx) {
+        html = await buildTranslationSheetHtml(activePage, chapters, pair[activeIdx === 0 ? 1 : 0]);
       } else {
         html = await buildSheetHtml(p, chapters, layout);
       }
@@ -1488,6 +1497,26 @@
     html += `</div>`;
     if (seq !== undefined && seq !== state._renderSeq) return;    // dibatalkan render baru
     els.mushafContainer.innerHTML = html;
+
+    // pindah halaman yang dibaca: terjemahan berpindah ke sisi seberang
+    els.mushafContainer.querySelectorAll('.page-swap').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const target = Number(btn.dataset.swap);
+        if (Number.isFinite(target)) {
+          state.activePage = target;
+          renderPage(state.currentPage);
+        }
+      });
+    });
+
+    // tandai halaman yang sedang dibaca
+    try {
+      for (const box of els.mushafContainer.querySelectorAll('.scan-sheet-box[data-sheet]')) {
+        const p = Number(box.dataset.sheet);
+        if (transOnPage && Number.isFinite(p) && p === activePage) box.classList.add('is-active');
+      }
+    } catch { /* abaikan */ }
 
     // satu halaman atau dua halaman (buku): skalakan tiap lembar
     const sheetEls = [...els.mushafContainer.querySelectorAll('.scan-sheet')];
@@ -1578,6 +1607,30 @@
    * Dengan begitu baris terlebar tepat selebar halaman, baris lain dijustify
    * mengisi sisa — tidak ada yang terpotong dan ujung baris tetap sama.
    */
+  /** Sesuaikan ukuran huruf halaman terjemahan agar mengisi ruang yang ada. */
+  function fitTransSheet(sheet) {
+    const body = sheet.querySelector('.trans-body');
+    if (!body) return;
+    const avail = body.clientHeight;
+    if (!avail) return;
+    let lo = 0.95, hi = 2.6;   // 0.95 x ~13,7px ≈ 13px: batas nyaman dibaca
+    for (let i = 0; i < 10; i++) {
+      const mid = (lo + hi) / 2;
+      sheet.style.setProperty('--trans-scale', String(mid));
+      if (body.scrollHeight > avail - 3) hi = mid; else lo = mid;
+    }
+    sheet.style.setProperty('--trans-scale', String(lo));
+    // masih longgar? naikkan bertahap, tetapi kembalikan bila mulai meluber
+    let best = lo;
+    for (let i = 0; i < 8 && body.scrollHeight < avail * 0.95 && best < 2.6; i++) {
+      const next = Math.min(2.6, best + 0.05);
+      sheet.style.setProperty('--trans-scale', String(next));
+      if (body.scrollHeight > avail) break;
+      best = next;
+    }
+    sheet.style.setProperty('--trans-scale', String(best));
+  }
+
   function applyPageScale(sheet) {
     if (!sheet || !sheet.isConnected) return;
     // lembar terjemahan: cukup diskalakan, tidak perlu mengukur font mushaf
@@ -1585,12 +1638,14 @@
       const stageT = sheet.parentElement;
       const DESIGN_WT = 720;
       sheet.style.setProperty('--design-w', `${DESIGN_WT}px`);
+      sheet.style.setProperty('--msize', `${DESIGN_WT / 22}px`);
       const boxWT = stageT ? stageT.clientWidth : DESIGN_WT;
       const topYT = stageT ? stageT.getBoundingClientRect().top : 0;
       const availHT = Math.max(320, window.innerHeight - topYT - 20);
       const scaleT = Math.min(1, boxWT / DESIGN_WT, availHT / (sheet.offsetHeight || 1)) || 1;
       sheet.style.setProperty('--page-scale', String(scaleT));
       if (stageT) stageT.style.height = `${Math.round(sheet.offsetHeight * scaleT)}px`;
+      fitTransSheet(sheet);
       return;
     }
     const stage = sheet.parentElement;
