@@ -147,7 +147,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-stage-fit';
+  const BUILD = '2026-11-22-perpage-font';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1075,32 +1075,60 @@
    * baris yang lebih lebar dari kotaknya. Dipakai saat render, resize, dan
    * setelah font selesai dimuat.
    */
+  /**
+   * Skalakan halaman.
+   * Lebar alami tiap halaman IndoPak berbeda (16–21 em), jadi ukuran font
+   * dihitung dari baris terlebar halaman itu: font = 720 / (lebarEm + 1,8 padding).
+   * Dengan begitu baris terlebar tepat selebar halaman, baris lain dijustify
+   * mengisi sisa — tidak ada yang terpotong dan ujung baris tetap sama.
+   */
   function applyPageScale(sheet) {
     if (!sheet || !sheet.isConnected) return;
     const stage = sheet.parentElement;
     const DESIGN_W = 720;
-    const pageEm = mushafKey() === 'indopak' ? 17.69 : 20.6;
-    sheet.style.setProperty('--design-w', `${DESIGN_W}px`);
-    sheet.style.setProperty('--msize', `${DESIGN_W / pageEm}px`);
     const pageLines = sheet.querySelector('.mushaf-page-lines');
-    const sheetRect0 = sheet.getBoundingClientRect();
-    for (let i = 0; i < 4; i++) {
-      const avail = pageLines.clientWidth || 1;
+    if (!pageLines) return;
+
+    sheet.style.setProperty('--design-w', `${DESIGN_W}px`);
+
+    // 1) ukur lebar alami baris terlebar (em) pada font referensi 100px
+    const rows = [...sheet.querySelectorAll('.mline')].filter(l => (l.textContent || '').trim());
+    let maxEm = mushafKey() === 'indopak' ? 18.8 : 19.1;   // nilai aman bila tak terukur
+    if (rows.length) {
+      const REF = 100;
+      const saved = rows.map(r => [r.style.whiteSpace, r.style.display, r.style.width]);
+      sheet.style.setProperty('--msize', `${REF}px`);
+      rows.forEach(r => {
+        r.style.whiteSpace = 'nowrap';
+        r.style.display = 'inline-block';
+        r.style.width = 'max-content';
+      });
+      maxEm = Math.max(...rows.map(r => r.getBoundingClientRect().width), 1) / REF;
+      rows.forEach((r, i) => { [r.style.whiteSpace, r.style.display, r.style.width] = saved[i]; });
+    }
+
+    // 2) ukuran font agar baris terlebar mengisi halaman (padding 0,9em kiri+kanan)
+    const padEm = mushafKey() === 'indopak' ? 1.8 : 1.5;
+    let font = DESIGN_W / (maxEm + padEm);
+    font = Math.max(24, Math.min(52, font));
+    sheet.style.setProperty('--msize', `${font}px`);
+
+    // 3) jaring pengaman: bila masih ada yang melewati tepi lembar, kecilkan sedikit
+    const rect0 = sheet.getBoundingClientRect();
+    for (let i = 0; i < 6; i++) {
       let worst = 0;
-      for (const el of sheet.querySelectorAll('.mline')) {
-        worst = Math.max(worst, el.scrollWidth - el.clientWidth);
-      }
-      for (const el of sheet.querySelectorAll('.msurah-band, .msurah-name, .msurah-meta, .mw, .mbasmalah')) {
+      for (const el of sheet.querySelectorAll('.msurah-band, .msurah-name, .msurah-meta, .mw, .mbasmalah, .mline')) {
         const r = el.getBoundingClientRect();
         if (!r.width) continue;
-        worst = Math.max(worst, Math.ceil(r.right - sheetRect0.right) + 2, Math.ceil(sheetRect0.left - r.left) + 2);
+        worst = Math.max(worst, Math.ceil(r.right - rect0.right) + 2, Math.ceil(rect0.left - r.left) + 2);
       }
       if (worst <= 1) break;
-      const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || 26;
+      const avail = pageLines.clientWidth || 1;
+      const fs = parseFloat(getComputedStyle(sheet).getPropertyValue('--msize')) || font;
       sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.994)}px`);
     }
 
-    // skala utuh: halaman selebar layar (maks 720px), tinggi box ikut menyesuaikan
+    // 4) skala utuh ke lebar layar
     const scale = Math.min(1, (stage ? stage.clientWidth : DESIGN_W) / DESIGN_W) || 1;
     sheet.style.setProperty('--page-scale', String(scale));
     if (stage) stage.style.height = `${Math.round(sheet.offsetHeight * scale)}px`;
