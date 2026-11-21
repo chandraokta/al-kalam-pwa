@@ -1653,3 +1653,82 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .scan-sheet.pal-soft .mw.taj-ikhfa { background: linear-gradient(rgba(251, 207, 232, .6), rgba(251, 207, 232, .6)) center / 100% 58% no-repeat; }
 .scan-sheet.pal-soft .mw.taj-iqlab { background: linear-gradient(rgba(165, 243, 252, .6), rgba(165, 243, 252, .6)) center / 100% 58% no-repeat; }
 .scan-sheet.pal-soft .mw.taj-qalqalah { background: linear-gradient(rgba(254, 202, 202, .6), rgba(254, 202, 202, .6)) center / 100% 58% no-repeat; }
+
+/* ═══ Baris yang berakhir pada ayat terakhir surat: rata tengah ═══ */
+.mline.mline-surah-end {
+  text-align: center;
+  text-align-last: center;
+  word-spacing: 0;
+}
+
+/* ═══ Ornamen halaman tambahan ═══ */
+/* garis ganda berhiaskan berlian di atas & di bawah kepala halaman */
+.page-head::before,
+.page-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background:
+    radial-gradient(circle, rgba(184, 134, 11, .75) 1.4px, transparent 1.9px) center / 11px 1px repeat-x,
+    linear-gradient(90deg, transparent, rgba(112, 165, 125, .55), transparent);
+  opacity: .75;
+}
+.page-head::before { top: calc(var(--msize, 32px) * -0.22); }
+.page-head::after  { bottom: calc(var(--msize, 32px) * -0.22); }
+
+/* medali kecil di tengah kepala halaman */
+.page-head .ph-page {
+  position: relative;
+  padding-inline: calc(var(--msize, 32px) * 0.5);
+}
+.page-head .ph-page::before,
+.page-head .ph-page::after {
+  content: "\2726";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: .7em;
+  color: rgba(184, 134, 11, .8);
+}
+.page-head .ph-page::before { left: 0; }
+.page-head .ph-page::after  { right: 0; }
+
+/* roset di dalam keempat sudut bingkai */
+.scan-sheet.pb-simple .page-border.simple::before,
+.scan-sheet.pb-simple .page-border.simple::after {
+  content: "";
+  position: absolute;
+  width: calc(var(--msize, 32px) * 0.42);
+  height: calc(var(--msize, 32px) * 0.42);
+  border-radius: 50%;
+  border: 1px solid rgba(184, 134, 11, .5);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, .55),
+    inset 0 0 0 3px rgba(112, 165, 125, .35);
+  background: radial-gradient(circle, rgba(250, 204, 21, .35), transparent 65%);
+  pointer-events: none;
+}
+.scan-sheet.pb-simple .page-border.simple::before {
+  top: calc(var(--bw) * -1 - var(--msize, 32px) * 0.18);
+  left: calc(var(--bw) * -1 - var(--msize, 32px) * 0.18);
+}
+.scan-sheet.pb-simple .page-border.simple::after {
+  bottom: calc(var(--bw) * -1 - var(--msize, 32px) * 0.18);
+  right: calc(var(--bw) * -1 - var(--msize, 32px) * 0.18);
+}
+
+/* berlian kecil di tengah tepi kiri & kanan bingkai */
+.page-border.simple .pb-edge.v.left::after,
+.page-border.simple .pb-edge.v.right::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: calc(var(--msize, 32px) * 0.16);
+  height: calc(var(--msize, 32px) * 0.16);
+  background: rgba(184, 134, 11, .5);
+  transform: translateY(-50%) rotate(45deg);
+}
+.page-border.simple .pb-edge.v.left::after { left: calc(var(--msize, 32px) * -0.08); }
+.page-border.simple .pb-edge.v.right::after { right: calc(var(--msize, 32px) * -0.08); }

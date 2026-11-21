@@ -162,7 +162,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-palet-lembut';
+  const BUILD = '2026-11-23-surah-end';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1426,7 +1426,17 @@
           htm += `<div class="mline mline-basmalah"><span class="mbasmalah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</span></div>`;
         } else if (row.kind === 'words') {
           const short = (row.words || []).length < 3 ? ' mline-short' : '';
-          htm += `<div class="mline${short}">`;
+          // baris yang berakhir tepat pada ayat terakhir sebuah surat dirata-tengah
+          let endSurah = '';
+          const list = row.words || [];
+          const lastWord = list[list.length - 1];
+          if (lastWord && lastWord[3]) {
+            const [lvk] = lastWord;
+            const [ls, la] = String(lvk).split(':').map(Number);
+            const ch = chapters.find(c => c.id === ls);
+            if (ch && la === ch.verses_count) endSurah = ' mline-surah-end';
+          }
+          htm += `<div class="mline${short}${endSurah}">`;
           for (const [vk, pos, glyph, isEnd] of row.words) {
             if (mushafKey() === 'indopak') {
               // IndoPak: buang glyph PUA (waqf/penanda QCF) yang tak ada di font nastaleeq
