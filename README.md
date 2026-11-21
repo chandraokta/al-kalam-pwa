@@ -52,6 +52,7 @@ semua data disimpan sebagai `.json.gz` dan dimuat sesuai kebutuhan.
 - **Info Surat** (klik nama surat): arti nama, Makkiyah/Madaniyah, urutan turun, jumlah ayat, halaman, juz, manzil/ruku
 - **Info Kata** (tekan-lama / klik-kanan): arti, transliterasi, **morfologi** (jenis kata, akar, lemma)
 - **Ayat serupa** (mutashabihat): indeks 689 ayat / 1.228 pasangan
+- **Tema ayat** (topik QUL): tombol ◈ di tiap ayat + bagian “Tema di surat ini” di Info Surat; 2.930 topik, 4.095 ayat
 - **7 qari** dengan timing kata per ayat (Alafasy, Abdul Basit, Husary, Sudais, Shatri, Minshawi, Shuraym)
 
 ### Hafalan & murajaah (menu **Hafalan**)
@@ -78,6 +79,7 @@ semua data disimpan sebagai `.json.gz` dan dimuat sesuai kebutuhan.
 | `words.json.gz` | 1.079 KB | 77.429 kata: arti + transliterasi |
 | `morphology.json.gz` | 807 KB | akar, lemma, jenis kata |
 | `similar.json.gz` | 5 KB | indeks ayat serupa |
+| `topics.json.gz` | 123 KB | 2.930 topik/tema untuk 4.095 ayat |
 | `translation_*.json.gz` | 2,3 MB | 8 terjemahan |
 | `tafsir_*.json.gz` | 3,7 MB | 3 tafsir |
 | `qul/*.json.gz` | 3,9 MB | timing kata 7 qari |
@@ -121,6 +123,7 @@ jadi pembaruan langsung terpakai setelah reload.
 | `fetch_words.py` | arti & transliterasi per kata |
 | `build_morphology.py` | morfologi dari Quranic Arabic Corpus |
 | `build_similar.py` | indeks ayat serupa (shingle 3-kata + containment) |
+| `fetch_topics.py` | topik/tema ayat dari halaman publik QUL
 | `serve.py` | server lokal |
 
 ## Pengujian

@@ -2056,3 +2056,22 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
   .audio-bar { height: auto; flex-wrap: wrap; padding: 10px 14px; }
   .audio-progress { order: 3; width: 100%; max-width: none; }
 }
+
+/* ═══ Topik / tema ayat ═══ */
+.mi-sub { font-size: .8rem; color: var(--text-muted); margin: 6px 0 10px; }
+.mi-section-title { margin: 14px 0 8px; font-size: .72rem; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted); }
+.topic-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.topic-chip { font: inherit; font-size: .82rem; padding: 6px 12px; cursor: pointer;
+  border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-card);
+  color: var(--text-secondary); transition: var(--transition); }
+.topic-chip:hover { border-color: var(--accent-tertiary); color: var(--accent-primary);
+  background: var(--accent-light); }
+.tc-ar { opacity: .75; font-family: var(--font-arabic); font-size: .95em; }
+.topic-desc { font-size: .88rem; line-height: 1.65; color: var(--text-secondary); margin: 10px 0 4px; }
+.topic-list { display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; }
+.topic-ayah { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 12px; background: var(--bg-card); }
+.ta-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.ta-count { font-size: .72rem; color: var(--text-muted); }
+.ta-ar { font-family: var(--font-arabic); font-size: 1.35rem; line-height: 2; text-align: right; color: var(--text-primary); }
+.ta-tr { font-size: .85rem; color: var(--text-secondary); line-height: 1.6; }

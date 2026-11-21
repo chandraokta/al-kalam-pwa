@@ -21,6 +21,7 @@ const DataManager = (() => {
     { id: 'pageMap', file: 'page_map.json.gz', required: true },
     { id: 'juzMap', file: 'juz_map.json.gz', required: true },
     { id: 'tajwid', file: 'tajwid.json.gz', required: false },
+    { id: 'topics', file: 'topics.json.gz', required: false },
     { id: 'translation_indo', file: 'translation_indo.json.gz', required: true },
     { id: 'translation_eng', file: 'translation_eng_alkalam.json.gz', required: false },
     { id: 'tafsir_short', file: 'tafsir_id_short_fixed.json.gz', required: false },

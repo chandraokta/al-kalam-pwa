@@ -184,7 +184,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-lang';
+  const BUILD = '2026-11-24-topik';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -311,6 +311,92 @@
   }
 
   // ── Ayat serupa (mutashabihat) dari indeks lokal ──
+  // ── Topik / tema ayat (QUL ayah topics) ──
+  // escape untuk blok topik (esc global berada di lingkup lain)
+  const tEsc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  let _topicsCache = null;
+  async function topicsData() {
+    if (_topicsCache) return _topicsCache;
+    try {
+      _topicsCache = await DataManager.load('topics');
+    } catch {
+      _topicsCache = { topics: {}, byAyah: {} };
+    }
+    return _topicsCache || { topics: {}, byAyah: {} };
+  }
+
+  function topicChips(ids, data) {
+    return ids.map((id) => {
+      const t = data.topics[id];
+      if (!t) return '';
+      return `<button class="topic-chip" data-topic="${id}">${tEsc(t.n)}` +
+        `${t.ar ? ` <span class="tc-ar" dir="rtl">${tEsc(t.ar)}</span>` : ''}</button>`;
+    }).join('');
+  }
+
+  async function showTopicsOfAyah(verseKey) {
+    const data = await topicsData();
+    const ids = (data.byAyah || {})[verseKey] || [];
+    if (!ids.length) { showToast('Belum ada topik untuk ayat ini', 'info'); return; }
+    const ov = openModal(
+      `<div class="mi-head"><span class="mi-name">Tema · ${verseKey}</span></div>` +
+      `<p class="mi-sub">${ids.length} topik terkait ayat ini</p>` +
+      `<div class="topic-chips">${topicChips(ids, data)}</div>`
+    );
+    ov.querySelectorAll('[data-topic]').forEach((b) =>
+      b.addEventListener('click', () => showTopic(Number(b.dataset.topic))));
+  }
+
+  async function showTopic(topicId) {
+    const data = await topicsData();
+    const t = (data.topics || {})[topicId];
+    if (!t) return;
+    const verses = await DataManager.load('verses');
+    const rows = [];
+    for (const vk of (t.a || []).slice(0, 40)) {
+      const [s, a] = vk.split(':').map(Number);
+      const v = (verses[String(s)] || []).find((x) => x.verse_number === a);
+      const tr = await trFor(vk);
+      rows.push(`<div class="topic-ayah">` +
+        `<div class="ta-head"><button class="link-btn" data-goto-page="${vk}">${vk}</button>` +
+        `<span class="ta-count">${a}</span></div>` +
+        `<div class="ta-ar" dir="rtl">${v ? (v.text_uthmani || '') : ''}</div>` +
+        `<div class="ta-tr">${tr || ''}</div></div>`);
+    }
+    const ov = openModal(
+      `<div class="mi-head"><span class="mi-ar" dir="rtl">${tEsc(t.ar || '')}</span>` +
+      `<span class="mi-name">${tEsc(t.n)}</span></div>` +
+      (t.d ? `<p class="topic-desc">${tEsc(t.d)}</p>` : '') +
+      `<p class="mi-sub">${(t.a || []).length} ayat</p>` +
+      `<div class="topic-list">${rows.join('')}</div>`, { wide: true }
+    );
+    ov.querySelectorAll('[data-goto-page]').forEach((b) => b.addEventListener('click', async () => {
+      const vk = b.dataset.gotoPage;
+      const [s, a] = vk.split(':').map(Number);
+      ov.remove();
+      const pg = await pageOfVerse(s, a);
+      if (pg) renderPage(pg, vk);
+    }));
+  }
+
+  async function surahTopicsHtml(surahId) {
+    const data = await topicsData();
+    const counts = new Map();
+    const prefix = `${surahId}:`;
+    for (const [vk, ids] of Object.entries(data.byAyah || {})) {
+      if (!vk.startsWith(prefix)) continue;
+      for (const id of ids) counts.set(id, (counts.get(id) || 0) + 1);
+    }
+    if (!counts.size) return { html: '', ids: [] };
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([id]) => id);
+    return {
+      html: `<div class="mi-section-title">Tema di surat ini</div>` +
+            `<div class="topic-chips">${topicChips(top, data)}</div>`,
+      ids: top,
+    };
+  }
+
   async function showSimilar(verseKey) {
     const sim = await DataManager.load('similar');
     const list = (sim && sim[verseKey]) || [];
@@ -445,12 +531,17 @@
     const body = rows.map(([k, v]) =>
       `<div class="mi-row"><span class="mi-key">${k}</span><span class="mi-val">${v}</span></div>`).join('');
 
+    let topicSection = { html: '', ids: [] };
+    try { topicSection = await surahTopicsHtml(id); } catch { /* diamkan */ }
+
     openModal(
       `<div class="mi-head"><span class="mi-ar" dir="rtl">${ch.name_arabic || ''}</span>` +
       `<span class="mi-name">${ch.name_simple || ''}</span></div>` +
-      `<div class="mi-body">${body}</div>` +
+      `<div class="mi-body">${body}${topicSection.html}</div>` +
       `<div class="mi-actions"><button class="btn btn-primary" data-goto-surah="${id}">Buka halaman ${pages[0] || ''}</button></div>`
     );
+    document.querySelectorAll('#appModal [data-topic]').forEach((b) =>
+      b.addEventListener('click', () => showTopic(Number(b.dataset.topic))));
     const btn = document.querySelector('[data-goto-surah]');
     if (btn) btn.addEventListener('click', async (e) => {
       const target = Number(e.currentTarget.dataset.gotoSurah);
@@ -2015,6 +2106,7 @@
             ` <button class="link-btn" data-long-tafsir="${verseKey}">lengkap</button></div>`;
           out += `</div>`;
           out += `<button class="action-btn" data-action="similar" data-verse="${verseKey}" aria-label="Ayat serupa" title="Ayat serupa">\u2248</button>`;
+  out += `<button class="action-btn" data-action="topics" data-verse="${verseKey}" aria-label="Tema ayat" title="Tema ayat">\u25c8</button>`;
           out += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat">` +
                   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>` +
                   `<button class="action-btn ${marked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="Penanda">` +
@@ -2124,6 +2216,9 @@
     });
     els.mushafContainer.querySelectorAll('[data-action="similar"]').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); showSimilar(btn.dataset.verse); });
+    });
+    els.mushafContainer.querySelectorAll('[data-action="topics"]').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); showTopicsOfAyah(btn.dataset.verse); });
     });
     els.mushafContainer.querySelectorAll('[data-action="copy"]').forEach(btn => {
       btn.addEventListener('click', () => copyAyah(btn.dataset.verse));
@@ -2412,6 +2507,7 @@
         html += `<div class="ayah-actions">`;
         html += `<button class="action-btn" data-action="play" data-verse="${verseKey}" aria-label="Putar ayat" title="Putar"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`;
         html += `<button class="action-btn" data-action="similar" data-verse="${verseKey}" aria-label="Ayat serupa" title="Ayat serupa">≈</button>`;
+  html += `<button class="action-btn" data-action="topics" data-verse="${verseKey}" aria-label="Tema ayat" title="Tema ayat">◈</button>`;
         html += `<button class="action-btn" data-action="copy" data-verse="${verseKey}" aria-label="Salin ayat" title="Salin ayat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>`;
         html += `<button class="action-btn ${bookmarked ? 'active' : ''}" data-action="bookmark" data-verse="${verseKey}" aria-label="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}" title="${bookmarked ? 'Hapus penanda' : 'Tambah penanda'}"><svg width="18" height="18" viewBox="0 0 24 24" fill="${bookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>`;
         html += `</div>`;
@@ -2468,6 +2564,9 @@
     // Bookmark buttons
     els.mushafContainer.querySelectorAll('[data-action="similar"]').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); showSimilar(btn.dataset.verse); });
+    });
+    els.mushafContainer.querySelectorAll('[data-action="topics"]').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); showTopicsOfAyah(btn.dataset.verse); });
     });
     els.mushafContainer.querySelectorAll('[data-action="copy"]').forEach(btn => {
       btn.addEventListener('click', (e) => copyAyah(e.currentTarget.dataset.verse));
