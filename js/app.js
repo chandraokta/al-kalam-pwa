@@ -14,6 +14,8 @@
     currentSurah: 1,
     currentAyah: 1,
     pageMode: 'scan',      // 'scan' = halaman mushaf (layout), 'text' = teks Uthmani
+    spreadMode: 'auto',    // 'auto' | 'one' | 'two' — dua halaman seperti buku
+    _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
     showTranslation: true,
@@ -100,6 +102,7 @@
     els.pageModeSelect = $('pageModeSelect');
     els.mushafSelect = $('mushafSelect');
     els.mushafSelectSetting = $('mushafSelectSetting');
+    els.spreadSelect = $('spreadSelect');
     els.qariSelect = $('qariSelect');
     els.autoPlayNext = $('autoPlayNext');
     els.repeatAyah = $('repeatAyah');
@@ -147,7 +150,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-perpage-font';
+  const BUILD = '2026-11-22-spread';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -255,6 +258,7 @@
       repeatAyah: state.repeatAyah,
       offlinePages: state.offlinePages,
       showAyahNumbers: state.showAyahNumbers,
+      spreadMode: state.spreadMode,
     };
     localStorage.setItem('alkalam_settings', JSON.stringify(settings));
   }
@@ -281,6 +285,7 @@
     state.repeatAyah = state.repeatAyah || false;
     state.offlinePages = state.offlinePages !== false;
     state.showAyahNumbers = state.showAyahNumbers !== false;
+    state.spreadMode = ['auto', 'one', 'two'].includes(state.spreadMode) ? state.spreadMode : 'auto';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -294,6 +299,7 @@
     els.showAyahNumbers.checked = state.showAyahNumbers;
     if (els.pageModeSelect) els.pageModeSelect.value = state.pageMode;
     if (els.mushafSelectSetting) els.mushafSelectSetting.value = state.mushaf;
+    if (els.spreadSelect) els.spreadSelect.value = state.spreadMode;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
     els.qariSelect.value = state.qari;
     els.autoPlayNext.checked = state.autoPlayNext;
@@ -847,9 +853,25 @@
     return rows;
   }
 
-  async function renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters) {
-    const layout = await DataManager.getLayout(mushafKey());
-    const versesData = await DataManager.load('verses');
+  /** Apakah tampilan dua halaman aktif? */
+  function spreadWanted() {
+    const mode = state.spreadMode || 'auto';
+    if (mode === 'one') return false;
+    if (mode === 'two') return true;
+    return window.innerWidth >= 1100;      // otomatis: layar lebar
+  }
+
+  /** Pasangan halaman (ganjil di kanan, genap di kiri) seperti mushaf cetak. */
+  function spreadPair(page) {
+    if (!spreadWanted() || pageCount() < 2) return [page];
+    const start = page % 2 === 0 ? page - 1 : page;
+    const pair = [start];
+    if (start + 1 <= pageCount()) pair.push(start + 1);
+    return pair;
+  }
+
+  /** Bangun HTML satu lembar halaman (dipakai mode satu & dua halaman). */
+  async function buildSheetHtml(page, chapters, layout) {
     const tajweedPage = !!state.showTajwid && mushafKey() === 'madani';
     const fontFamily = await ensureMushafFont(page, tajweedPage);
 
@@ -857,33 +879,14 @@
     const wordTintOn = !!state.showTajwid && mushafKey() === 'indopak';
     const ruleByVerse = new Map();
     if (wordTintOn) {
-      for (const v of pageData.verses) {
+      const pd = await resolvePageData(page);
+      for (const v of (pd && pd.verses) || []) {
         const vk = `${v.surah}:${v.ayah}`;
         if (!ruleByVerse.has(vk)) ruleByVerse.set(vk, await wordRuleGroups(vk));
       }
     }
-    prefetchPageFonts(page);
 
-    const verses = pageData.verses
-      .map(v => ({ meta: v, verse: versesData[v.surah]?.find(x => x.verse_number === v.ayah) }))
-      .filter(x => x.verse);
-
-    // kelompokkan per surat untuk strip nomor ayat
-    const groups = [];
-    for (const item of verses) {
-      let g = groups.find(x => x.surah === item.meta.surah);
-      if (!g) {
-        const info = chapters.find(c => c.id === item.meta.surah);
-        g = { surah: item.meta.surah, info, items: [] };
-        groups.push(g);
-      }
-      g.items.push(item);
-    }
-
-    // ── baris halaman ──
     const rows = buildRows(layout, page, chapters);
-    const filledLines = rows ? rows.filter(r => r.kind === 'words').length : 0;
-    const sparsePage = false;                   // semua baris rata penuh (standar mushaf)
     let htm = '';
     if (!rows) {
       htm = `<div class="mline mline-empty">Layout halaman tidak tersedia</div>`;
@@ -905,8 +908,7 @@
           htm += `<div class="mline mline-basmalah"><span class="mbasmalah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</span></div>`;
         } else if (row.kind === 'words') {
           const short = (row.words || []).length < 3 ? ' mline-short' : '';
-          const centered = sparsePage ? ' mline-center' : '';
-          htm += `<div class="mline${short}${centered}">`;
+          htm += `<div class="mline${short}">`;
           for (const [vk, pos, glyph, isEnd] of row.words) {
             if (mushafKey() === 'indopak') {
               // IndoPak: buang glyph PUA (waqf/penanda QCF) yang tak ada di font nastaleeq
@@ -936,13 +938,61 @@
 
     const style = fontFamily ? ` style="font-family:'${fontFamily}', serif"` : '';
     const mushafClass = mushafKey() === 'indopak' ? ' mushaf-indopak' : '';
+    return `<div class="scan-sheet-box" data-sheet="${page}">` +
+      `<div class="scan-sheet${mushafClass}">` +
+      `<div class="page-frame" aria-hidden="true">` +
+      `<span class="page-corner tl"></span><span class="page-corner tr"></span>` +
+      `<span class="page-corner bl"></span><span class="page-corner br"></span>` +
+      `</div>` +
+      `<div class="mushaf-page-lines"${style}>${htm}</div></div></div>`;
+  }
+
+  async function renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters, seq) {
+    const layout = await DataManager.getLayout(mushafKey());
+    const versesData = await DataManager.load('verses');
+    prefetchPageFonts(page);
+
+    // satu atau dua halaman (buku)
+    const pair = spreadPair(page);
+    const metaSeen = new Set();
+    const allMeta = [];
+    for (const p of pair) {
+      const pd = p === page ? pageData : await resolvePageData(p);
+      for (const v of (pd && pd.verses) || []) {
+        const key = `${v.surah}:${v.ayah}`;
+        if (metaSeen.has(key)) continue;
+        metaSeen.add(key);
+        allMeta.push(v);
+      }
+    }
+
+    const verses = allMeta
+      .map(v => ({ meta: v, verse: versesData[v.surah]?.find(x => x.verse_number === v.ayah) }))
+      .filter(x => x.verse);
+
+    // kelompokkan per surat untuk strip nomor ayat
+    const groups = [];
+    for (const item of verses) {
+      let g = groups.find(x => x.surah === item.meta.surah);
+      if (!g) {
+        const info = chapters.find(c => c.id === item.meta.surah);
+        g = { surah: item.meta.surah, info, items: [] };
+        groups.push(g);
+      }
+      g.items.push(item);
+    }
+
+    const sheets = [];
+    for (const p of pair) {
+      const html = await buildSheetHtml(p, chapters, layout);
+      if (seq !== undefined && seq !== state._renderSeq) return;   // render sudah basi
+      sheets.push(html);
+    }
+
     let html = `<div class="scan-page" data-page="${page}">`;
-    html += `<div class="scan-sheet-box"><div class="scan-sheet${mushafClass}">`;
-    html += `<div class="page-frame" aria-hidden="true">` +
-            `<span class="page-corner tl"></span><span class="page-corner tr"></span>` +
-            `<span class="page-corner bl"></span><span class="page-corner br"></span>` +
-            `</div>`;
-    html += `<div class="mushaf-page-lines"${style}>${htm}</div></div></div>`;
+    html += pair.length > 1
+      ? `<div class="scan-spread">${sheets.join('')}</div>`
+      : sheets[0];
 
     // legenda warna tajwid (tampil saat tajwid aktif)
     if (state.showTajwid) {
@@ -992,11 +1042,12 @@
       html += `</div>`;
     }
     html += `</div>`;
+    if (seq !== undefined && seq !== state._renderSeq) return;    // dibatalkan render baru
     els.mushafContainer.innerHTML = html;
 
-    const sheet = els.mushafContainer.querySelector('.scan-sheet');
-    if (sheet) {
-      // ukuran tetap seperti QUL: Madani 19,1em, IndoPak 15,89em (+0,75em padding)
+    // satu halaman atau dua halaman (buku): skalakan tiap lembar
+    const sheetEls = [...els.mushafContainer.querySelectorAll('.scan-sheet')];
+    for (const sheet of sheetEls) {
       applyPageScale(sheet);
       // font halaman dimuat asinkron: ukur ulang setelah siap
       if (document.fonts && document.fonts.ready) {
@@ -1004,6 +1055,7 @@
       }
       new ResizeObserver(() => applyPageScale(sheet)).observe(sheet);
     }
+    state._spreadRendered = sheetEls.length > 1;
 
     els.mushafContainer.querySelectorAll('[data-play]').forEach(btn => {
       btn.addEventListener('click', () => playAyah(btn.dataset.play));
@@ -1135,13 +1187,22 @@
   }
 
   async function renderPage(page) {
+    const seq = ++state._renderSeq;
     const maxPage = pageCount();
     if (page < 1 || page > maxPage) return;
+    // mode dua halaman: selalu mulai dari halaman ganjil (kanan)
+    const pair = spreadPair(page);
+    page = pair[0];
     state.currentPage = page;
-    els.pageIndicator.textContent = `${page} / ${maxPage}`;
-    els.pageLabel.textContent = `Halaman ${page}`;
-    els.btnPrevPage.disabled = page === 1;
-    els.btnNextPage.disabled = page === maxPage;
+    els.pageIndicator.textContent = pair.length > 1
+      ? `${pair[0]}–${pair[1]} / ${maxPage}`
+      : `${page} / ${maxPage}`;
+    els.pageLabel.textContent = pair.length > 1
+      ? `Halaman ${pair[0]}–${pair[1]}`
+      : `Halaman ${page}`;
+    els.btnPrevPage.disabled = page <= 1;
+    els.btnNextPage.disabled = page + pair.length - 1 >= maxPage;
+    state._pageStep = pair.length;
 
     saveLastRead();
 
@@ -1173,7 +1234,7 @@
 
       // ═══ Mode pindaian: tampilkan gambar halaman mushaf ═══
       if (state.pageMode === 'scan') {
-        await renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters);
+        await renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters, seq);
         return;
       }
 
@@ -2007,10 +2068,17 @@
     els.btnBookmark.addEventListener('click', () => showView('bookmarks'));
     
     // Mushaf toolbar
-    els.btnPrevPage.addEventListener('click', () => renderPage(state.currentPage - 1));
-    els.btnNextPage.addEventListener('click', () => renderPage(state.currentPage + 1));
+    els.btnPrevPage.addEventListener('click', () => renderPage(state.currentPage - (state._pageStep || 1)));
+    els.btnNextPage.addEventListener('click', () => renderPage(state.currentPage + (state._pageStep || 1)));
     els.mushafSelect.addEventListener('change', (e) => setMushaf(e.target.value));
     els.mushafSelectSetting.addEventListener('change', (e) => setMushaf(e.target.value));
+    if (els.spreadSelect) {
+      els.spreadSelect.addEventListener('change', (e) => {
+        state.spreadMode = e.target.value;
+        saveSettings();
+        renderPage(state.currentPage);
+      });
+    }
     els.modeScan.addEventListener('click', () => { setPageMode('scan'); saveSettings(); });
     els.modeText.addEventListener('click', () => { setPageMode('text'); saveSettings(); });
     els.toggleArabic.addEventListener('click', () => {
@@ -2183,9 +2251,13 @@
     const onResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        const sheet = els.mushafContainer.querySelector('.scan-sheet');
-        if (sheet) applyPageScale(sheet);
-      }, 120);
+        // lebar melewati ambang dua-halaman → render ulang
+        if (state.pageMode === 'scan' && spreadWanted() !== !!state._spreadRendered) {
+          renderPage(state.currentPage);
+          return;
+        }
+        for (const sheet of els.mushafContainer.querySelectorAll('.scan-sheet')) applyPageScale(sheet);
+      }, 150);
     };
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);

@@ -262,11 +262,28 @@ svg { display: inline-block; vertical-align: middle; }
 ════════════════════════════════════════════════════════════════════════ */
 /* bidang halaman: lebar tetap 720px lalu diskalakan utuh ke lebar layar,
    sehingga halaman tidak pernah terpotong berapa pun lebar jendela */
+/* dua halaman bersebelahan (seperti membuka buku) */
+.scan-spread {
+  display: flex;
+  width: 100%;
+  gap: 14px;
+  justify-content: center;
+  align-items: flex-start;
+  direction: rtl;               /* halaman ganjil (kanan) tampil lebih dulu */
+}
+.scan-spread .scan-sheet-box { width: calc(50% - 7px); }
+.scan-spread .scan-sheet-box:first-child { box-shadow: -1px 0 0 rgba(0,0,0,.06); }
+@media (max-width: 1099px) {
+  .scan-spread { flex-direction: column; gap: 18px; }
+  .scan-spread .scan-sheet-box { width: 100%; }
+}
+
 .scan-sheet-box {
   width: 100%;
   position: relative;
   display: flex;
   justify-content: center;
+  align-items: flex-start;   /* jangan stretch: tinggi lembar dari aspect-ratio */
   overflow: visible;
 }
 .scan-sheet-box > .scan-sheet {
