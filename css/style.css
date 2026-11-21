@@ -1278,3 +1278,33 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .mw.taj-iqlab { background: rgba(38, 191, 253, .17); }
 .mw.taj-qalqalah { background: rgba(221, 0, 8, .12); }
 .mw.taj-silent { background: rgba(154, 160, 166, .14); }
+
+/* pewarnaan per huruf di halaman — palet SAMA dengan mode Teks
+   (mode Teks dijadikan patokan warna) */
+.mw .tj { border-radius: 2px; }
+.mw .tj-ghunnah,
+.mw .tj-idgham {
+  background: rgba(16, 185, 129, .18);
+  color: #046c4e;
+}
+.mw .tj-ikhfa,
+.mw .tj-iqlab {
+  background: rgba(139, 92, 246, .17);
+  color: #5b21b6;
+}
+.mw .tj-mad {
+  background: rgba(59, 130, 246, .16);
+  color: #1e40af;
+}
+.mw .tj-qalqalah {
+  background: rgba(245, 158, 11, .22);
+  color: #92400e;
+}
+.mw .tj-silent {
+  background: rgba(107, 114, 128, .15);
+  color: #4b5563;
+}
+.mw .tj-tafkhim {
+  background: rgba(20, 184, 166, .17);
+  color: #0f766e;
+}

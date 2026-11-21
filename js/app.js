@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-tajwid-letter';
+  const BUILD = '2026-11-22-tajwid-textref';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -459,9 +459,48 @@
    * HTML satu kata IndoPak dengan warna per huruf.
    * null bila jumlah huruf dasar tidak sama (pemanggil pakai cadangan per kata).
    */
-  function tintedWordHtml(text, rules) {
+  /** Selaraskan aturan markup ke huruf dasar IndoPak (tahan beda ortografi). */
+  function alignLetterRules(base, markupBase, rules) {
+    if (!rules || !rules.length) return null;
+    if (base === markupBase) return rules.slice();
+    const n = base.length, m = markupBase.length;
+    if (!n) return null;
+    // LCS sederhana: tabel (n+1) x (m+1)
+    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        dp[i][j] = base[i] === markupBase[j]
+          ? dp[i + 1][j + 1] + 1
+          : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    const out = new Array(n).fill(null);
+    let i = 0, j = 0, lastRule = null;
+    while (i < n && j < m) {
+      if (base[i] === markupBase[j]) {
+        out[i] = rules[j] ?? lastRule;
+        if (rules[j]) lastRule = rules[j];
+        i++; j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        out[i] = lastRule;        // huruf IndoPak tanpa pasangan
+        i++;
+      } else {
+        j++;
+      }
+    }
+    while (i < n) { out[i] = lastRule; i++; }
+    return out;
+  }
+
+  /**
+   * HTML satu kata IndoPak dengan warna per huruf, mengacu pada markup tajwid
+   * yang sama dengan mode Teks (sumber kebenaran).
+   */
+  function tintedWordHtml(text, markupWord) {
+    if (!markupWord) return null;
     const base = baseLetters(text);
-    if (!rules || !rules.length || base.length !== rules.length) return null;
+    const rules = alignLetterRules(base, markupWord.base, markupWord.rules);
+    if (!rules || !rules.some(Boolean)) return null;
     const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
     let html = "";
     let buf = "";
@@ -469,7 +508,7 @@
     let idx = 0;
     const flush = () => {
       if (!buf) return;
-      html += cur ? `<span class="taj-${cur}">${esc(buf)}</span>` : esc(buf);
+      html += cur ? `<span class="tj tj-${cur}">${esc(buf)}</span>` : esc(buf);
       buf = "";
     };
     for (const ch of text) {
@@ -483,76 +522,6 @@
     }
     flush();
     return html;
-  }
-
-
-  /**
-   * Urai markup tajwid (HTML) menjadi daftar kata beserta hukum yang ada di dalamnya.
-   * Catatan: markup berisi tag seperti <tajweed class=ghunnah>…</tajweed>; dulu dipecah
-   * dengan split spasi sehingga tag ikut terpecah dan semua sorotan bergeser.
-   */
-  function parseTajwidWords(html) {
-    if (!html) return [];
-    // buang penanda nomor ayat
-    let src = html.replace(/<span\s+class=["']?end["']?\s*>.*?<\/span>/g, "");
-    const words = [];
-    let rules = new Set();
-    let text = "";
-    let open = null;              // aturan yang sedang aktif
-
-    const flushWord = () => {
-      if (text) words.push({ text, rules: new Set(rules) });
-      text = "";
-      rules = new Set();
-    };
-
-    let i = 0;
-    while (i < src.length) {
-      if (src[i] === "<") {
-        const close = src.indexOf(">", i);
-        if (close === -1) break;
-        const tag = src.slice(i + 1, close);
-        if (/^tajweed\b/i.test(tag)) {
-          const cls = (tag.match(/class\s*=\s*["']?([a-z_]+)/i) || [])[1];
-          open = cls || null;
-          if (open) rules.add(open);
-        } else if (/^\/tajweed/i.test(tag)) {
-          open = null;
-        }
-        i = close + 1;
-        continue;
-      }
-      const ch = src[i];
-      if (/[\s\u00a0]/.test(ch)) {
-        flushWord();
-        i += 1;
-        continue;
-      }
-      text += ch;
-      if (open) rules.add(open);
-      i += 1;
-    }
-    flushWord();
-    return words;
-  }
-
-  /** Aturan tajwid dominan per kata sebuah ayat: hasil = array grup (indeks 1 = kata 1). */
-  async function wordRuleGroups(verseKey) {
-    if (wordRuleCache.has(verseKey)) return wordRuleCache.get(verseKey);
-    const all = await DataManager.load('tajwid');
-    const html = (all && all[verseKey]) || '';
-    if (!html) { wordRuleCache.set(verseKey, []); return []; }
-
-    const words = parseTajwidWords(html);
-    const out = words.map(w => {
-      for (const r of w.rules) {
-        const g = RULE_TO_GROUP[r];
-        if (g) return g;
-      }
-      return null;
-    });
-    wordRuleCache.set(verseKey, out);
-    return out;
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1086,12 +1055,15 @@
         }
       }
       for (const [vk, poss] of textPos) {
-        const groups = await wordRuleGroups(vk);
-        if (groups.length !== poss.length) continue;   // jumlah kata beda → jangan diwarnai
+        const letters = await verseLetterData(vk);      // kata + aturan per huruf
+        if (!letters.length || letters.length !== poss.length) continue;  // jumlah kata beda
         const m = new Map();
-        poss.forEach((p, i) => { if (groups[i]) m.set(p, groups[i]); });
+        poss.forEach((p, i) => {
+          const g = (letters[i].rules || []).find(Boolean) || null;       // aturan dominan kata
+          if (g) m.set(p, g);
+        });
         tintByVerse.set(vk, m);
-        letterByVerse.set(vk, await verseLetterData(vk));
+        letterByVerse.set(vk, letters);
       }
     }
 
@@ -1132,7 +1104,7 @@
                   const ord = wordOrdinal.get(vk) || 0;
                   wordOrdinal.set(vk, ord + 1);
                   const markupWord = (letterByVerse.get(vk) || [])[ord];
-                  const perLetter = markupWord ? tintedWordHtml(clean, markupWord.rules) : null;
+                  const perLetter = markupWord ? tintedWordHtml(clean, markupWord) : null;
                   if (perLetter !== null) {
                     inner = perLetter;
                   } else {
