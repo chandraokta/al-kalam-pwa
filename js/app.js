@@ -162,7 +162,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-surah-end2';
+  const BUILD = '2026-11-23-bingkai';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1286,6 +1286,7 @@
     return `<div class="scan-sheet-box" data-sheet="tajwid-${page}">` +
       `<div class="scan-sheet trans-sheet tajwid-sheet pb-${borderVariant === 'none' ? 'none' : 'simple'}">` +
       borderHtml +
+      curlFrameSvg() +
       `<div class="trans-head"><strong>Tajwid halaman ini</strong>` +
       `<span>${info ? info.name_simple : ''} · halaman ${toArabicDigits(page)}${juz ? ' · Juz ' + juz : ''}` +
       `${rules.length ? ' · ' + rules.length + ' hukum' : ''}</span>` +
@@ -1339,6 +1340,7 @@
     return `<div class="scan-sheet-box" data-sheet="trans-${page}">` +
       `<div class="scan-sheet trans-sheet pb-${borderVariant === 'none' ? 'none' : 'simple'}">` +
       borderHtml +
+      curlFrameSvg() +
       `<div class="trans-head"><strong>Terjemahan${state.showTafsir ? ' & Tafsir' : ''}</strong>` +
       `<span>${info ? info.name_simple : ''} · halaman ${toArabicDigits(page)}${juz ? ' · Juz ' + juz : ''}</span>` +
       `<button type="button" class="page-swap" data-swap="${otherPage}">baca halaman ${toArabicDigits(otherPage)}</button>` +
@@ -1347,6 +1349,79 @@
       `</div></div>`;
   }
 
+
+  // ── Bingkai lekuk ala kaligrafi (SVG, mengelilingi halaman) ──
+  let curlSeq = 0;
+  function curlFrameSvg() {
+    const W = 720, H = 1022;
+    const mSide = 24;        // jarak bingkai dari tepi kiri/kanan
+    const mTop = 42;         // di bawah kepala halaman
+    const mBottom = 22;
+    const r = 30;            // jari-jari lengkung sudut
+    const amp = 3.5;         // tinggi gelombang
+    const per = 24;          // panjang satu gelombang
+    const id = `curl${++curlSeq}`;
+
+    const hWave = (y, x0, x1, a = amp) => {
+      let d = `M ${x0} ${y}`;
+      const n = Math.max(2, Math.round(Math.abs(x1 - x0) / per));
+      const step = (x1 - x0) / n;
+      for (let i = 0; i < n; i++) {
+        d += ` q ${step / 4} ${-a} ${step / 2} 0 q ${step / 4} ${a} ${step / 2} 0`;
+      }
+      return d;
+    };
+    const vWave = (x, y0, y1, a = amp) => {
+      let d = `M ${x} ${y0}`;
+      const n = Math.max(2, Math.round(Math.abs(y1 - y0) / per));
+      const step = (y1 - y0) / n;
+      for (let i = 0; i < n; i++) {
+        d += ` q ${-a} ${step / 4} 0 ${step / 2} q ${a} ${step / 4} 0 ${step / 2}`;
+      }
+      return d;
+    };
+
+    // satu bingkai gelombang: dua sisi + lengkung sudut, digeser sejauh off
+    const frame = (off, a, phase) => {
+      const x0 = mSide + off, x1 = W - mSide - off;
+      const y0 = mTop + off, y1 = H - mBottom - off;
+      const rr = r - off;
+      const startOff = phase;                 // geser titik mulai agar gelombang selaras
+      return `<path d="${hWave(y0, x0 + rr + startOff, x1 - rr)}"/>` +
+        `<path d="${hWave(y1, x0 + rr, x1 - rr - startOff)}"/>` +
+        `<path d="${vWave(x0, y0 + rr + startOff, y1 - rr)}"/>` +
+        `<path d="${vWave(x1, y0 + rr, y1 - rr - startOff)}"/>` +
+        `<path d="M ${x0} ${y0 + rr} A ${rr} ${rr} 0 0 1 ${x0 + rr} ${y0}"/>` +
+        `<path d="M ${x1 - rr} ${y0} A ${rr} ${rr} 0 0 1 ${x1} ${y0 + rr}"/>` +
+        `<path d="M ${x1} ${y1 - rr} A ${rr} ${rr} 0 0 1 ${x1 - rr} ${y1}"/>` +
+        `<path d="M ${x0 + rr} ${y1} A ${rr} ${rr} 0 0 1 ${x0} ${y1 - rr}"/>`;
+    };
+
+    // sulur kecil di dalam keempat sudut, mengikuti lengkung
+    const curl = (cx, cy, sx, sy) =>
+      `M ${cx} ${cy + sy * 26} c ${sx * 0} ${sy * -16} ${sx * 12} ${sy * -26} ${sx * 26} ${sy * -26}` +
+      ` c ${sx * 10} 0 ${sx * 17} ${sy * 7} ${sx * 17} ${sy * 16}` +
+      ` c 0 ${sy * 8} ${sx * -6} ${sy * 13} ${sx * -13} ${sy * 13}` +
+      ` c ${sx * -6} 0 ${sx * -10} ${sy * -4} ${sx * -10} ${sy * -9}`;
+
+    return `<svg class="page-curls" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">` +
+      `<defs><linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1">` +
+      `<stop offset="0" stop-color="#5f9e73"/><stop offset="0.5" stop-color="#b8860b"/>` +
+      `<stop offset="1" stop-color="#5f9e73"/></linearGradient></defs>` +
+      `<g fill="none" stroke="url(#${id}g)" stroke-width="2" opacity=".62" stroke-linecap="round">` +
+      frame(0, amp) +
+      `</g>` +
+      `<g fill="none" stroke="#b8860b" stroke-width="1.1" opacity=".5" stroke-linecap="round">` +
+      frame(9, amp * 0.7, per / 2) +
+      `</g>` +
+      `<g fill="none" stroke="#b8860b" stroke-width="1.3" opacity=".55" stroke-linecap="round">` +
+      curl(mSide + 12, mTop + 12, 1, 1) +
+      curl(W - mSide - 12, mTop + 12, -1, 1) +
+      curl(mSide + 12, H - mBottom - 12, 1, -1) +
+      curl(W - mSide - 12, H - mBottom - 12, -1, -1) +
+      `</g>` +
+      `</svg>`;
+  }
 
   /** Bangun HTML satu lembar halaman (dipakai mode satu & dua halaman). */
   async function buildSheetHtml(page, chapters, layout) {
@@ -1515,7 +1590,7 @@
     const palClass = state.pagePalette === 'soft' ? ' pal-soft' : '';
     return `<div class="scan-sheet-box" data-sheet="${page}">` +
       `<div class="scan-sheet${mushafClass}${sheetVariant}${palClass}">` +
-      borderHtml + headHtml +
+      borderHtml + headHtml + curlFrameSvg() +
       `<div class="mushaf-page-lines"${style}>${htm}</div></div></div>`;
   }
 

@@ -1673,7 +1673,7 @@ body.is-fullscreen .app-main { margin-top: 0; }
   background:
     radial-gradient(circle, rgba(184, 134, 11, .75) 1.4px, transparent 1.9px) center / 11px 1px repeat-x,
     linear-gradient(90deg, transparent, rgba(112, 165, 125, .55), transparent);
-  opacity: .75;
+  opacity: .4;
 }
 .page-head::before { top: calc(var(--msize, 32px) * -0.22); }
 .page-head::after  { bottom: calc(var(--msize, 32px) * -0.22); }
@@ -1732,3 +1732,16 @@ body.is-fullscreen .app-main { margin-top: 0; }
 }
 .page-border.simple .pb-edge.v.left::after { left: calc(var(--msize, 32px) * -0.08); }
 .page-border.simple .pb-edge.v.right::after { right: calc(var(--msize, 32px) * -0.08); }
+
+/* ═══ Bingkai lekuk ala kaligrafi (SVG) ═══ */
+.page-curls {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.scan-sheet .mushaf-page-lines,
+.scan-sheet .trans-head,
+.scan-sheet .trans-body { position: relative; z-index: 2; }
