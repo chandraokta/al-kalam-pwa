@@ -162,7 +162,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-surah-end';
+  const BUILD = '2026-11-23-surah-end2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');

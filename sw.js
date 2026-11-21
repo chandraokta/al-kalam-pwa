@@ -2,9 +2,9 @@
  * Al-Kalam Digital — Service Worker
  * Offline-first untuk halaman mushaf & data JSON
  */
-const CACHE_NAME = 'alkalam-v44';
+const CACHE_NAME = 'alkalam-v45';
 const DATA_CACHE = 'alkalam-data-v3';
-const PAGE_CACHE = 'alkalam-pages-v44';
+const PAGE_CACHE = 'alkalam-pages-v45';
 const IMG_CACHE = 'alkalam-page-images-v2';
 
 // File yang di-cache saat install (app shell)
@@ -89,7 +89,8 @@ self.addEventListener('fetch', (event) => {
 async function networkFirstThenCache(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
-    const response = await fetch(request);
+    // revalidasi ke server: cegah cache HTTP lama (GitHub Pages max-age=600)
+    const response = await fetch(request, { cache: 'no-cache' });
     if (response.ok) {
       cache.put(request, response.clone());
     }
