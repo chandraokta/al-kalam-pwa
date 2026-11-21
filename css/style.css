@@ -1612,3 +1612,44 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .page-border.simple .pb-corner.tr::after { top: calc(var(--msize, 32px) * -0.05); right: calc(var(--msize, 32px) * -0.05); }
 .page-border.simple .pb-corner.bl::after { bottom: calc(var(--msize, 32px) * -0.05); left: calc(var(--msize, 32px) * -0.05); }
 .page-border.simple .pb-corner.br::after { bottom: calc(var(--msize, 32px) * -0.05); right: calc(var(--msize, 32px) * -0.05); }
+
+/* ═══ Palet LEMBUT: hijau muda & kuning (bawaan) ═══ */
+.scan-sheet.pal-soft .mw .tj-ghunnah {
+  background: linear-gradient(rgba(253, 224, 71, .55), rgba(253, 224, 71, .55)) center / 100% 58% no-repeat;
+  color: #7a5b00;
+}
+.scan-sheet.pal-soft .mw .tj-idgham {
+  background: linear-gradient(rgba(134, 239, 172, .55), rgba(134, 239, 172, .55)) center / 100% 58% no-repeat;
+  color: #14603a;
+}
+.scan-sheet.pal-soft .mw .tj-mad {
+  background: linear-gradient(rgba(191, 219, 254, .6), rgba(191, 219, 254, .6)) center / 100% 58% no-repeat;
+  color: #1e4390;
+}
+.scan-sheet.pal-soft .mw .tj-ikhfa {
+  background: linear-gradient(rgba(251, 207, 232, .6), rgba(251, 207, 232, .6)) center / 100% 58% no-repeat;
+  color: #8a1c6b;
+}
+.scan-sheet.pal-soft .mw .tj-iqlab {
+  background: linear-gradient(rgba(165, 243, 252, .6), rgba(165, 243, 252, .6)) center / 100% 58% no-repeat;
+  color: #0b5d75;
+}
+.scan-sheet.pal-soft .mw .tj-qalqalah {
+  background: linear-gradient(rgba(254, 202, 202, .6), rgba(254, 202, 202, .6)) center / 100% 58% no-repeat;
+  color: #8f1d1d;
+}
+.scan-sheet.pal-soft .mw .tj-silent {
+  background: linear-gradient(rgba(226, 232, 240, .7), rgba(226, 232, 240, .7)) center / 100% 58% no-repeat;
+  color: #4b5563;
+}
+.scan-sheet.pal-soft .mw .tj-tafkhim {
+  background: linear-gradient(rgba(221, 214, 254, .6), rgba(221, 214, 254, .6)) center / 100% 58% no-repeat;
+  color: #4c3fa6;
+}
+/* cadangan per kata mengikuti palet lembut */
+.scan-sheet.pal-soft .mw.taj-ghunnah { background: linear-gradient(rgba(253, 224, 71, .55), rgba(253, 224, 71, .55)) center / 100% 58% no-repeat; }
+.scan-sheet.pal-soft .mw.taj-idgham { background: linear-gradient(rgba(134, 239, 172, .55), rgba(134, 239, 172, .55)) center / 100% 58% no-repeat; }
+.scan-sheet.pal-soft .mw.taj-mad { background: linear-gradient(rgba(191, 219, 254, .6), rgba(191, 219, 254, .6)) center / 100% 58% no-repeat; }
+.scan-sheet.pal-soft .mw.taj-ikhfa { background: linear-gradient(rgba(251, 207, 232, .6), rgba(251, 207, 232, .6)) center / 100% 58% no-repeat; }
+.scan-sheet.pal-soft .mw.taj-iqlab { background: linear-gradient(rgba(165, 243, 252, .6), rgba(165, 243, 252, .6)) center / 100% 58% no-repeat; }
+.scan-sheet.pal-soft .mw.taj-qalqalah { background: linear-gradient(rgba(254, 202, 202, .6), rgba(254, 202, 202, .6)) center / 100% 58% no-repeat; }

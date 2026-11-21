@@ -17,7 +17,8 @@
     spreadMode: 'auto',    // 'auto' | 'one' | 'two' — dua halaman seperti buku
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
-    pageBorder: 'simple',  // 'simple' = garis ganda tipis | 'none' = tanpa bingkai
+    pageBorder: 'simple',
+    pagePalette: 'soft',   // 'soft' = hijau muda & kuning | 'vivid' = warna legenda
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     activePage: null,      // halaman yang sedang dibaca (null = halaman kanan pasangan)
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
@@ -113,6 +114,7 @@
     els.pageFontScaleVal = $('pageFontScaleVal');
     els.indopakFontSelect = $('indopakFontSelect');
     els.pageBorderSelect = $('pageBorderSelect');
+    els.pagePaletteSelect = $('pagePaletteSelect');
     els.qariSelect = $('qariSelect');
     els.autoPlayNext = $('autoPlayNext');
     els.repeatAyah = $('repeatAyah');
@@ -160,7 +162,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-hizb-ornamen';
+  const BUILD = '2026-11-23-palet-lembut';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -312,6 +314,7 @@
       pageFontScale: state.pageFontScale,
       indopakFont: state.indopakFont,
       pageBorder: state.pageBorder,
+      pagePalette: state.pagePalette,
     };
     localStorage.setItem('alkalam_settings', JSON.stringify(settings));
   }
@@ -343,6 +346,7 @@
     state.indopakFont = ['qul', 'light', 'compact'].includes(state.indopakFont) ? state.indopakFont : 'qul';
     // 'classic'/'green' (versi lama) dipetakan ke 'simple'
     if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
+    if (!['soft', 'vivid'].includes(state.pagePalette)) state.pagePalette = 'soft';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -361,6 +365,7 @@
     if (els.pageFontScaleVal) els.pageFontScaleVal.textContent = `${state.pageFontScale}%`;
     if (els.indopakFontSelect) els.indopakFontSelect.value = state.indopakFont;
     if (els.pageBorderSelect) els.pageBorderSelect.value = state.pageBorder;
+    if (els.pagePaletteSelect) els.pagePaletteSelect.value = state.pagePalette;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
     els.qariSelect.value = state.qari;
     els.autoPlayNext.checked = state.autoPlayNext;
@@ -1497,8 +1502,9 @@
       `<span class="pb-corner tl"></span><span class="pb-corner tr"></span>` +
       `<span class="pb-corner bl"></span><span class="pb-corner br"></span>` +
       `</div>`;
+    const palClass = state.pagePalette === 'soft' ? ' pal-soft' : '';
     return `<div class="scan-sheet-box" data-sheet="${page}">` +
-      `<div class="scan-sheet${mushafClass}${sheetVariant}">` +
+      `<div class="scan-sheet${mushafClass}${sheetVariant}${palClass}">` +
       borderHtml + headHtml +
       `<div class="mushaf-page-lines"${style}>${htm}</div></div></div>`;
   }
@@ -2798,6 +2804,13 @@
     if (els.indopakFontSelect) {
       els.indopakFontSelect.addEventListener('change', (e) => {
         state.indopakFont = e.target.value;
+        saveSettings();
+        renderPage(state.currentPage);
+      });
+    }
+    if (els.pagePaletteSelect) {
+      els.pagePaletteSelect.addEventListener('change', (e) => {
+        state.pagePalette = e.target.value;
         saveSettings();
         renderPage(state.currentPage);
       });
