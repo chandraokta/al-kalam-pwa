@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-transfull';
+  const BUILD = '2026-11-23-transfull2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1193,6 +1193,12 @@
       state.prevView = state.currentView;
     }
     state.currentView = viewName;
+    document.body.classList.toggle('in-mushaf', viewName === 'mushaf');
+    document.documentElement.classList.toggle('in-mushaf', viewName === 'mushaf');
+    if (viewName === 'mushaf') {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    }
     els.views.forEach(v => v.hidden = v.dataset.view !== viewName);
     els.drawerItems.forEach(item => {
       item.classList.toggle('active', item.dataset.view === viewName);

@@ -2003,3 +2003,6 @@ body.is-fullscreen .app-main { margin-top: 0; }
   max-height: none;
   min-height: 0;
 }
+
+/* tampilan mushaf: dokumen tidak ikut bergulir, hanya tiap lembar */
+html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
