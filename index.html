@@ -334,6 +334,19 @@
             </select>
           </label>
           <label class="setting-row">
+            <span>Ukuran Huruf Halaman</span>
+            <input type="range" id="pageFontScale" min="80" max="120" step="5" value="100" aria-label="Ukuran huruf halaman">
+            <span id="pageFontScaleVal" class="setting-value">100%</span>
+          </label>
+          <label class="setting-row">
+            <span>Gaya Huruf IndoPak</span>
+            <select id="indopakFontSelect" aria-label="Gaya huruf IndoPak">
+              <option value="qul">Seperti QUL (nastaleeq)</option>
+              <option value="light">Ringan (goresan tipis)</option>
+              <option value="compact">Rapat (compact)</option>
+            </select>
+          </label>
+          <label class="setting-row">
             <span>Tampilan Halaman</span>
             <select id="spreadSelect" aria-label="Tampilan halaman">
               <option value="auto">Otomatis (2 halaman di layar lebar)</option>

@@ -15,6 +15,8 @@
     currentAyah: 1,
     pageMode: 'scan',      // 'scan' = halaman mushaf (layout), 'text' = teks Uthmani
     spreadMode: 'auto',    // 'auto' | 'one' | 'two' — dua halaman seperti buku
+    pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
+    indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
@@ -103,6 +105,9 @@
     els.mushafSelect = $('mushafSelect');
     els.mushafSelectSetting = $('mushafSelectSetting');
     els.spreadSelect = $('spreadSelect');
+    els.pageFontScale = $('pageFontScale');
+    els.pageFontScaleVal = $('pageFontScaleVal');
+    els.indopakFontSelect = $('indopakFontSelect');
     els.qariSelect = $('qariSelect');
     els.autoPlayNext = $('autoPlayNext');
     els.repeatAyah = $('repeatAyah');
@@ -150,7 +155,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-spread';
+  const BUILD = '2026-11-22-font-controls';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -259,6 +264,8 @@
       offlinePages: state.offlinePages,
       showAyahNumbers: state.showAyahNumbers,
       spreadMode: state.spreadMode,
+      pageFontScale: state.pageFontScale,
+      indopakFont: state.indopakFont,
     };
     localStorage.setItem('alkalam_settings', JSON.stringify(settings));
   }
@@ -286,6 +293,8 @@
     state.offlinePages = state.offlinePages !== false;
     state.showAyahNumbers = state.showAyahNumbers !== false;
     state.spreadMode = ['auto', 'one', 'two'].includes(state.spreadMode) ? state.spreadMode : 'auto';
+    state.pageFontScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100));
+    state.indopakFont = ['qul', 'light', 'compact'].includes(state.indopakFont) ? state.indopakFont : 'qul';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -300,6 +309,9 @@
     if (els.pageModeSelect) els.pageModeSelect.value = state.pageMode;
     if (els.mushafSelectSetting) els.mushafSelectSetting.value = state.mushaf;
     if (els.spreadSelect) els.spreadSelect.value = state.spreadMode;
+    if (els.pageFontScale) els.pageFontScale.value = state.pageFontScale;
+    if (els.pageFontScaleVal) els.pageFontScaleVal.textContent = `${state.pageFontScale}%`;
+    if (els.indopakFontSelect) els.indopakFontSelect.value = state.indopakFont;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
     els.qariSelect.value = state.qari;
     els.autoPlayNext.checked = state.autoPlayNext;
@@ -734,12 +746,20 @@
     };
 
     if (!mc.fontPerPage) {
-      // IndoPak: satu font untuk semua halaman
-      const fam = mc.fontFamily || 'indopak-nastaleeq';
+      // IndoPak: satu font untuk semua halaman, bisa pilih varian (QUL / ringan / rapat)
+      const variants = mc.fontVariants || {};
+      const chosen = variants[state.indopakFont] || variants.qul || null;
+      const fam = (chosen && chosen.family) || mc.fontFamily || 'indopak-nastaleeq';
       if (loadedFonts.has(fam)) return fam;
-      const urls = [DataManager.getPageFontUrl(page, mushafKey()), mc.fontUrl].filter(Boolean);
+      const urls = [chosen && chosen.url, DataManager.getPageFontUrl(page, mushafKey()), mc.fontUrl].filter(Boolean);
       for (const u of [...new Set(urls)]) {
         try { await tryLoad(fam, u); loadedFonts.add(fam); return fam; } catch (e) { /* coba berikutnya */ }
+      }
+      // varian gagal → kembali ke font standar
+      if (chosen && chosen.family !== mc.fontFamily) {
+        console.warn('varian font indopak gagal, memakai font standar');
+        state.indopakFont = 'qul';
+        return ensureMushafFont(page, tajweed);
       }
       console.warn('font indopak gagal dimuat');
       return null;
@@ -1161,8 +1181,9 @@
 
     // 2) ukuran font agar baris terlebar mengisi halaman (padding 0,9em kiri+kanan)
     const padEm = mushafKey() === 'indopak' ? 1.8 : 1.5;
-    let font = DESIGN_W / (maxEm + padEm);
-    font = Math.max(24, Math.min(52, font));
+    const userScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100)) / 100;
+    let font = (DESIGN_W / (maxEm + padEm)) * userScale;
+    font = Math.max(20, Math.min(64, font));
     sheet.style.setProperty('--msize', `${font}px`);
 
     // 3) jaring pengaman: bila masih ada yang melewati tepi lembar, kecilkan sedikit
@@ -2072,6 +2093,21 @@
     els.btnNextPage.addEventListener('click', () => renderPage(state.currentPage + (state._pageStep || 1)));
     els.mushafSelect.addEventListener('change', (e) => setMushaf(e.target.value));
     els.mushafSelectSetting.addEventListener('change', (e) => setMushaf(e.target.value));
+    if (els.pageFontScale) {
+      els.pageFontScale.addEventListener('input', (e) => {
+        state.pageFontScale = Number(e.target.value) || 100;
+        if (els.pageFontScaleVal) els.pageFontScaleVal.textContent = `${state.pageFontScale}%`;
+        for (const sheet of els.mushafContainer.querySelectorAll('.scan-sheet')) applyPageScale(sheet);
+      });
+      els.pageFontScale.addEventListener('change', () => saveSettings());
+    }
+    if (els.indopakFontSelect) {
+      els.indopakFontSelect.addEventListener('change', (e) => {
+        state.indopakFont = e.target.value;
+        saveSettings();
+        renderPage(state.currentPage);
+      });
+    }
     if (els.spreadSelect) {
       els.spreadSelect.addEventListener('change', (e) => {
         state.spreadMode = e.target.value;

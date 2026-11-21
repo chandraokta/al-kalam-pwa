@@ -49,6 +49,16 @@ window.ALKALAM_CONFIG = {
       fontPerPage: false,
       fontFamily: 'indopak-nastaleeq',
       fontUrl: 'https://static-cdn.tarteel.ai/qul/fonts/nastaleeq/indopak-nastaleeq-waqf-lazim.woff2?v=3.4',
+      // varian huruf: qul = font resmi QUL, light = goresan lebih tipis,
+      // compact = huruf lebih ramping/rapat
+      fontVariants: {
+        qul:     { label: 'Seperti QUL', family: 'indopak-nastaleeq',
+                   url: 'https://static-cdn.tarteel.ai/qul/fonts/nastaleeq/indopak-nastaleeq-waqf-lazim.woff2?v=3.4' },
+        light:   { label: 'Ringan (goresan tipis)', family: 'indopak-nastaleeq-light',
+                   url: 'https://static-cdn.tarteel.ai/qul/fonts/nastaleeq/KFGQPCNastaleeq-Regular.woff2?v=3.4' },
+        compact: { label: 'Rapat (compact)', family: 'indopak-nastaleeq-compact',
+                   url: 'https://static-cdn.tarteel.ai/qul/fonts/nastaleeq/Hanafi/compact-v4.2.2/with-waqf-lazmi/font.woff2?v=3.4' }
+      },
       fontsLocal: ''      // './data/fonts/' untuk mode offline
     }
   },
