@@ -184,7 +184,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-topik';
+  const BUILD = '2026-11-22-ulang';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -700,6 +700,7 @@
     els.autoPlayNext.checked = state.autoPlayNext;
     els.repeatAyah.checked = state.repeatAyah;
     initAudioExtras();
+    ensurePageIndex();
     els.offlinePages.checked = state.offlinePages;
     // CSS variables
     document.documentElement.style.setProperty('--font-size-arabic', `${state.fontSizeArabic}px`);
@@ -2715,6 +2716,87 @@
     return keys[0] || null;
   }
 
+  /** Indeks halaman: ayat -> halaman dan halaman -> daftar ayat (untuk mode ulang). */
+  async function ensurePageIndex() {
+    if (state.pageIndex) return state.pageIndex;
+    try {
+      const pm = await DataManager.load('pageMap');
+      const byVerse = new Map();
+      const byPage = new Map();
+      for (const p of pm || []) {
+        const list = [];
+        for (const v of p.verses || []) {
+          byVerse.set(v.verse_key, p.page);
+          list.push(v.verse_key);
+        }
+        byPage.set(p.page, list);
+      }
+      state.pageIndex = { byVerse, byPage };
+    } catch {
+      state.pageIndex = { byVerse: new Map(), byPage: new Map() };
+    }
+    return state.pageIndex;
+  }
+
+  /** Ayat pertama pada halaman yang memuat verseKey. */
+  function pageFirstVerse(verseKey) {
+    const idx = state.pageIndex;
+    if (!idx) return null;
+    const page = idx.byVerse.get(verseKey);
+    if (!page) return null;
+    const list = idx.byPage.get(page) || [];
+    return list[0] || null;
+  }
+
+  /** Apakah dua ayat berada di halaman yang sama. */
+  function samePage(a, b) {
+    const idx = state.pageIndex;
+    if (!idx) return true;
+    const pa = idx.byVerse.get(a);
+    const pb = idx.byVerse.get(b);
+    if (!pa || !pb) return true;
+    return pa === pb;
+  }
+
+  /** Loncati ke awal sebuah ayat (detik). */
+  function seekToVerse(verseKey) {
+    const t = ayahTimes(verseKey);
+    if (!t) return false;
+    try { audioEl.currentTime = t.from / 1000; } catch { return false; }
+    return true;
+  }
+
+  /**
+   * Dipanggil saat audio melewati batas akhir ayat.
+   * Mengembalikan true bila sudah ditangani (audio dilompatkan), false bila lanjut normal.
+   */
+  function handleAyahBoundary(cur, nextVk) {
+    if (!cur) return false;
+
+    // A-B: kembali ke A setelah B selesai
+    if (state.repeatMode === 'ab' && state.loopA && state.loopB && cur.verseKey === state.loopB) {
+      seekToVerse(state.loopA);
+      setCurrentAyah(state.loopA);
+      return true;
+    }
+
+    // per ayat: ulangi N kali
+    if (state.repeatMode === 'ayah' && state.repeatLeft > 1) {
+      state.repeatLeft -= 1;
+      syncAudioExtras();
+      seekToVerse(cur.verseKey);
+      return true;
+    }
+
+    // per halaman: bila ayat berikutnya sudah pindah halaman, ulang dari awal halaman
+    if (state.repeatMode === 'page' && nextVk && !samePage(cur.verseKey, nextVk)) {
+      const first = pageFirstVerse(cur.verseKey);
+      if (first) { seekToVerse(first); setCurrentAyah(first); return true; }
+    }
+
+    return false;
+  }
+
   function ayahTimes(verseKey) {
     const v = state.qul?.verses?.[verseKey];
     return v ? { from: v.f, to: v.t, segs: v.s || [] } : null;
@@ -2789,6 +2871,24 @@
     });
   }
 
+  /** Panduan singkat pemakaian bilah audio. */
+  function showAudioHelp() {
+    const rows = [
+      ['Laju', 'Kecepatan bacaan (0,75×–1,5×) langsung berlaku saat dipilih.'],
+      ['Ulang · Per ayat', 'Ayat yang sedang dibaca diulang N kali (pilihan "Kali"), lalu lanjut ke ayat berikutnya.'],
+      ['Ulang · Per halaman', 'Setelah ayat terakhir halaman, kembali ke ayat pertama halaman itu — halaman diulang sampai dihentikan.'],
+      ['Ulang · A-B', 'Klik A-B di ayat awal (tombol berubah "A…"), lalu klik lagi di ayat akhir. Bacaan akan berulang dari A ke B. Klik sekali lagi untuk menghapus.'],
+      ['Qari', 'Mengganti qari langsung memuat ulang audio ayat yang sedang diputar.'],
+      ['Lanjut otomatis', 'Tombol ▶| : bila menyala, bacaan lanjut ke ayat/surat berikutnya saat audio habis.'],
+    ];
+    openModal(
+      '<div class="mi-head"><span class="mi-name">Panduan bilah audio</span></div>' +
+      '<div class="mi-body">' + rows.map(([k, v]) =>
+        `<div class="guide-row"><span class="guide-key">${k}</span><span class="guide-val">${v}</span></div>`
+      ).join('') + '</div>'
+    );
+  }
+
   function syncAudioExtras() {
     if (els.audioRepeat) els.audioRepeat.value = state.repeatMode;
     if (els.audioRepeatCount) els.audioRepeatCount.value = String(state.repeatTimes);
@@ -2799,9 +2899,13 @@
       els.audioAutoNext.classList.toggle('off', !state.autoPlayNext);
     }
     if (els.audioAB) {
-      els.audioAB.classList.toggle('armed', !!(state.loopA && state.loopB));
-      els.audioAB.title = state.loopB ? `A-B: ${state.loopA} → ${state.loopB}`
-        : state.loopA ? `A: ${state.loopA} — tekan untuk B` : 'Tandai A-B';
+      const armed = !!(state.loopA && state.loopB);
+      els.audioAB.classList.toggle('armed', armed);
+      els.audioAB.title = armed ? `A-B aktif: ${state.loopA} → ${state.loopB} (klik untuk hapus)`
+        : state.loopA ? `A = ${state.loopA} — putar ke ayat B lalu klik lagi`
+        : 'Ulang A-B: klik di ayat awal (A), lalu klik lagi di ayat akhir (B)';
+      const label = els.audioAB.querySelector('.ab-label');
+      if (label) label.textContent = armed ? 'A-B' : state.loopA ? 'A…' : 'A-B';
     }
     if (els.audioQari) els.audioQari.value = state.qari;
   }
@@ -2879,6 +2983,12 @@
     if (!force && state.audioCurrent && state.audioCurrent.verseKey === verseKey) return;
     const [surah, ayah] = verseKey.split(':').map(Number);
     state.audioCurrent = { surah, ayah, verseKey };
+
+    // ayat berganti (bukan karena diulang): setel ulang hitungan ulangan
+    if (state._lastPlayed !== verseKey) {
+      state._lastPlayed = verseKey;
+      if (state.repeatMode === 'ayah') { state.repeatLeft = state.repeatTimes; syncAudioExtras(); }
+    }
 
     const info = await DataManager.getSurah(surah);
     els.audioSurah.textContent = `${info?.name_simple || surah} (${surah})`;
@@ -2982,6 +3092,10 @@
 
     if (state.qul && state.playerSurah) {
       const vk = ayahAt(ms);
+      const cur = state.audioCurrent;
+      if (vk && cur && vk !== cur.verseKey) {
+        if (handleAyahBoundary(cur, vk)) { highlightWordAt(ms); updateAudioProgress(); return; }
+      }
       if (vk) setCurrentAyah(vk);        // hanya berubah bila ayat berganti
     }
     highlightWordAt(ms);
@@ -3038,6 +3152,13 @@
   function onAudioEnded() {
     const cur = state.audioCurrent;
     if (!cur) return;
+
+    // mode per halaman: kembali ke ayat pertama halaman ini bila masih ada
+    if (state.repeatMode === 'page') {
+      const first = pageFirstVerse(cur.verseKey);
+      if (first && first !== cur.verseKey) { playAyah(first); return; }
+      if (first === cur.verseKey) { playAyah(cur.verseKey); return; }
+    }
 
     switch (state.repeatMode) {
       case 'ab':
@@ -3568,6 +3689,8 @@
     });
     els.audioPause.addEventListener('click', pauseAudio);
     els.audioPrev.addEventListener('click', prevAyah);
+    els.audioHelp = $('audioHelp');
+    els.audioHelp?.addEventListener('click', () => showAudioHelp());
     els.btnHafalan = $('btnHafalan');
     els.btnHafalan?.addEventListener('click', () => {
       showView('hifz');
@@ -3851,6 +3974,7 @@
     stopAudio,
     audio: () => audioEl,
     goPage: (p) => renderPage(p),
+    openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); },
     resolvePageData,
   };
 })();

@@ -404,13 +404,34 @@
     return plan;
   }
 
+  // peta ayat -> halaman (untuk indeks kata ditandai)
+  const pageByVerseHifz = new Map();
+  async function ensurePageIndexHifz() {
+    if (pageByVerseHifz.size) return;
+    try {
+      const pm = await window.AlKalam.DataManager.load('pageMap');
+      for (const page of pm || []) {
+        for (const v of page.verses || []) pageByVerseHifz.set(v.verse_key, page.page);
+      }
+    } catch { /* diamkan */ }
+  }
+
   function flaggedListHtml() {
     const items = [];
     for (const [vk, arr] of Object.entries(S.flagged || {})) for (const pos of arr) items.push({ vk, pos });
     if (!items.length) return `<p class="hifz-muted">Belum ada kata ditandai. Aktifkan tombol "Tandai" lalu klik kata yang sering salah.</p>`;
-    return `<div class="hifz-list">${items.slice(0, 12).map(({ vk, pos }) => `
-      <div class="hifz-due wp-row"><span>${vk} · kata ${pos}<span class="wp-sub">ditandai</span></span>
-      <span class="wp-actions"><button class="btn btn-sm" data-open="${vk}">Buka</button><button class="btn btn-sm" data-unflag="${vk}:${pos}">Hapus</button></span></div>`).join('')}</div>`;
+    const rows = items.slice(0, 20).map(({ vk, pos }, i) => {
+      const page = pageByVerseHifz.get(vk);
+      return `<div class="hifz-due wp-row">
+        <span><span class="wp-idx">${i + 1}</span>${vk} · kata ${pos}
+        <span class="wp-sub">${page ? `halaman ${page} · ` : ''}salah baca</span></span>
+        <span class="wp-actions">
+          ${page ? `<button class="btn btn-sm btn-primary" data-jump="${vk}:${page}">Ke halaman ${page}</button>` : ''}
+          <button class="btn btn-sm" data-open="${vk}">Ayat</button>
+          <button class="btn btn-sm" data-unflag="${vk}:${pos}">Hapus</button>
+        </span></div>`;
+    }).join('');
+    return `<div class="hifz-list">${rows}</div>`;
   }
 
   function weeklyPlanCard() {
@@ -548,8 +569,14 @@
 
       <h3 class="hifz-h">Periksa bacaan (Tilawa · Beta)</h3>
       <div class="hifz-card">
-        <span class="hifz-muted">Pengenal bacaan <b>on-device</b> (model ~68 MB, dimuat sekali). Menandai kata
-        salah/terlewat saat Anda membaca. Ini <b>bukan penilaian</b> — anggap sebagai isyarat untuk diperiksa.</span>
+        <span class="hifz-muted">Pengenal bacaan <b>on-device</b> (model ~68 MB, diunduh sekali lalu disimpan browser).
+        Ia menandai kata yang salah atau terlewat saat Anda membaca — <b>bukan penilaian</b>, hanya isyarat untuk diperiksa.</span>
+        <ol class="tilawa-steps">
+          <li>Tekan <b>Mulai periksa bacaan</b>. Browser akan meminta izin mikrofon — pilih <b>Izinkan</b>.</li>
+          <li>Tunggu status berubah menjadi <b>“Mendengarkan…”</b> (unduhan model hanya sekali).</li>
+          <li>Bacalah halaman yang sedang terbuka di mushaf dengan tenang; halaman yang diperiksa ditampilkan di status.</li>
+          <li>Kata bermasalah muncul di daftar di bawah dan <b>otomatis masuk “Kata ditandai”</b>, sehingga bisa dibuka lagi nanti.</li>
+        </ol>
         <div class="hifz-actions" style="margin-top:10px">
           <button class="btn btn-sm btn-primary" data-hifz="tilawa">Mulai periksa bacaan</button>
           <button class="btn btn-sm" data-hifz="tilawaStop" hidden>Hentikan</button>
@@ -595,6 +622,22 @@
         unflagWord(vk, Number(pos));
         decorate();
         render();
+      });
+    });
+    view.querySelectorAll('[data-jump]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const parts = b.dataset.jump.split(':');
+        const page = Number(parts.pop());
+        const vk = parts.join(':');
+        await window.AlKalam.openPage(page);
+        setTimeout(() => {
+          const el = document.querySelector(`.mw[data-v="${vk}"]`);
+          if (el) {
+            el.classList.add('flash');
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            setTimeout(() => el.classList.remove('flash'), 3200);
+          }
+        }, 700);
       });
     });
     view.querySelectorAll('[data-gopage]').forEach((b) => {
@@ -1168,6 +1211,7 @@
   function mount() {
     if (!el('viewHifz')) return;
     load();
+    ensurePageIndexHifz().then(() => render());
     render();
     initMushaf();
     window.AlKalamHifz.applyHideMode = decorate;

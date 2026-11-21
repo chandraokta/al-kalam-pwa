@@ -2075,3 +2075,24 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .ta-count { font-size: .72rem; color: var(--text-muted); }
 .ta-ar { font-family: var(--font-arabic); font-size: 1.35rem; line-height: 2; text-align: right; color: var(--text-primary); }
 .ta-tr { font-size: .85rem; color: var(--text-secondary); line-height: 1.6; }
+
+/* tombol A-B dengan label */
+.ab-btn { display: inline-flex; align-items: center; gap: 4px; font-size: .68rem; padding: 4px 8px;
+  border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); }
+.ab-btn.armed { border-color: #b8860b; color: #b8860b; }
+.ab-label { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
+/* panduan */
+.guide-row { display: grid; grid-template-columns: 150px 1fr; gap: 10px; padding: 8px 0;
+  border-bottom: 1px dashed var(--border-color); font-size: .86rem; }
+.guide-row:last-child { border-bottom: none; }
+.guide-key { font-weight: 600; color: var(--accent-primary); }
+.guide-val { color: var(--text-secondary); line-height: 1.6; }
+@media (max-width: 640px) { .guide-row { grid-template-columns: 1fr; gap: 2px; } }
+
+/* panduan Tilawa + indeks kata ditandai */
+.tilawa-steps { margin: 10px 0 4px 18px; padding: 0; font-size: .82rem; color: var(--text-secondary); line-height: 1.65; }
+.tilawa-steps li { margin-bottom: 4px; }
+.wp-idx { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 8px;
+  border-radius: 999px; background: var(--accent-light); color: var(--accent-primary);
+  font-size: .7rem; font-weight: 700; }
