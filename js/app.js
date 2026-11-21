@@ -17,7 +17,7 @@
     spreadMode: 'auto',    // 'auto' | 'one' | 'two' — dua halaman seperti buku
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
-    pageBorder: 'classic', // 'classic' = merah-emas seperti cetakan | 'green'
+    pageBorder: 'simple',  // 'simple' = garis ganda tipis | 'none' = tanpa bingkai
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-border';
+  const BUILD = '2026-11-22-simple-border';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -298,7 +298,8 @@
     state.spreadMode = ['auto', 'one', 'two'].includes(state.spreadMode) ? state.spreadMode : 'auto';
     state.pageFontScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100));
     state.indopakFont = ['qul', 'light', 'compact'].includes(state.indopakFont) ? state.indopakFont : 'qul';
-    state.pageBorder = ['classic', 'green'].includes(state.pageBorder) ? state.pageBorder : 'classic';
+    // 'classic'/'green' (versi lama) dipetakan ke 'simple'
+    if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -895,6 +896,19 @@
     return pair;
   }
 
+  /** Nomor juz untuk sebuah ayat (dari juz_map, dihitung sekali). */
+  let verseJuzMap = null;
+  async function juzOf(verseKey) {
+    if (!verseJuzMap) {
+      verseJuzMap = new Map();
+      const juzMap = await DataManager.load('juzMap');
+      for (const j of juzMap || []) {
+        for (const vk of j.verses || []) verseJuzMap.set(vk, j.juz);
+      }
+    }
+    return verseJuzMap.get(verseKey) || null;
+  }
+
   /** Bangun HTML satu lembar halaman (dipakai mode satu & dua halaman). */
   async function buildSheetHtml(page, chapters, layout) {
     const tajweedPage = !!state.showTajwid && mushafKey() === 'madani';
@@ -963,7 +977,26 @@
 
     const style = fontFamily ? ` style="font-family:'${fontFamily}', serif"` : '';
     const mushafClass = mushafKey() === 'indopak' ? ' mushaf-indopak' : '';
-    const borderVariant = state.pageBorder === 'green' ? 'green' : 'classic';
+    // kepala halaman gaya cetakan: nama surat · nomor halaman · juz
+    const rows0 = buildRows(layout, page, chapters) || [];
+    let firstVk = null;
+    for (const r of rows0) {
+      if (r.kind === 'words' && r.words.length) { firstVk = r.words[0][0]; break; }
+    }
+    let headHtml = '';
+    if (firstVk) {
+      const [surahNo] = firstVk.split(':').map(Number);
+      const ch = chapters.find(c => c.id === surahNo);
+      const juz = await juzOf(firstVk);
+      headHtml = `<div class="page-head" aria-hidden="true">` +
+        `<span class="ph-surah">${surahNo}. ${ch ? (ch.name_simple || '') : ''}</span>` +
+        `<span class="ph-page">${toArabicDigits(page)}</span>` +
+        `<span class="ph-juz">${juz ? 'Juz ' + juz : ''}</span>` +
+        `</div>`;
+    }
+
+    const borderVariant = state.pageBorder === 'none' ? 'none' : 'simple';
+    const sheetVariant = borderVariant === 'none' ? ' pb-none' : ' pb-simple';
     const borderHtml = `<div class="page-border ${borderVariant}" aria-hidden="true">` +
       `<span class="pb-edge h top"></span><span class="pb-edge h bottom"></span>` +
       `<span class="pb-edge v left"></span><span class="pb-edge v right"></span>` +
@@ -971,8 +1004,8 @@
       `<span class="pb-corner bl"></span><span class="pb-corner br"></span>` +
       `</div>`;
     return `<div class="scan-sheet-box" data-sheet="${page}">` +
-      `<div class="scan-sheet${mushafClass}">` +
-      borderHtml +
+      `<div class="scan-sheet${mushafClass}${sheetVariant}">` +
+      borderHtml + headHtml +
       `<div class="mushaf-page-lines"${style}>${htm}</div></div></div>`;
   }
 
@@ -1189,8 +1222,8 @@
     }
 
     // 2) ukuran font agar baris terlebar mengisi halaman (padding 0,9em kiri+kanan)
-    const borderWide = state.pageBorder !== 'green';
-    const padEm = borderWide ? 2.9 : (mushafKey() === 'indopak' ? 1.8 : 1.5);
+    const padEm = state.pageBorder === 'none' ? 1.7 : 2.7;
+    sheet.style.setProperty('--page-pad', String(padEm / 2));   /* per sisi, dalam em huruf halaman */
     const userScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100)) / 100;
     let font = (DESIGN_W / (maxEm + padEm)) * userScale;
     font = Math.max(20, Math.min(64, font));
