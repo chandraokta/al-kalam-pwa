@@ -160,7 +160,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-verse-marks';
+  const BUILD = '2026-11-23-hizb-ornamen';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -652,7 +652,10 @@
     if (meta.sajdah) {
       out += `<span class="mk mk-sajdah" title="Ayat Sajdah (sujud tilawah)" aria-label="Ayat sajdah">\u06E9</span>`;
     }
-    if (meta.rubEnd) {
+    if (meta.hizbEnd) {
+      // hizb (1/2 juz): tanda khusus, menggantikan tanda rubu' pada titik yang sama
+      out += `<span class="mk mk-hizb" title="Batas hizb (1/2 juz)" aria-label="Batas hizb">\u06DE</span>`;
+    } else if (meta.rubEnd) {
       out += `<span class="mk mk-rub" title="Batas rubu\u2019 al-hizb" aria-label="Batas rubu">\u06DE</span>`;
     }
     if (meta.juzEnd) {

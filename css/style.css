@@ -1568,3 +1568,47 @@ body.is-fullscreen .app-main { margin-top: 0; }
   border-radius: 999px;
   padding: .15em .45em;
 }
+
+/* penanda hizb (1/2 juz): lingkaran ganda keemasan */
+.mk-hizb {
+  color: #7a5a00;
+  background: radial-gradient(circle, rgba(250, 204, 21, .35) 0%, rgba(250, 204, 21, .12) 70%);
+  border: 1px solid rgba(202, 138, 4, .75);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7);
+}
+
+/* ═══ Ornamen tambahan: pita surat & sudut halaman ═══ */
+.msurah-band {
+  background-image:
+    radial-gradient(circle, rgba(184, 134, 11, .42) 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(184, 134, 11, .42) 1px, transparent 1.5px),
+    radial-gradient(120% 90% at 50% -30%, rgba(250, 204, 21, .22), transparent 70%),
+    linear-gradient(180deg, rgba(150, 200, 162, .18), rgba(150, 200, 162, .06));
+  background-size: 12px 100%, 12px 100%, 100% 100%, 100% 100%;
+  background-position: 0 2px, 0 calc(100% - 2px), 0 0, 0 0;
+  background-repeat: repeat-x, repeat-x, no-repeat, no-repeat;
+}
+.msurah-name::before,
+.msurah-name::after {
+  content: "\2726";           /* ✦ */
+  color: #b8860b;
+  font-size: .62em;
+  vertical-align: middle;
+  opacity: .85;
+}
+.msurah-name::before { margin-inline-end: .5em; }
+.msurah-name::after  { margin-inline-start: .5em; }
+
+/* sudut bingkai: berlian kecil keemasan */
+.page-border.simple .pb-corner::after {
+  content: "";
+  position: absolute;
+  width: calc(var(--msize, 32px) * 0.1);
+  height: calc(var(--msize, 32px) * 0.1);
+  background: rgba(184, 134, 11, .55);
+  transform: rotate(45deg);
+}
+.page-border.simple .pb-corner.tl::after { top: calc(var(--msize, 32px) * -0.05); left: calc(var(--msize, 32px) * -0.05); }
+.page-border.simple .pb-corner.tr::after { top: calc(var(--msize, 32px) * -0.05); right: calc(var(--msize, 32px) * -0.05); }
+.page-border.simple .pb-corner.bl::after { bottom: calc(var(--msize, 32px) * -0.05); left: calc(var(--msize, 32px) * -0.05); }
+.page-border.simple .pb-corner.br::after { bottom: calc(var(--msize, 32px) * -0.05); right: calc(var(--msize, 32px) * -0.05); }
