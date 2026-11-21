@@ -31,6 +31,11 @@
       recorder: false,
       tilawa: false,
       remind: true,            // banner pengingat bila belum murajaah
+      remindHour: 20,          // jam notifikasi (0-23)
+      notify: false,           // izin Notifikasi browser
+      tilawaTier: 'auto',      // auto | full | lite
+      tilawaMinConf: 0.6,      // ambang keyakinan
+      quizScope: 'page',       // page | surah | juz
     },
     days: {},                 // 'YYYY-MM-DD' -> { pages:[], ayahs:n, reviewed:n, flags:n }
     pages: {},                // '42' -> { status:'lancar'|'sedang'|'lemah', perfect:n, mistakes:n, last:ts }
@@ -203,6 +208,7 @@
 
     const needRemind = S.settings.remind && !doneToday && new Date().getHours() >= 17;
     const surahCard = await surahProgressCard();
+    const juzCard = await juzProgressCard();
 
     return `
       ${needRemind ? `<div class="hifz-remind">Belum ada murajaah hari ini — sisihkan beberapa menit untuk mengulang hafalan.</div>` : ''}
@@ -229,6 +235,7 @@
           <span class="hifz-muted">dari mode tandai salah</span>
         </div>
         ${surahCard}
+        ${juzCard}
       </div>
 
       <h3 class="hifz-h">Ulangan hari ini</h3>
@@ -283,6 +290,60 @@
         <div class="hifz-bar"><i style="width:${Math.round((done / total) * 100)}%"></i></div>
       </div>`;
     } catch { return ''; }
+  }
+
+  async function currentJuz() {
+    const dm = window.AlKalam.DataManager;
+    const pm = await dm.load('pageMap');
+    const pages = pageMapArray(pm);
+    const page = window.AlKalam.state.currentPage || 1;
+    const here = pages.find((p) => p.page === page);
+    return (here && here.verses && here.verses[0] && here.verses[0].juz) || null;
+  }
+
+  async function juzProgressCard() {
+    try {
+      const j = await currentJuz();
+      if (!j) return '';
+      const jp = await juzPages();
+      const list = jp[j] || [];
+      let done = 0;
+      for (const p of list) if (S.pages[p] && S.pages[p].status !== 'none') done++;
+      return `<div class="hifz-card">
+        <span class="hifz-k">Juz ini</span>
+        <strong class="hifz-v">${done} / ${list.length} hal</strong>
+        <span class="hifz-muted">Juz ${j}</span>
+        <div class="hifz-bar"><i style="width:${list.length ? Math.round((done / list.length) * 100) : 0}%"></i></div>
+      </div>`;
+    } catch { return ''; }
+  }
+
+  // ── notifikasi browser ──
+  async function enableNotify() {
+    if (!('Notification' in window)) { flash('Browser tidak mendukung notifikasi'); return; }
+    try {
+      const p = await Notification.requestPermission();
+      S.settings.notify = p === 'granted';
+      save();
+      flash(S.settings.notify ? 'Notifikasi diaktifkan' : 'Izin notifikasi ditolak');
+      render();
+    } catch { flash('Gagal meminta izin notifikasi'); }
+  }
+  function maybeNotify() {
+    if (!S.settings.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = new Date();
+    if (now.getHours() < Number(S.settings.remindHour || 20)) return;
+    const d = S.days[todayKey()] || {};
+    if ((d.pages || []).length || d.reviewed) return;
+    if (S._notifiedOn === todayKey()) return;
+    S._notifiedOn = todayKey();
+    try {
+      new Notification('Al-Kalam — murajaah', {
+        body: 'Belum ada murajaah hari ini. Sisihkan beberapa menit untuk mengulang hafalan.',
+        icon: 'assets/icons/icon-192.png',
+        tag: 'alkalam-murajaah',
+      });
+    } catch { /* abaikan */ }
   }
 
   async function renderProgress() {
@@ -350,7 +411,13 @@
         <button class="hifz-due" data-quiz="match">Cocokkan terjemahan<span>pilih ayat yang sesuai</span></button>
         <button class="hifz-due" data-quiz="similar">Ayat serupa<span>bedakan mutashabihat</span></button>
       </div>
-      <p class="hifz-muted">Latihan memakai halaman yang sedang dibuka sebagai cakupan.</p>
+      <label class="setting-row" style="margin-top:14px"><span>Cakupan soal</span>
+        <select id="hifzScope">
+          <option value="page"${S.settings.quizScope === 'page' ? ' selected' : ''}>Halaman ini</option>
+          <option value="surah"${S.settings.quizScope === 'surah' ? ' selected' : ''}>Surah ini</option>
+          <option value="juz"${S.settings.quizScope === 'juz' ? ' selected' : ''}>Juz ini</option>
+        </select>
+      </label>
     `;
   }
 
@@ -371,6 +438,11 @@
         ${sel('hifzRate', s.audioRate, [['0.75', '0,75×'], ['0.9', '0,9×'], ['1', '1×'], ['1.25', '1,25×']])}</label>
       <label class="setting-row"><span>Pengingat harian</span>
         ${sel('hifzRemind', s.remind ? '1' : '0', [['1', 'Aktif'], ['0', 'Mati']])}</label>
+      <label class="setting-row"><span>Jam notifikasi</span>
+        <input id="hifzRemindHour" type="number" min="0" max="23" value="${s.remindHour}"></label>
+      <div class="hifz-actions" style="margin:6px 0 4px">
+        <button class="btn btn-sm" data-hifz="notify">${s.notify ? 'Notifikasi aktif' : 'Aktifkan notifikasi browser'}</button>
+      </div>
       <p class="hifz-muted">Pengingat tampil di tab Hari Ini bila sampai sore belum ada murajaah.</p>
 
       <h3 class="hifz-h">Periksa bacaan (Tilawa · Beta)</h3>
@@ -381,6 +453,10 @@
           <button class="btn btn-sm btn-primary" data-hifz="tilawa">Mulai periksa bacaan</button>
           <button class="btn btn-sm" data-hifz="tilawaStop" hidden>Hentikan</button>
         </div>
+        <label class="setting-row" style="margin-top:8px"><span>Model</span>
+          ${sel('hifzTilawaTier', s.tilawaTier, [['auto', 'Otomatis'], ['full', 'Penuh (68 MB)'], ['lite', 'Ringan (25 MB)']])}</label>
+        <label class="setting-row"><span>Ambang keyakinan</span>
+          ${sel('hifzTilawaConf', String(s.tilawaMinConf), [['0.5', 'Longgar 0,5'], ['0.6', 'Sedang 0,6'], ['0.75', 'Ketat 0,75']])}</label>
         <p class="hifz-muted" id="hifzTilawaStatus"></p>
         <div id="hifzTilawaLog" class="hifz-list"></div>
       </div>
@@ -446,6 +522,15 @@
     bindNum('hifzPause', 'repeatPause', (v) => clamp(Number(v) || 0, 0, 10000));
     const hide = view.querySelector('#hifzHide');
     if (hide) hide.addEventListener('change', () => { S.settings.hideMode = hide.value; save(); decorate(); syncButtons(); });
+    const remindHour = view.querySelector('#hifzRemindHour');
+    if (remindHour) remindHour.addEventListener('change', () => { S.settings.remindHour = clamp(Number(remindHour.value) || 20, 0, 23); save(); render(); });
+    view.querySelector('[data-hifz="notify"]')?.addEventListener('click', enableNotify);
+    const scope = view.querySelector('#hifzScope');
+    if (scope) scope.addEventListener('change', () => { S.settings.quizScope = scope.value; save(); });
+    const tier = view.querySelector('#hifzTilawaTier');
+    if (tier) tier.addEventListener('change', () => { S.settings.tilawaTier = tier.value; save(); });
+    const conf = view.querySelector('#hifzTilawaConf');
+    if (conf) conf.addEventListener('change', () => { S.settings.tilawaMinConf = Number(conf.value) || 0.6; save(); });
     const remind = view.querySelector('#hifzRemind');
     if (remind) remind.addEventListener('change', () => { S.settings.remind = remind.value === '1'; save(); render(); });
     const rate = view.querySelector('#hifzRate');
@@ -524,15 +609,20 @@
     tilawaStatus('Memuat mesin… (sekali unduh ~68 MB)');
     try {
       const mod = await import('https://esm.sh/@tilawa/core@next/web');
-      tilawa = await mod.createTilawa({
-        onProgress: (p) => tilawaStatus(`Mengunduh model… ${Math.round((p.fraction || 0) * 100)}%`),
-      });
+      const tierOpt = S.settings.tilawaTier === 'auto' ? undefined : S.settings.tilawaTier;
+      tilawa = await mod.createTilawa(Object.assign(
+        { onProgress: (p) => tilawaStatus(`Mengunduh model… ${Math.round((p.fraction || 0) * 100)}%`) },
+        tierOpt ? { tier: tierOpt } : {}
+      ));
       const page = window.AlKalam.state.currentPage || 1;
       const pd = await window.AlKalam.resolvePageData(page);
       const vs = (pd && pd.verses) || [];
       if (!vs.length) { tilawaStatus('Ayat halaman belum siap'); return; }
       const from = { surah: vs[0].surah, fromAyah: vs[0].ayah, toAyah: vs[vs.length - 1].ayah };
-      tilawaSession = tilawa.startMemorization(from, { confirm: { after: 'next-word' } });
+      tilawaSession = tilawa.startMemorization(from, {
+        confirm: { after: 'next-word' },
+        minConfidence: Number(S.settings.tilawaMinConf) || 0.6,
+      });
       tilawaSession.subscribe((e) => {
         if (e.type === 'checker' && e.state === 'confirmed') {
           const loc = e.location || {};
@@ -639,10 +729,26 @@
   const shuffle = (a) => a.map((v) => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
 
   async function pageVerseKeys() {
+    const dm = window.AlKalam.DataManager;
     const page = window.AlKalam.state.currentPage || 1;
+    const scope = S.settings.quizScope || 'page';
     try {
       const pd = await window.AlKalam.resolvePageData(page);
-      return { page, keys: ((pd && pd.verses) || []).map((v) => `${v.surah}:${v.ayah}`) };
+      const here = ((pd && pd.verses) || []).map((v) => `${v.surah}:${v.ayah}`);
+      if (scope === 'page' || !here.length) return { page, keys: here };
+
+      const pm = pageMapArray(await dm.load('pageMap'));
+      const cur = pm.find((p) => p.page === page);
+      const info = (cur && cur.verses && cur.verses[0]) || {};
+      const keys = [];
+      for (const p of pm) {
+        for (const v of p.verses || []) {
+          if (scope === 'surah' && v.surah !== info.surah) continue;
+          if (scope === 'juz' && v.juz !== info.juz) continue;
+          keys.push(`${v.surah}:${v.ayah}`);
+        }
+      }
+      return { page, keys: keys.length ? keys : here };
     } catch { return { page, keys: [] }; }
   }
 
@@ -905,6 +1011,8 @@
     render();
     initMushaf();
     window.AlKalamHifz.applyHideMode = decorate;
+    maybeNotify();
+    setInterval(maybeNotify, 5 * 60 * 1000);
 
     // gambar ulang setiap kali tampilan Hafalan dibuka (halaman bisa berubah)
     const view = el('viewHifz');
