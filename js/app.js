@@ -16,6 +16,7 @@
     pageMode: 'scan',      // 'scan' = halaman mushaf (layout), 'text' = teks Uthmani
     spreadMode: 'auto',    // 'auto' | 'one' | 'two' — dua halaman seperti buku
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
+    indopakLines: '15',     // '15' = Qudratullah 15 garis | '16' = Taj 16 garis
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
     pageBorder: 'simple',
     pagePalette: 'soft',
@@ -81,6 +82,7 @@
     els.toggleTajwidPage = $('toggleTajwidPage');
     els.btnSurahInfo = $('btnSurahInfo');
     els.translationSelect = $('translationSelect');
+    els.indopakLinesSelect = $('indopakLinesSelect');
     els.tafsirSelect = $('tafsirSelect');
     els.toggleTafsir = $('toggleTafsir');
     els.modeScan = $('modeScan');
@@ -167,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qul-d';
+  const BUILD = '2026-11-23-qul-e';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -514,6 +516,7 @@
       spreadMode: state.spreadMode,
       pageFontScale: state.pageFontScale,
       indopakFont: state.indopakFont,
+      indopakLines: state.indopakLines,
       pageBorder: state.pageBorder,
       pagePalette: state.pagePalette,
       translationSlug: state.translationSlug,
@@ -547,6 +550,7 @@
     state.spreadMode = ['auto', 'one', 'two'].includes(state.spreadMode) ? state.spreadMode : 'auto';
     state.pageFontScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100));
     state.indopakFont = ['qul', 'light', 'compact'].includes(state.indopakFont) ? state.indopakFont : 'qul';
+    state.indopakLines = ['15', '16'].includes(state.indopakLines) ? state.indopakLines : '15';
     // 'classic'/'green' (versi lama) dipetakan ke 'simple'
     if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
     if (!['soft', 'vivid'].includes(state.pagePalette)) state.pagePalette = 'soft';
@@ -572,6 +576,7 @@
     if (els.pageBorderSelect) els.pageBorderSelect.value = state.pageBorder;
     if (els.pagePaletteSelect) els.pagePaletteSelect.value = state.pagePalette;
     if (els.translationSelect) els.translationSelect.value = state.translationSlug;
+    if (els.indopakLinesSelect) els.indopakLinesSelect.value = state.indopakLines;
     if (els.tafsirSelect) els.tafsirSelect.value = state.tafsirSlug;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
     els.qariSelect.value = state.qari;
@@ -1209,9 +1214,15 @@
 
   function mushafKey() { return state.mushaf || 'madani'; }
 
+  /** Berkas layout yang dipakai (IndoPak punya dua varian: 15 & 16 garis). */
+  function layoutFile() {
+    if (mushafKey() === 'indopak' && state.indopakLines === '16') return 'layout-indopak-16.json.gz';
+    return null;
+  }
+
   /** Peta ayat → halaman untuk mushaf aktif (604 atau 610 halaman). */
   async function rebuildVersePage() {
-    const layout = await DataManager.getLayout(mushafKey());
+    const layout = await DataManager.getLayout(mushafKey(), layoutFile());
     const map = new Map();
     if (layout && layout.pages) {
       for (const [p, pageData] of Object.entries(layout.pages)) {
@@ -1248,7 +1259,10 @@
   }
 
   function mushafConf() { return DataManager.mushafCfg(mushafKey()); }
-  function pageCount() { return mushafConf().pageCount || 604; }
+  function pageCount() {
+    if (mushafKey() === 'indopak' && state.indopakLines === '16') return 548;
+    return mushafConf().pageCount || 604;
+  }
 
   async function ensureMushafFont(page, tajweed = false) {
     const mc = mushafConf();
@@ -1807,7 +1821,7 @@
   }
 
   async function renderScanPage(page, pageData, surahInfo, lastSurahInfo, chapters, seq) {
-    const layout = await DataManager.getLayout(mushafKey());
+    const layout = await DataManager.getLayout(mushafKey(), layoutFile());
     const versesData = await DataManager.load('verses');
     prefetchPageFonts(page);
 
@@ -2060,7 +2074,7 @@
    * layout-nya sendiri supaya halaman 605–610 tetap ketemu.
    */
   async function resolvePageData(page) {
-    const layout = await DataManager.getLayout(mushafKey());
+    const layout = await DataManager.getLayout(mushafKey(), layoutFile());
     const raw = layout && layout.pages ? layout.pages[String(page)] : null;
     const rows = Array.isArray(raw) ? raw : (raw && raw.lines) || [];
     const typed = rows.length && !Array.isArray(rows[0]) && rows[0].kind;
@@ -3180,6 +3194,14 @@
       els.toggleTranslation.setAttribute('aria-pressed', state.showTranslation);
       renderPage(state.currentPage);
     });
+    if (els.indopakLinesSelect) {
+      els.indopakLinesSelect.addEventListener('change', (e) => {
+        state.indopakLines = e.target.value;
+        saveSettings();
+        state.activePage = 1;
+        renderPage(1);
+      });
+    }
     if (els.translationSelect) {
       els.translationSelect.addEventListener('change', (e) => {
         state.translationSlug = e.target.value;

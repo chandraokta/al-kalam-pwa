@@ -252,11 +252,12 @@ const DataManager = (() => {
   }
 
   // Helper: layout mushaf (baris + kata per halaman)
-  async function getLayout(mushaf) {
-    const key = `layout_${mushaf || CFG.mushaf || 'madani'}`;
+  async function getLayout(mushaf, fileOverride) {
     const mc = mushafCfg(mushaf || CFG.mushaf || 'madani');
+    const file = fileOverride || mc.layout;
+    const key = `layout_${mushaf || CFG.mushaf || 'madani'}_${file.replace(/[^a-z0-9]/gi, '')}`;
     if (!FILES.some(f => f.id === key)) {
-      FILES.push({ id: key, file: mc.layout, required: false });
+      FILES.push({ id: key, file, required: false });
     }
     try {
       return await load(key);
