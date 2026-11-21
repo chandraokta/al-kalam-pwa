@@ -1961,3 +1961,15 @@ body.is-fullscreen .app-main { margin-top: 0; }
 
 /* opsi kuis: ubin ringkas */
 .qz-opt { min-height: 56px; display: flex; align-items: center; justify-content: flex-end; }
+
+/* ayat yang sudah dinilai lancar: cincin hijau di nomor ayat */
+.mw-end.verse-ok, .mw-end-badge.verse-ok { box-shadow: 0 0 0 2px #169200, 0 0 0 4px rgba(22,146,0,.18); }
+
+/* jadwal mingguan */
+.hifz-weekplan { display: flex; flex-direction: column; gap: 8px; }
+.wp-day { display: flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 8px 12px; }
+.wp-day.today { border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--accent-primary) inset; }
+.wp-day > span { width: 64px; font-size: .8rem; color: var(--text-muted); }
+.wp-day > div { display: flex; gap: 6px; flex-wrap: wrap; }
+.wp-juz { border: 1px solid var(--border-color); background: var(--bg-tertiary); border-radius: 8px; width: 34px; height: 30px; cursor: pointer; color: var(--text-secondary); font-size: .8rem; }
+.wp-juz.done { background: var(--accent-primary); border-color: var(--accent-primary); color: #fff; }

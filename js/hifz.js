@@ -41,6 +41,9 @@
     pages: {},                // '42' -> { status:'lancar'|'sedang'|'lemah', perfect:n, mistakes:n, last:ts }
     srs: {},                  // '2:255' -> { due:ts, ivl:1, ease:2.5, reps:0, lapses:0 }
     flagged: {},              // '2:255' -> [posisi kata…]
+    verses: {},               // '2:255' -> { status:'lancar'|'lemah', last:ts }
+    weekly: null,             // [[juz…] × 7] jadwal murajaah
+    weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
   });
 
@@ -80,6 +83,17 @@
     save();
     return d.pages.length;
   }
+  function markVerse(verseKey, status) {
+    if (!verseKey) return;
+    S.verses[verseKey] = { status, last: Date.now() };
+    if (status === 'lancar') srsRate(verseKey, 2); else srsRate(verseKey, 0);
+    const d = dayRec();
+    d.reviewed = (d.reviewed || 0) + 1;
+    log('ayat', `${verseKey} ${status}`);
+    save();
+  }
+  function verseStatus(verseKey) { return (S.verses[verseKey] || {}).status || null; }
+
   function markPageStatus(page, status, mistakes = 0) {
     const p = S.pages[page] || { perfect: 0, mistakes: 0 };
     S.pages[page] = { status, perfect: status === 'lancar' ? (p.perfect || 0) + 1 : (p.perfect || 0),
@@ -209,6 +223,7 @@
     const needRemind = S.settings.remind && !doneToday && new Date().getHours() >= 17;
     const surahCard = await surahProgressCard();
     const juzCard = await juzProgressCard();
+    const weekCard = weeklyPlanCard();
 
     return `
       ${needRemind ? `<div class="hifz-remind">Belum ada murajaah hari ini — sisihkan beberapa menit untuk mengulang hafalan.</div>` : ''}
@@ -236,6 +251,7 @@
         </div>
         ${surahCard}
         ${juzCard}
+        ${weekCard}
       </div>
 
       <h3 class="hifz-h">Ulangan hari ini</h3>
@@ -346,6 +362,43 @@
     } catch { /* abaikan */ }
   }
 
+  function todayIndex() { return new Date().getDay(); }   // 0 = Ahad
+
+  function ensureWeekly() {
+    if (Array.isArray(S.weekly) && S.weekly.length === 7) return S.weekly;
+    // sebar juz yang punya halaman hafal; kalau kosong pakai 1-30
+    const memorized = new Set();
+    for (const [p, info] of Object.entries(S.pages || {})) {
+      if (info && info.status) memorized.add(Number(p));
+    }
+    const plan = [[], [], [], [], [], [], []];
+    for (let j = 1; j <= 30; j++) plan[(j - 1) % 7].push(j);
+    S.weekly = plan;
+    save();
+    return plan;
+  }
+
+  function weeklyPlanCard() {
+    const plan = ensureWeekly();
+    const day = todayIndex();
+    const list = plan[day] || [];
+    const done = (S.weeklyDone[todayKey()] || []);
+    const label = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][day];
+    return `<div class="hifz-card">
+      <span class="hifz-k">Jadwal ${label}</span>
+      <strong class="hifz-v">${done.length}/${list.length} juz</strong>
+      <span class="hifz-muted">${list.map((j) => `Juz ${j}`).join(' · ')}</span>
+    </div>`;
+  }
+
+  function markWeeklyJuz(j) {
+    const key = todayKey();
+    const arr = S.weeklyDone[key] || (S.weeklyDone[key] = []);
+    const i = arr.indexOf(j);
+    if (i >= 0) arr.splice(i, 1); else arr.push(j);
+    save();
+  }
+
   async function renderProgress() {
     const jp = await juzPages();
     const cells = [];
@@ -391,6 +444,15 @@
       ${weak.length ? `<div class="hifz-list">${weak.map(([p, v]) => `
         <button class="hifz-due" data-gopage="${p}">Halaman ${p}<span>${v.status === 'lemah' ? 'lemah' : (v.mistakes || 0) + ' kesalahan'}</span></button>`).join('')}</div>`
         : `<p class="hifz-muted">Belum ada data. Tandai hasil murajaah pada halaman untuk mengisi daftar ini.</p>`}
+
+      <h3 class="hifz-h">Jadwal mingguan</h3>
+      <div class="hifz-weekplan">
+        ${['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((nm, i) => `
+          <div class="wp-day${i === todayIndex() ? ' today' : ''}">
+            <span>${nm}</span>
+            <div>${(ensureWeekly()[i] || []).map((j) => `<button class="wp-juz${(S.weeklyDone[todayKey()] || []).includes(j) && i === todayIndex() ? ' done' : ''}" data-juz="${j}">${j}</button>`).join('')}</div>
+          </div>`).join('')}
+      </div>
 
       <h3 class="hifz-h">Cadangan data</h3>
       <div class="hifz-actions">
@@ -483,7 +545,14 @@
       b.addEventListener('click', () => window.AlKalam.goPage(Number(b.dataset.gopage)));
     });
     view.querySelectorAll('[data-juz]').forEach((b) => {
-      b.addEventListener('click', () => startJuz(Number(b.dataset.juz)));
+      b.addEventListener('click', () => {
+        const j = Number(b.dataset.juz);
+        if (b.classList.contains('wp-juz')) {
+          markWeeklyJuz(j);
+          b.classList.toggle('done');
+        }
+        startJuz(j);
+      });
     });
 
     const start = view.querySelector('[data-hifz="start"]');
@@ -925,6 +994,9 @@
       l.classList.toggle('hide-mode', hide && !byAyah);
       l.classList.toggle('hide-ayah', hide && byAyah);
     });
+    root.querySelectorAll('.mw-end, .mw-end-badge').forEach((b) => {
+      if (b.dataset.v) b.classList.toggle('verse-ok', verseStatus(b.dataset.v) === 'lancar');
+    });
     root.querySelectorAll('.mw[data-v]').forEach((w) => {
       const flagged = isFlagged(w.dataset.v, Number(w.dataset.w));
       w.classList.toggle('is-flagged', flagged);
@@ -936,6 +1008,20 @@
   function onWordClick(e) {
     const root = mushafRoot();
     if (!root || !root.contains(e.target)) return;
+
+    // nomor ayat: nilai ayat (lancar/lemah) saat mode tandai
+    const badge = e.target.closest && e.target.closest('.mw-end[data-v], .mw-end-badge[data-v]');
+    if (badge && (marking || S.settings.hideMode === 'off')) {
+      e.preventDefault(); e.stopPropagation();
+      const vk = badge.dataset.v;
+      const next = verseStatus(vk) === 'lancar' ? 'lemah' : 'lancar';
+      markVerse(vk, next);
+      decorate();
+      flash(`${vk} · ${next === 'lancar' ? 'lancar ✓' : 'perlu diulang'}`);
+      render();
+      return;
+    }
+
     const w = e.target.closest && e.target.closest('.mw[data-v]');
     if (!w) return;
     const hide = S.settings.hideMode !== 'off';
@@ -1031,7 +1117,7 @@
     get state() { return S; },
     save, markPageDone, markPageStatus, flagWord, unflagWord, isFlagged,
     srsRate, dueVerses, render, mount, todayKey,
-    decorate, flash, startQuiz, listenJuz, toggleRecording, playRecording, startTilawa, stopTilawa,
+    decorate, flash, startQuiz, markVerse, verseStatus, listenJuz, toggleRecording, playRecording, startTilawa, stopTilawa,
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
