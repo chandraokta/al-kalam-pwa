@@ -1013,9 +1013,8 @@ svg { display: inline-block; vertical-align: middle; }
   .page-quick { grid-template-columns: repeat(3, 1fr); }
 }
 @media (min-width: 768px) {
-  .drawer { display: none; }
-  .drawer-overlay { display: none; }
-  #btnMenu { display: none; }
+  /* Menu tetap tersedia di desktop: satu-satunya jalan ke Hafalan, Juz,
+     Cari, Penanda, dan Pengaturan. Drawer tampil sebagai panel geser. */
   .header-center { display: flex; }
 }
 

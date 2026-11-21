@@ -182,7 +182,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-elegant';
+  const BUILD = '2026-11-23-hifzfix';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3441,6 +3441,11 @@
     });
     els.audioPause.addEventListener('click', pauseAudio);
     els.audioPrev.addEventListener('click', prevAyah);
+    els.btnHafalan = $('btnHafalan');
+    els.btnHafalan?.addEventListener('click', () => {
+      showView('hifz');
+      try { history.replaceState(null, '', '#hifz'); } catch { location.hash = '#hifz'; }
+    });
     els.audioNext.addEventListener('click', nextAyah);
     els.progressBar.addEventListener('click', (e) => {
       const rect = e.currentTarget.getBoundingClientRect();
