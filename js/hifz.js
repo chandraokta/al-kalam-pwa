@@ -762,8 +762,10 @@
           // hanya laporkan yang masih di dalam halaman yang diperiksa
           if (!inPassage(loc)) return;
           mistakes += 1;
+          // simpan sebagai kata bermasalah agar masuk daftar & bisa diulang
+          try { flagWord(`${loc.surah}:${loc.ayah}`, loc.word); decorate(); } catch { /* abaikan */ }
           tilawaLog(`${e.errorClass} · ${loc.surah}:${loc.ayah} kata ${loc.word}`, 'bad');
-          tilawaStatus(`Mendengarkan… ${mistakes} isyarat sejauh ini`);
+          tilawaStatus(`Mendengarkan… ${mistakes} isyarat sejauh ini (tersimpan di Kata ditandai)`);
         }
       });
       tilawaMic = await tilawa.listen(tilawaSession);
