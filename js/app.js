@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-ornament';
+  const BUILD = '2026-11-22-tajwid-fix';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -383,20 +383,71 @@
 
   const wordRuleCache = new Map();
 
+  /**
+   * Urai markup tajwid (HTML) menjadi daftar kata beserta hukum yang ada di dalamnya.
+   * Catatan: markup berisi tag seperti <tajweed class=ghunnah>…</tajweed>; dulu dipecah
+   * dengan split spasi sehingga tag ikut terpecah dan semua sorotan bergeser.
+   */
+  function parseTajwidWords(html) {
+    if (!html) return [];
+    // buang penanda nomor ayat
+    let src = html.replace(/<span\s+class=["']?end["']?\s*>.*?<\/span>/g, "");
+    const words = [];
+    let rules = new Set();
+    let text = "";
+    let open = null;              // aturan yang sedang aktif
+
+    const flushWord = () => {
+      if (text) words.push({ text, rules: new Set(rules) });
+      text = "";
+      rules = new Set();
+    };
+
+    let i = 0;
+    while (i < src.length) {
+      if (src[i] === "<") {
+        const close = src.indexOf(">", i);
+        if (close === -1) break;
+        const tag = src.slice(i + 1, close);
+        if (/^tajweed\b/i.test(tag)) {
+          const cls = (tag.match(/class\s*=\s*["']?([a-z_]+)/i) || [])[1];
+          open = cls || null;
+          if (open) rules.add(open);
+        } else if (/^\/tajweed/i.test(tag)) {
+          open = null;
+        }
+        i = close + 1;
+        continue;
+      }
+      const ch = src[i];
+      if (/[\s\u00a0]/.test(ch)) {
+        flushWord();
+        i += 1;
+        continue;
+      }
+      text += ch;
+      if (open) rules.add(open);
+      i += 1;
+    }
+    flushWord();
+    return words;
+  }
+
   /** Aturan tajwid dominan per kata sebuah ayat: hasil = array grup (indeks 1 = kata 1). */
   async function wordRuleGroups(verseKey) {
     if (wordRuleCache.has(verseKey)) return wordRuleCache.get(verseKey);
     const all = await DataManager.load('tajwid');
     const html = (all && all[verseKey]) || '';
     if (!html) { wordRuleCache.set(verseKey, []); return []; }
-    // buang penanda nomor ayat, lalu pecah per kata
-    const clean = html.replace(/<span class=end>.*?<\/span>/g, '');
-    const words = clean.trim().split(/\s+/);
-    const out = [];
-    for (const w of words) {
-      const rule = (w.match(/class=\s*"?([a-z_]+)/i) || [, ''])[1];
-      out.push(RULE_TO_GROUP[rule] || null);
-    }
+
+    const words = parseTajwidWords(html);
+    const out = words.map(w => {
+      for (const r of w.rules) {
+        const g = RULE_TO_GROUP[r];
+        if (g) return g;
+      }
+      return null;
+    });
     wordRuleCache.set(verseKey, out);
     return out;
   }
@@ -916,12 +967,25 @@
 
     // IndoPak tidak punya font berwarna → warnai per kata dengan data tajwid
     const wordTintOn = !!state.showTajwid && mushafKey() === 'indopak';
-    const ruleByVerse = new Map();
+    // peta: ayat → (posisi kata → grup tajwid). Hanya kata teks (penanda nomor
+    // ayat tidak dihitung), supaya indeks sejajar dengan markup tajwid.
+    const tintByVerse = new Map();
     if (wordTintOn) {
-      const pd = await resolvePageData(page);
-      for (const v of (pd && pd.verses) || []) {
-        const vk = `${v.surah}:${v.ayah}`;
-        if (!ruleByVerse.has(vk)) ruleByVerse.set(vk, await wordRuleGroups(vk));
+      const textPos = new Map();                 // vk -> [pos kata teks, urut]
+      for (const row of buildRows(layout, page, chapters) || []) {
+        if (row.kind !== 'words') continue;
+        for (const [vk, pos, , isEnd] of row.words) {
+          if (isEnd) continue;
+          if (!textPos.has(vk)) textPos.set(vk, []);
+          textPos.get(vk).push(pos);
+        }
+      }
+      for (const [vk, poss] of textPos) {
+        const groups = await wordRuleGroups(vk);
+        if (groups.length !== poss.length) continue;   // jumlah kata beda → jangan diwarnai
+        const m = new Map();
+        poss.forEach((p, i) => { if (groups[i]) m.set(p, groups[i]); });
+        tintByVerse.set(vk, m);
       }
     }
 
@@ -958,8 +1022,7 @@
               } else if (clean) {
                 let tint = '';
                 if (wordTintOn) {
-                  const rules = ruleByVerse.get(vk) || [];
-                  const g = rules[pos - 1];
+                  const g = tintByVerse.get(vk)?.get(pos);
                   if (g) tint = ` taj-${g}`;
                 }
                 htm += `<span class="mw${tint}" data-v="${vk}" data-w="${pos}">${clean}</span> `;

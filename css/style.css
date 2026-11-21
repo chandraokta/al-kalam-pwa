@@ -1270,10 +1270,11 @@ body.is-fullscreen .app-main { margin-top: 0; }
 
 /* kata bertajwid pada halaman (dipakai IndoPak yang tak punya font berwarna) */
 /* IndoPak: hanya sorotan latar, huruf tetap hitam agar mudah dibaca */
-.mw.taj-mad { background: rgba(64, 80, 255, .18); }
-.mw.taj-ghunnah { background: rgba(255, 126, 30, .24); }
-.mw.taj-idgham { background: rgba(22, 146, 0, .20); }
-.mw.taj-ikhfa { background: rgba(213, 0, 183, .16); }
-.mw.taj-iqlab { background: rgba(38, 191, 253, .22); }
-.mw.taj-qalqalah { background: rgba(221, 0, 8, .16); }
-.mw.taj-silent { background: rgba(154, 160, 166, .20); }
+.mw[class*="taj-"] { border-radius: 2px; }
+.mw.taj-mad { background: rgba(64, 80, 255, .13); }
+.mw.taj-ghunnah { background: rgba(255, 126, 30, .18); }
+.mw.taj-idgham { background: rgba(22, 146, 0, .15); }
+.mw.taj-ikhfa { background: rgba(213, 0, 183, .12); }
+.mw.taj-iqlab { background: rgba(38, 191, 253, .17); }
+.mw.taj-qalqalah { background: rgba(221, 0, 8, .12); }
+.mw.taj-silent { background: rgba(154, 160, 166, .14); }
