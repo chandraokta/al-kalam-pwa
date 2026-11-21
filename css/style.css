@@ -1478,3 +1478,59 @@ body.is-fullscreen .app-main { margin-top: 0; }
 /* isi halaman terjemahan tidak boleh melar mengisi tinggi */
 .trans-body > * { flex: 0 0 auto; }
 .trans-body { justify-content: flex-start; align-content: flex-start; }
+
+/* ═══ Halaman ringkasan tajwid ═══ */
+.taj-page-item {
+  display: flex;
+  gap: .6em;
+  align-items: flex-start;
+  padding: .5em .7em;
+  border-radius: .45em;
+  background: rgba(255, 255, 255, .7);
+  border: 1px solid rgba(127, 176, 138, .45);
+}
+.taj-page-dot {
+  flex: 0 0 auto;
+  width: .95em;
+  height: .95em;
+  border-radius: 50%;
+  margin-top: .25em;
+}
+.taj-page-dot-mad { background: #4050ff; }
+.taj-page-dot-ghunnah { background: #ff7e1e; }
+.taj-page-dot-idgham { background: #169200; }
+.taj-page-dot-ikhfa { background: #d500b7; }
+.taj-page-dot-iqlab { background: #26bffd; }
+.taj-page-dot-qalqalah { background: #dd0008; }
+.taj-page-dot-silent { background: #9aa0a6; }
+.taj-page-dot-tafkhim { background: #7c5cff; }
+.taj-page-body { flex: 1 1 auto; min-width: 0; }
+.taj-page-name { font-weight: 600; color: #1a2e1f; }
+.taj-page-count { font-weight: 400; font-size: .82em; color: #5b7a63; margin-left: .4em; }
+.taj-page-desc { font-size: .92em; color: #3b5544; line-height: 1.55; margin-top: .15em; }
+
+/* teks Latin pada halaman tajwid: rata kiri, bukan warisan RTL mushaf */
+.tajwid-sheet .trans-head,
+.tajwid-sheet .trans-body,
+.tajwid-sheet .taj-page-item { direction: ltr; }
+.tajwid-sheet .taj-page-item { text-align: left; }
+.tajwid-sheet .taj-page-name { text-align: left; }
+.tajwid-sheet .taj-page-desc { text-align: left; }
+
+/* daftar ringkasan tajwid di mode satu halaman: ikut tema */
+.tajwid-list { width: 100%; max-width: none; }
+.tajwid-list-head {
+  font-family: var(--font-latin);
+  font-size: .82rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.tajwid-list .taj-page-item {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+.tajwid-list .taj-page-name { color: var(--text-primary); }
+.tajwid-list .taj-page-count { color: var(--text-muted); }
+.tajwid-list .taj-page-desc { color: var(--text-secondary); }

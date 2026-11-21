@@ -24,6 +24,7 @@
     showArabic: true,
     showTranslation: false,
     showTajwid: false,
+    showTajwidPage: false,  // lembar sebelah menampilkan ringkasan tajwid halaman
     showTafsir: false,
     fontSizeArabic: 28,
     fontSizeTrans: 15,
@@ -74,6 +75,7 @@
     els.toggleArabic = $('toggleArabic');
     els.toggleTranslation = $('toggleTranslation');
     els.toggleTajwid = $('toggleTajwid');
+    els.toggleTajwidPage = $('toggleTajwidPage');
     els.toggleTafsir = $('toggleTafsir');
     els.modeScan = $('modeScan');
     els.modeText = $('modeText');
@@ -158,7 +160,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-trans-fit';
+  const BUILD = '2026-11-23-tajwid-page';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -207,6 +209,7 @@
   // ── Hukum tajwid: nama + penjelasan singkat (Indonesia) ──────────────
   const TAJWID_RULES = {
     ham_wasl:        ['Hamzah Washal', 'Hamzah yang dibaca ketika di awal kalimat dan tidak dibaca ketika di tengah.'],
+    laam_shamsiyah:  ['Lam Syamsiyah', 'Lam ta\u2019rif yang tidak dibaca dan melebur ke huruf syamsiyah sesudahnya.'],
     slnt:            ['Huruf Tidak Dibaca', 'Huruf yang tidak dilafalkan karena bertemu huruf lain atau karena waqaf.'],
     madda_normal:    ['Mad Thabi\u2019i', 'Panjang 2 harakat (1 alif) karena huruf mad bertemu tanpa sebab lain.'],
     madda_permissible:['Mad Jaiz Munfashil', 'Panjang 2\u20135 harakat; huruf mad di akhir kata bertemu hamzah di kata berikutnya.'],
@@ -1156,6 +1159,93 @@
     return verseJuzMap.get(verseKey) || null;
   }
 
+  /** Hitung hukum tajwid yang muncul di satu halaman: { rule -> jumlah huruf }. */
+  async function tajwidRulesOfPage(page, pd) {
+    const counts = new Map();
+    const verses = (pd && pd.verses) || [];
+    for (const v of verses) {
+      const words = await verseLetterData(`${v.surah}:${v.ayah}`);
+      for (const w of words) {
+        for (const rule of w.rules || []) {
+          if (!rule) continue;
+          counts.set(rule, (counts.get(rule) || 0) + 1);
+        }
+      }
+    }
+    return counts;
+  }
+
+  const TAJ_ORDER = [
+    'madda_normal', 'madda_permissible', 'madda_obligatory', 'madda_necessary',
+    'ghunnah', 'idgham_ghunnah', 'idgham_wo_ghunnah', 'idgham_shafawi',
+    'idgham_mutajanisayn', 'idgham_mutaqaribayn',
+    'ikhafa', 'ikhafa_shafawi', 'iqlab', 'qalaqah',
+    'tafkhim', 'tarqiq', 'ham_wasl', 'slnt',
+  ];
+
+  /** Baris ringkasan tajwid (dipakai lembar dua halaman & daftar satu halaman). */
+  function tajwidRowsHtml(counts) {
+    const rules = [...counts.entries()].sort((a, b) => {
+      const ia = TAJ_ORDER.indexOf(a[0]); const ib = TAJ_ORDER.indexOf(b[0]);
+      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      return b[1] - a[1];
+    });
+    if (!rules.length) {
+      return `<div class="taj-page-item"><div class="taj-page-body">` +
+        `<div class="taj-page-name">Tidak ada hukum tajwid pada halaman ini</div></div></div>`;
+    }
+    let out = '';
+    for (const [rule, n] of rules) {
+      const meta = TAJWID_RULES[rule] || [rule, ''];
+      const group = RULE_TO_GROUP[rule] || 'silent';
+      out += `<div class="taj-page-item">` +
+        `<span class="taj-page-dot taj-page-dot-${group}"></span>` +
+        `<div class="taj-page-body">` +
+        `<div class="taj-page-name">${meta[0]} <span class="taj-page-count">${n} huruf</span></div>` +
+        `<div class="taj-page-desc">${meta[1]}</div>` +
+        `</div></div>`;
+    }
+    return out;
+  }
+
+  /** Lembar ringkasan tajwid halaman: daftar hukum + pengertiannya. */
+  async function buildTajwidSheetHtml(page, chapters, otherPage) {
+    const pd = await resolvePageData(page);
+    const counts = await tajwidRulesOfPage(page, pd);
+    const first = (pd && pd.verses && pd.verses[0]) || null;
+    const info = first ? chapters.find(c => c.id === first.surah) : null;
+    const juz = first ? await juzOf(`${first.surah}:${first.ayah}`) : null;
+
+    // urutkan: aturan baku dulu, lalu yang paling sering
+    const rules = [...counts.entries()].sort((a, b) => {
+      const ia = TAJ_ORDER.indexOf(a[0]); const ib = TAJ_ORDER.indexOf(b[0]);
+      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      return b[1] - a[1];
+    });
+    const total = rules.reduce((a, [, n]) => a + n, 0);
+
+    const rows = tajwidRowsHtml(counts);
+
+    const borderVariant = state.pageBorder === 'none' ? 'none' : 'simple';
+    const borderHtml = `<div class="page-border ${borderVariant}" aria-hidden="true">` +
+      `<span class="pb-edge h top"></span><span class="pb-edge h bottom"></span>` +
+      `<span class="pb-edge v left"></span><span class="pb-edge v right"></span>` +
+      `<span class="pb-corner tl"></span><span class="pb-corner tr"></span>` +
+      `<span class="pb-corner bl"></span><span class="pb-corner br"></span>` +
+      `</div>`;
+
+    return `<div class="scan-sheet-box" data-sheet="tajwid-${page}">` +
+      `<div class="scan-sheet trans-sheet tajwid-sheet pb-${borderVariant === 'none' ? 'none' : 'simple'}">` +
+      borderHtml +
+      `<div class="trans-head"><strong>Tajwid halaman ini</strong>` +
+      `<span>${info ? info.name_simple : ''} · halaman ${toArabicDigits(page)}${juz ? ' · Juz ' + juz : ''}` +
+      `${rules.length ? ' · ' + rules.length + ' hukum' : ''}</span>` +
+      `<button type="button" class="page-swap" data-swap="${otherPage}">baca halaman ${toArabicDigits(otherPage)}</button>` +
+      `</div>` +
+      `<div class="trans-body">${rows}</div>` +
+      `</div></div>`;
+  }
+
   /** Lembar terjemahan untuk menggantikan halaman sebelah pada mode dua halaman. */
   async function buildTranslationSheetHtml(page, chapters, otherPage) {
     const pd = await resolvePageData(page);
@@ -1404,7 +1494,8 @@
     // bila terjemahan/tafsir aktif pada dua halaman, lembar yang TIDAK sedang
     // dibaca berubah menjadi halaman terjemahan (halaman aktif tetap mushaf)
     const showText = state.showTranslation || state.showTafsir;
-    const transOnPage = showText && pair.length > 1;
+    const tajwidSheetOn = !!state.showTajwidPage && pair.length > 1;
+    const transOnPage = (showText || tajwidSheetOn) && pair.length > 1;
     const activePage = (state.activePage && pair.includes(state.activePage))
       ? state.activePage
       : state.currentPage;
@@ -1415,7 +1506,9 @@
       const p = pair[idx];
       let html;
       if (transOnPage && idx === transIdx) {
-        html = await buildTranslationSheetHtml(activePage, chapters, pair[activeIdx === 0 ? 1 : 0]);
+        html = tajwidSheetOn
+          ? await buildTajwidSheetHtml(activePage, chapters, pair[activeIdx === 0 ? 1 : 0])
+          : await buildTranslationSheetHtml(activePage, chapters, pair[activeIdx === 0 ? 1 : 0]);
       } else {
         html = await buildSheetHtml(p, chapters, layout);
       }
@@ -1444,6 +1537,16 @@
       html += `</div>`;
     }
     html += `</div>`;
+
+    // ringkasan tajwid di bawah halaman (mode satu halaman)
+    if (state.showTajwidPage && pair.length === 1) {
+      const pdOne = await resolvePageData(activePage);
+      const countsOne = await tajwidRulesOfPage(activePage, pdOne);
+      const listHtml = tajwidRowsHtml(countsOne);
+      html += `<div class="scan-texts tajwid-list" data-page="${activePage}">` +
+        `<div class="tajwid-list-head">Tajwid halaman ini · ${countsOne.size} hukum</div>` +
+        listHtml + `</div>`;
+    }
 
     // terjemahan / tafsir di bawah halaman (hanya mode satu halaman)
     if ((state.showTranslation || state.showTafsir) && !transOnPage) {
@@ -2678,6 +2781,12 @@
       state.showTranslation = !state.showTranslation;
       els.toggleTranslation.classList.toggle('active', state.showTranslation);
       els.toggleTranslation.setAttribute('aria-pressed', state.showTranslation);
+      renderPage(state.currentPage);
+    });
+    els.toggleTajwidPage.addEventListener('click', () => {
+      state.showTajwidPage = !state.showTajwidPage;
+      els.toggleTajwidPage.classList.toggle('active', state.showTajwidPage);
+      els.toggleTajwidPage.setAttribute('aria-pressed', state.showTajwidPage);
       renderPage(state.currentPage);
     });
     els.toggleTajwid.addEventListener('click', () => {
