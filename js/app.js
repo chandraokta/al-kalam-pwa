@@ -18,7 +18,7 @@
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
     pageBorder: 'simple',  // 'simple' = garis ganda tipis | 'none' = tanpa bingkai
-    madaniTajwid: 'tint',  // 'tint' = warna aplikasi per huruf | 'font' = font QCF KFGQPC
+    madaniTajwid: 'font',  // 'font' = font QCF asli (warna KFGQPC) | 'tint' = warna aplikasi per huruf
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
@@ -159,7 +159,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-madani-tint';
+  const BUILD = '2026-11-23-madani-asli';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -342,7 +342,14 @@
     state.indopakFont = ['qul', 'light', 'compact'].includes(state.indopakFont) ? state.indopakFont : 'qul';
     // 'classic'/'green' (versi lama) dipetakan ke 'simple'
     if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
-    if (!['tint', 'font'].includes(state.madaniTajwid)) state.madaniTajwid = 'tint';
+    if (!['tint', 'font'].includes(state.madaniTajwid)) state.madaniTajwid = 'font';
+    // sekali saja: kembalikan bawaan ke font QCF asli (permintaan pengguna)
+    try {
+      if (!localStorage.getItem('alkalam_madani_tajwid_default_v2')) {
+        state.madaniTajwid = 'font';
+        localStorage.setItem('alkalam_madani_tajwid_default_v2', '1');
+      }
+    } catch { /* localStorage penuh/diblokir */ }
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
