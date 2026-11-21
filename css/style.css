@@ -1380,3 +1380,63 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .taj-tip.on { opacity: 1; transform: translateY(0); }
 .taj-tip strong { display: block; font-size: .8rem; color: #fbbf24; margin-bottom: 2px; }
 .taj-tip span { color: #d1d5db; }
+
+/* ═══ Halaman terjemahan (menggantikan lembar sebelah saat terjemahan aktif) ═══ */
+.scan-sheet.trans-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #fffef9 0%, #fffdf6 45%, #f7fbf4 100%);
+}
+.trans-head {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(var(--msize, 30px) * 0.35) calc(var(--msize, 30px) * 0.55);
+  border-bottom: 1px solid rgba(127, 176, 138, .45);
+  font-family: var(--font-latin);
+  font-size: calc(var(--msize, 30px) * 0.36);
+  color: #35624a;
+}
+.trans-head strong { font-weight: 600; }
+.trans-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: calc(var(--msize, 30px) * 0.35) calc(var(--msize, 30px) * 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--msize, 30px) * 0.28);
+  scrollbar-width: thin;
+}
+.trans-body .scan-text-row {
+  padding: calc(var(--msize, 30px) * 0.22) calc(var(--msize, 30px) * 0.3);
+  border-radius: 6px;
+}
+.trans-body .scan-num {
+  width: calc(var(--msize, 30px) * 0.62);
+  height: calc(var(--msize, 30px) * 0.62);
+  font-size: calc(var(--msize, 30px) * 0.32);
+}
+.trans-body .scan-tr { font-size: calc(var(--msize, 30px) * 0.39); line-height: 1.6; }
+.trans-body .scan-taf { font-size: calc(var(--msize, 30px) * 0.33); }
+.trans-body .scan-surah-sep { font-size: calc(var(--msize, 30px) * 0.38); }
+.trans-body .action-btn { display: none; }
+
+/* kartu terjemahan di atas kertas krem: terang, bukan kartu tema gelap */
+.trans-sheet .scan-text-row {
+  background: rgba(255, 255, 255, .72);
+  border-color: rgba(127, 176, 138, .45);
+  color: #1a2e1f;
+}
+.trans-sheet .scan-tr { color: #223a2a; }
+.trans-sheet .scan-taf { color: #4a5f52; }
+.trans-sheet .scan-num {
+  background: #eef6ef;
+  color: #2d6a4f;
+  border-color: rgba(127, 176, 138, .55);
+}
+.trans-sheet .scan-surah-sep { color: #35624a; border-color: rgba(127, 176, 138, .45); }
+.trans-sheet .scan-text-row.playing { border-color: #2d6a4f; box-shadow: inset 3px 0 0 #2d6a4f; }
+.trans-head { direction: ltr; }

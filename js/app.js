@@ -21,7 +21,7 @@
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
-    showTranslation: true,
+    showTranslation: false,
     showTajwid: false,
     showTafsir: false,
     fontSizeArabic: 28,
@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-pages-2col';
+  const BUILD = '2026-11-23-trans-page';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1155,6 +1155,57 @@
     return verseJuzMap.get(verseKey) || null;
   }
 
+  /** Lembar terjemahan untuk menggantikan halaman sebelah pada mode dua halaman. */
+  async function buildTranslationSheetHtml(page, chapters) {
+    const pd = await resolvePageData(page);
+    const versesData = await DataManager.load('verses');
+    const items = ((pd && pd.verses) || [])
+      .map(v => ({ meta: v, verse: versesData[v.surah]?.find(x => x.verse_number === v.ayah) }))
+      .filter(x => x.verse);
+
+    const first = items[0] && items[0].meta;
+    const info = first ? chapters.find(c => c.id === first.surah) : null;
+    const juz = first ? await juzOf(`${first.surah}:${first.ayah}`) : null;
+
+    let rows = '';
+    let currentSurah = null;
+    for (const { meta } of items) {
+      const verseKey = `${meta.surah}:${meta.ayah}`;
+      const tr = await DataManager.getTranslation(verseKey, 'indo') ||
+                 await DataManager.getTranslation(verseKey, 'eng');
+      const taf = state.showTafsir ? await DataManager.getTafsir(verseKey, 'short') : '';
+      if (meta.surah !== currentSurah) {
+        currentSurah = meta.surah;
+        const ch = chapters.find(c => c.id === meta.surah);
+        rows += `<div class="scan-surah-sep"><span dir="rtl">${ch?.name_arabic || ''}</span> ${ch?.name_simple || ''}</div>`;
+      }
+      rows += `<div class="scan-text-row" data-verse="${verseKey}">`;
+      rows += `<button class="scan-num" data-play="${verseKey}" aria-label="Putar ayat ${meta.ayah}">${toArabicDigits(meta.ayah)}</button>`;
+      rows += `<div class="scan-text-body">`;
+      if (state.showTranslation && tr) rows += `<div class="scan-tr">${tr}</div>`;
+      if (state.showTafsir && taf) rows += `<div class="scan-taf"><span>Tafsir:</span> ${taf}</div>`;
+      rows += `</div></div>`;
+    }
+    if (!rows) rows = `<div class="scan-text-row"><div class="scan-text-body"><div class="scan-tr">Terjemahan tidak tersedia.</div></div></div>`;
+
+    const borderVariant = state.pageBorder === 'none' ? 'none' : 'simple';
+    const borderHtml = `<div class="page-border ${borderVariant}" aria-hidden="true">` +
+      `<span class="pb-edge h top"></span><span class="pb-edge h bottom"></span>` +
+      `<span class="pb-edge v left"></span><span class="pb-edge v right"></span>` +
+      `<span class="pb-corner tl"></span><span class="pb-corner tr"></span>` +
+      `<span class="pb-corner bl"></span><span class="pb-corner br"></span>` +
+      `</div>`;
+
+    return `<div class="scan-sheet-box" data-sheet="trans-${page}">` +
+      `<div class="scan-sheet trans-sheet pb-${borderVariant === 'none' ? 'none' : 'simple'}">` +
+      borderHtml +
+      `<div class="trans-head"><strong>Terjemahan${state.showTafsir ? ' & Tafsir' : ''}</strong>` +
+      `<span>${info ? info.name_simple : ''} · halaman ${toArabicDigits(page)}${juz ? ' · Juz ' + juz : ''}</span></div>` +
+      `<div class="trans-body">${rows}</div>` +
+      `</div></div>`;
+  }
+
+
   /** Bangun HTML satu lembar halaman (dipakai mode satu & dua halaman). */
   async function buildSheetHtml(page, chapters, layout) {
     // Madani selalu memakai font QCF asli (warna dari font v4-tajweed)
@@ -1347,9 +1398,18 @@
       g.items.push(item);
     }
 
+    // bila terjemahan/tafsir aktif pada dua halaman, lembar kiri jadi halaman terjemahan
+    const showText = state.showTranslation || state.showTafsir;
+    const transOnPage = showText && pair.length > 1;
     const sheets = [];
-    for (const p of pair) {
-      const html = await buildSheetHtml(p, chapters, layout);
+    for (let idx = 0; idx < pair.length; idx++) {
+      const p = pair[idx];
+      let html;
+      if (transOnPage && idx === 1) {
+        html = await buildTranslationSheetHtml(pair[0], chapters);
+      } else {
+        html = await buildSheetHtml(p, chapters, layout);
+      }
       if (seq !== undefined && seq !== state._renderSeq) return;   // render sudah basi
       sheets.push(html);
     }
@@ -1376,8 +1436,8 @@
     }
     html += `</div>`;
 
-    // terjemahan / tafsir (dua kolom bila dua halaman)
-    if (state.showTranslation || state.showTafsir) {
+    // terjemahan / tafsir di bawah halaman (hanya mode satu halaman)
+    if ((state.showTranslation || state.showTafsir) && !transOnPage) {
       const rowsHtml = async (items) => {
         let out = '';
         let currentSurah = null;
@@ -1520,6 +1580,19 @@
    */
   function applyPageScale(sheet) {
     if (!sheet || !sheet.isConnected) return;
+    // lembar terjemahan: cukup diskalakan, tidak perlu mengukur font mushaf
+    if (sheet.classList.contains('trans-sheet')) {
+      const stageT = sheet.parentElement;
+      const DESIGN_WT = 720;
+      sheet.style.setProperty('--design-w', `${DESIGN_WT}px`);
+      const boxWT = stageT ? stageT.clientWidth : DESIGN_WT;
+      const topYT = stageT ? stageT.getBoundingClientRect().top : 0;
+      const availHT = Math.max(320, window.innerHeight - topYT - 20);
+      const scaleT = Math.min(1, boxWT / DESIGN_WT, availHT / (sheet.offsetHeight || 1)) || 1;
+      sheet.style.setProperty('--page-scale', String(scaleT));
+      if (stageT) stageT.style.height = `${Math.round(sheet.offsetHeight * scaleT)}px`;
+      return;
+    }
     const stage = sheet.parentElement;
     const DESIGN_W = 720;
     const pageLines = sheet.querySelector('.mushaf-page-lines');
