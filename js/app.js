@@ -169,7 +169,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-fullpage';
+  const BUILD = '2026-11-23-fullpage2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2249,7 +2249,9 @@
     //    halaman lain tetap di atas)
     const boxW = stage ? stage.clientWidth : DESIGN_W;
     const topY = stage ? stage.getBoundingClientRect().top : 0;
-    const availH = Math.max(320, window.innerHeight - topY - 14);
+    const bar = document.getElementById('audioBar');
+    const barH = (bar && !bar.hidden) ? bar.offsetHeight + 8 : 0;
+    const availH = Math.max(280, window.innerHeight - topY - barH - 14);
     const scale = Math.min(1, boxW / DESIGN_W) || 1;
     sheet.style.setProperty('--page-scale', String(scale));
     if (stage) {
@@ -2590,6 +2592,7 @@
 
     const [surah, ayah] = verseKey.split(':').map(Number);
     els.audioBar.hidden = false;
+    document.querySelectorAll('.scan-sheet').forEach(applyPageScale);
     els.audioPlay.hidden = false;
     els.audioPause.hidden = true;
 
