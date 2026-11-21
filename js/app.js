@@ -158,7 +158,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-trans-swap';
+  const BUILD = '2026-11-23-trans-fit';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1505,7 +1505,7 @@
         const target = Number(btn.dataset.swap);
         if (Number.isFinite(target)) {
           state.activePage = target;
-          renderPage(state.currentPage);
+          renderPage(state.currentPage, true);
         }
       });
     });
@@ -1608,27 +1608,57 @@
    * mengisi sisa — tidak ada yang terpotong dan ujung baris tetap sama.
    */
   /** Sesuaikan ukuran huruf halaman terjemahan agar mengisi ruang yang ada. */
+  /** Tinggi isi sebenarnya (scrollHeight tidak bisa < clientHeight). */
+  function transContentHeight(body) {
+    const cs = getComputedStyle(body);
+    const gap = parseFloat(cs.rowGap) || 0;
+    const padT = parseFloat(cs.paddingTop) || 0;
+    const padB = parseFloat(cs.paddingBottom) || 0;
+    const kids = [...body.children];
+    if (!kids.length) return padT + padB;
+    return padT + padB + kids.reduce((a, k) => a + k.offsetHeight, 0) + gap * (kids.length - 1);
+  }
+
   function fitTransSheet(sheet) {
     const body = sheet.querySelector('.trans-body');
-    if (!body) return;
+    if (!body) return false;
     const avail = body.clientHeight;
-    if (!avail) return;
-    let lo = 0.95, hi = 2.6;   // 0.95 x ~13,7px ≈ 13px: batas nyaman dibaca
-    for (let i = 0; i < 10; i++) {
+    if (!avail) return false;
+
+    const setScale = (sc) => sheet.style.setProperty('--trans-scale', String(sc));
+    const fits = (sc) => { setScale(sc); return transContentHeight(body) <= avail - 2; };
+
+    // 1) skala terbesar yang masih muat (isi tidak meluber)
+    let lo = 0.95, hi = 2.8;
+    if (!fits(lo)) { setScale(lo); return true; }        // sudah penuh: biarkan bergulir
+    for (let i = 0; i < 14; i++) {
       const mid = (lo + hi) / 2;
-      sheet.style.setProperty('--trans-scale', String(mid));
-      if (body.scrollHeight > avail - 3) hi = mid; else lo = mid;
+      if (fits(mid)) lo = mid; else hi = mid;
     }
-    sheet.style.setProperty('--trans-scale', String(lo));
-    // masih longgar? naikkan bertahap, tetapi kembalikan bila mulai meluber
+    // 2) rapatkan ke atas agar isi mengisi halaman (tidak menyisakan ruang)
     let best = lo;
-    for (let i = 0; i < 8 && body.scrollHeight < avail * 0.95 && best < 2.6; i++) {
-      const next = Math.min(2.6, best + 0.05);
-      sheet.style.setProperty('--trans-scale', String(next));
-      if (body.scrollHeight > avail) break;
-      best = next;
+    for (let i = 0; i < 40; i++) {
+      const next = Math.min(2.8, best + 0.005);
+      setScale(next);
+      if (transContentHeight(body) <= avail - 2) best = next; else break;
     }
-    sheet.style.setProperty('--trans-scale', String(best));
+    setScale(best);
+    return true;
+  }
+
+  /** Jalankan fit beberapa kali sampai tata letak & font stabil. */
+  function scheduleTransFit(sheet) {
+    sheet._transFitFor = null;
+    const run = () => {
+      if (!sheet.isConnected) return;
+      fitTransSheet(sheet);
+    };
+    run();
+    requestAnimationFrame(run);
+    setTimeout(run, 60);
+    setTimeout(run, 220);
+    setTimeout(run, 600);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(run).catch(() => {});
   }
 
   function applyPageScale(sheet) {
@@ -1645,7 +1675,7 @@
       const scaleT = Math.min(1, boxWT / DESIGN_WT, availHT / (sheet.offsetHeight || 1)) || 1;
       sheet.style.setProperty('--page-scale', String(scaleT));
       if (stageT) stageT.style.height = `${Math.round(sheet.offsetHeight * scaleT)}px`;
-      fitTransSheet(sheet);
+      scheduleTransFit(sheet);
       return;
     }
     const stage = sheet.parentElement;
@@ -1714,14 +1744,21 @@
     if (stage) stage.style.height = `${Math.round(sheet.offsetHeight * scale)}px`;
   }
 
-  async function renderPage(page) {
+  async function renderPage(page, keepActive) {
     const seq = ++state._renderSeq;
     const maxPage = pageCount();
     if (page < 1 || page > maxPage) return;
-    // mode dua halaman: selalu mulai dari halaman ganjil (kanan)
+    const requested = page;              // halaman yang dituju pengguna
+    const prevCurrent = state.currentPage;
     const pair = spreadPair(page);
     page = pair[0];
     state.currentPage = page;
+    // halaman yang dibaca = halaman yang dituju; render ulang halaman yang sama
+    // (mis. setelah data siap) tidak boleh mengubah pilihan pengguna
+    const navigated = requested !== prevCurrent;
+    if (!keepActive && (navigated || !pair.includes(state.activePage))) {
+      state.activePage = pair.includes(requested) ? requested : pair[0];
+    }
     els.pageIndicator.textContent = pair.length > 1
       ? `${pair[0]}–${pair[1]} / ${maxPage}`
       : `${page} / ${maxPage}`;

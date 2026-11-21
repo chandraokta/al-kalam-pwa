@@ -1474,3 +1474,7 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .trans-sheet .scan-num { background: #eef6ef; color: #2d6a4f; border-color: rgba(127, 176, 138, .55); }
 .trans-sheet .scan-surah-sep { color: #35624a; border-color: rgba(127, 176, 138, .45); }
 .trans-sheet .scan-text-row.playing { border-color: #2d6a4f; box-shadow: inset 3px 0 0 #2d6a4f; }
+
+/* isi halaman terjemahan tidak boleh melar mengisi tinggi */
+.trans-body > * { flex: 0 0 auto; }
+.trans-body { justify-content: flex-start; align-content: flex-start; }
