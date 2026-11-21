@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-margin';
+  const BUILD = '2026-11-22-tajwid-tip';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -224,6 +224,37 @@
     tafkhim:         ['Tafkhim', 'Membaca huruf tebal, mulut dibuka membulat.'],
     tarqiq:          ['Tarqiq', 'Membaca huruf tipis, mulut tidak dibulatkan.'],
   };
+
+  // ── Tooltip hukum tajwid (muncul saat kursor di atas sorotan) ─────────
+  let tajTipEl = null;
+  function tajTip() {
+    if (!tajTipEl) {
+      tajTipEl = document.createElement('div');
+      tajTipEl.className = 'taj-tip';
+      tajTipEl.setAttribute('role', 'tooltip');
+      document.body.appendChild(tajTipEl);
+    }
+    return tajTipEl;
+  }
+  function showTajTip(rule, x, y) {
+    const info = TAJWID_RULES[rule];
+    const name = info ? info[0] : (rule || 'Tajwid');
+    const desc = info ? info[1] : '';
+    const el = tajTip();
+    if (el.dataset.rule === rule && el.classList.contains('on')) {
+      el.style.left = `${Math.min(x + 14, window.innerWidth - 280)}px`;
+      el.style.top = `${Math.max(8, y + 16)}px`;
+      return;
+    }
+    el.dataset.rule = rule;
+    el.innerHTML = `<strong>${name}</strong><span>${desc}</span>`;
+    el.style.left = `${Math.min(x + 14, window.innerWidth - 280)}px`;
+    el.style.top = `${Math.max(8, y + 16)}px`;
+    el.classList.add('on');
+  }
+  function hideTajTip() {
+    if (tajTipEl) tajTipEl.classList.remove('on');
+  }
 
   function showTajwidRule(rule) {
     const info = TAJWID_RULES[rule];
@@ -437,8 +468,8 @@
   function wordLetterRules(word) {
     const out = [];
     for (const seg of word.segments || []) {
-      const g = RULE_TO_GROUP[seg.rule] || null;
-      for (const ch of seg.text) if (!AR_MARKS_RE.test(ch)) out.push(g);
+      // simpan aturan spesifik: untuk warna dipetakan ke grup, untuk tooltip dipakai apa adanya
+      for (const ch of seg.text) if (!AR_MARKS_RE.test(ch)) out.push(seg.rule || null);
     }
     return out;
   }
@@ -565,11 +596,13 @@
     const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
     let html = "";
     let buf = "";
-    let cur = null;
+    let cur = null;          // aturan spesifik yang sedang dikumpulkan
     let idx = 0;
     const flush = () => {
       if (!buf) return;
-      html += cur ? `<span class="tj tj-${cur}">${esc(buf)}</span>` : esc(buf);
+      const g = cur ? RULE_TO_GROUP[cur] : null;
+      if (g) html += `<span class="tj tj-${g}" data-rule="${cur}">${esc(buf)}</span>`;
+      else html += esc(buf);
       buf = "";
     };
     for (const ch of text) {
@@ -1136,7 +1169,8 @@
           const word = markupWords[j];
           if (!word) return;
           byOrdinal.set(i, word);
-          const g = (word.rules || []).find(Boolean) || null;
+          const firstRule = (word.rules || []).find(Boolean) || null;
+          const g = firstRule ? (RULE_TO_GROUP[firstRule] || null) : null;
           if (g) m.set(it.pos, g);
         });
         if (byOrdinal.size) {
@@ -2571,6 +2605,28 @@
     
     // PWA install prompt
     let deferredPrompt;
+    // tooltip hukum tajwid di halaman (hover & sentuh)
+    const tajTarget = (e) => (e.target && e.target.closest ? e.target.closest('.tj[data-rule]') : null);
+    document.addEventListener('mouseover', (e) => {
+      const t = tajTarget(e);
+      if (t) showTajTip(t.dataset.rule, e.clientX, e.clientY);
+    });
+    document.addEventListener('mousemove', (e) => {
+      const t = tajTarget(e);
+      if (t) showTajTip(t.dataset.rule, e.clientX, e.clientY);
+    });
+    document.addEventListener('mouseout', (e) => {
+      if (tajTarget(e)) hideTajTip();
+    });
+    document.addEventListener('pointerdown', (e) => {
+      const t = tajTarget(e);
+      if (t) {
+        showTajTip(t.dataset.rule, e.clientX, e.clientY);
+        clearTimeout(showTajTip._t);
+        showTajTip._t = setTimeout(hideTajTip, 3000);
+      }
+    });
+
     // jendela berubah ukuran (atau ponsel diputar): hitung ulang skala halaman
     let resizeTimer = null;
     const onResize = () => {
