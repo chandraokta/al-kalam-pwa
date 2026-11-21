@@ -30,6 +30,10 @@ RECITERS = {
     "abdulbasit": 2,
     "husary": 6,
     "sudais": 3,
+    "shatri": 4,
+    "minshawi": 9,
+    "shuraym": 10,
+    "tablawi": 11,
 }
 
 

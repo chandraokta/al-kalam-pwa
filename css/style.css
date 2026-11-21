@@ -1745,3 +1745,53 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .scan-sheet .mushaf-page-lines,
 .scan-sheet .trans-head,
 .scan-sheet .trans-body { position: relative; z-index: 2; }
+
+/* ═══ Modal umum (Info Surat, Info Kata) ═══ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(12, 24, 16, .55);
+  backdrop-filter: blur(2px);
+}
+.modal-card {
+  position: relative;
+  width: min(94vw, 460px);
+  max-height: 86vh;
+  overflow: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .5);
+  padding: 20px 22px 16px;
+  color: var(--text-primary);
+}
+.modal-card.modal-wide { width: min(96vw, 720px); }
+.modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.modal-close:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+.mi-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; padding-right: 28px; }
+.mi-ar { font-family: var(--font-arabic); font-size: 1.8rem; color: var(--accent-primary); }
+.mi-name { font-size: 1.05rem; font-weight: 700; }
+.mi-body { display: flex; flex-direction: column; gap: 8px; }
+.mi-row { display: flex; justify-content: space-between; gap: 14px; font-size: .9rem; padding-bottom: 6px; border-bottom: 1px dashed var(--border-color); }
+.mi-key { color: var(--text-muted); }
+.mi-val { color: var(--text-primary); font-weight: 600; text-align: right; }
+.mi-actions { margin-top: 14px; display: flex; justify-content: flex-end; }

@@ -80,6 +80,9 @@ window.ALKALAM_CONFIG = {
     { key: 'alafasy', name: 'Mishari Rashid Alafasy', qul: 7, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/alafasy/murattal/mp3/' },
     { key: 'abdulbasit', name: 'Abdul Basit Murattal', qul: 2, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/abdulBasit/murattal/mp3/' },
     { key: 'husary', name: 'Mahmoud Khalil Al-Husary', qul: 6, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/husary/murattal/mp3/' },
-    { key: 'sudais', name: 'Abdur-Rahman As-Sudais', qul: 3, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/abdulrahmanAlSudais/murattal/mp3/' }
+    { key: 'sudais', name: 'Abdur-Rahman As-Sudais', qul: 3, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/abdulrahmanAlSudais/murattal/mp3/' },
+  { key: 'shatri', name: 'Abu Bakr Al-Shatri', qul: 4, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/abuBakrAlShatri/murattal/mp3/' },
+  { key: 'minshawi', name: 'Muhammad Siddiq Al-Minshawi', qul: 9, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/minshawy/murattal/mp3/' },
+  { key: 'shuraym', name: "Sa'ud Ash-Shuraym", qul: 10, audioBase: 'https://audio-cdn.tarteel.ai/quran/surah/saudAlShuraim/murattal/mp3/' }
   ]
 };

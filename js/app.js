@@ -77,6 +77,7 @@
     els.toggleTranslation = $('toggleTranslation');
     els.toggleTajwid = $('toggleTajwid');
     els.toggleTajwidPage = $('toggleTajwidPage');
+    els.btnSurahInfo = $('btnSurahInfo');
     els.toggleTafsir = $('toggleTafsir');
     els.modeScan = $('modeScan');
     els.modeText = $('modeText');
@@ -162,7 +163,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-bingkai';
+  const BUILD = '2026-11-23-qul-a';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -268,6 +269,71 @@
   }
   function hideTajTip() {
     if (tajTipEl) tajTipEl.classList.remove('on');
+  }
+
+  // ── Modal sederhana (dipakai Info Surat, Info Kata, dll.) ──
+  function openModal(inner, opts = {}) {
+    const old = document.getElementById('appModal');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'appModal';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal-card${opts.wide ? ' modal-wide' : ''}" role="dialog" aria-modal="true">` +
+      `<button class="modal-close" aria-label="Tutup">\u00d7</button>` + inner + `</div>`;
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    ov.querySelector('.modal-close').addEventListener('click', close);
+    const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+    return ov;
+  }
+
+  // ── Info Surat: data dari chapters + verses (QUL) ──
+  async function showSurahInfo(surahId) {
+    const id = Number(surahId);
+    if (!Number.isFinite(id)) return;
+    const chapters = await DataManager.load('chapters');
+    const ch = chapters.find(c => c.id === id);
+    if (!ch) return;
+    const verses = await DataManager.load('verses');
+    const arr = verses[String(id)] || verses[id] || [];
+    const firstV = arr[0] || {};
+    const lastV = arr[arr.length - 1] || {};
+    const juzText = firstV.juz_number
+      ? (firstV.juz_number === lastV.juz_number ? `Juz ${firstV.juz_number}` : `Juz ${firstV.juz_number}–${lastV.juz_number}`)
+      : '';
+    const place = ch.revelation_place === 'makkah' ? 'Makkiyah' : 'Madaniyah';
+    const arti = (ch.translated_name && ch.translated_name.name) || ch.name_id || '';
+    const pages = ch.pages || [];
+    const rows = [
+      ['Arti nama', arti],
+      ['Turun di', `${place} · urutan ke-${ch.revelation_order}`],
+      ['Jumlah ayat', `${ch.verses_count || arr.length} ayat`],
+      ['Halaman mushaf', pages.length ? `hal. ${pages[0]}–${pages[pages.length - 1]}` : '-'],
+      ['Juz', juzText || '-'],
+      ['Manzil / Ruku’', `${firstV.manzil_number || '-'} / ${firstV.ruku_number || '-'}`],
+      ['Basmalah di awal', ch.bismillah_pre ? 'Ada' : 'Tidak ada'],
+    ].filter(r => r[1]);
+
+    const body = rows.map(([k, v]) =>
+      `<div class="mi-row"><span class="mi-key">${k}</span><span class="mi-val">${v}</span></div>`).join('');
+
+    openModal(
+      `<div class="mi-head"><span class="mi-ar" dir="rtl">${ch.name_arabic || ''}</span>` +
+      `<span class="mi-name">${ch.name_simple || ''}</span></div>` +
+      `<div class="mi-body">${body}</div>` +
+      `<div class="mi-actions"><button class="btn btn-primary" data-goto-surah="${id}">Buka halaman ${pages[0] || ''}</button></div>`
+    );
+    const btn = document.querySelector('[data-goto-surah]');
+    if (btn) btn.addEventListener('click', async (e) => {
+      const target = Number(e.currentTarget.dataset.gotoSurah);
+      const c2 = chapters.find(c => c.id === target);
+      const pg = (c2 && c2.pages && c2.pages[0]) || 1;
+      document.getElementById('appModal')?.remove();
+      state.activePage = pg;
+      await goPage(pg);
+    });
   }
 
   function showTajwidRule(rule) {
@@ -641,6 +707,8 @@
         hizb: a.hizb_number,
         rub: a.rub_el_hizb_number,
         sajdah: a.sajdah_number,
+        manzil: a.manzil_number,
+        ruku: a.ruku_number,
         rubEnd: !n || n.rub_el_hizb_number !== a.rub_el_hizb_number,
         hizbEnd: !n || n.hizb_number !== a.hizb_number,
         juzEnd: !n || n.juz_number !== a.juz_number,
@@ -1573,9 +1641,13 @@
       const ch = chapters.find(c => c.id === surahNo);
       const juz = await juzOf(firstVk);
       headHtml = `<div class="page-head" aria-hidden="true">` +
-        `<span class="ph-surah">${surahNo}. ${ch ? (ch.name_simple || '') : ''}</span>` +
+        `<span class="ph-surah" data-surah="${surahNo}" title="Info surat">${surahNo}. ${ch ? (ch.name_simple || '') : ''}</span>` +
         `<span class="ph-page">${toArabicDigits(page)}</span>` +
-        `<span class="ph-juz">${juz ? 'Juz ' + juz : ''}</span>` +
+        `<span class="ph-juz" title="${juz ? 'Juz ' + juz : ''}${vm.get(firstVk)?.manzil ? ' · Manzil ' + vm.get(firstVk).manzil : ''}${vm.get(firstVk)?.ruku ? ' · Ruku\u2019 ' + vm.get(firstVk).ruku : ''}">` +
+          `${juz ? 'Juz ' + juz : ''}` +
+          `${vm.get(firstVk)?.manzil ? ' · M' + vm.get(firstVk).manzil : ''}` +
+          `${vm.get(firstVk)?.ruku ? ' · R' + vm.get(firstVk).ruku : ''}` +
+        `</span>` +
         `</div>`;
     }
 
@@ -1738,6 +1810,16 @@
     html += `</div>`;
     if (seq !== undefined && seq !== state._renderSeq) return;    // dibatalkan render baru
     els.mushafContainer.innerHTML = html;
+
+    // klik nama surat di kepala halaman -> Info Surat
+    els.mushafContainer.querySelectorAll('.ph-surah').forEach((el) => {
+      el.style.pointerEvents = 'auto';
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showSurahInfo(el.dataset.surah);
+      });
+    });
 
     // pindah halaman yang dibaca: terjemahan berpindah ke sisi seberang
     els.mushafContainer.querySelectorAll('.page-swap').forEach((btn) => {
@@ -2928,6 +3010,13 @@
       els.toggleTranslation.setAttribute('aria-pressed', state.showTranslation);
       renderPage(state.currentPage);
     });
+    if (els.btnSurahInfo) {
+      els.btnSurahInfo.addEventListener('click', async () => {
+        const pd = await resolvePageData(state.activePage || state.currentPage);
+        const v = (pd && pd.verses && pd.verses[0]) || null;
+        if (v) showSurahInfo(v.surah);
+      });
+    }
     els.toggleTajwidPage.addEventListener('click', () => {
       state.showTajwidPage = !state.showTajwidPage;
       els.toggleTajwidPage.classList.toggle('active', state.showTajwidPage);
