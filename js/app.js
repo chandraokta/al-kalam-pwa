@@ -182,7 +182,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-audiobar';
+  const BUILD = '2026-11-23-elegant';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');

@@ -81,6 +81,37 @@
   --border-color: #d4c4a0;
 }
 
+[data-theme="elegant"] {
+  /* Krem hangat + emerald tua + emas: token visual saja.
+     --header-h, --audio-bar-h, --msize dan geometri halaman TIDAK diubah. */
+  --bg-primary: #faf8f3;
+  --bg-secondary: #fffdf7;
+  --bg-tertiary: #f0ede4;
+  --bg-card: #fffcf4;
+  --text-primary: #1a1712;
+  --text-secondary: #3d3a31;
+  --text-muted: #a79c86;
+  --accent-primary: #0f3d2e;
+  --accent-secondary: #1c5c44;
+  --accent-tertiary: #2f7a5c;
+  --accent-light: #ede4cc;
+  --border-color: #e9e2d2;
+  --shadow-sm: 0 1px 3px rgba(26, 23, 18, .06);
+  --shadow-md: 0 6px 18px rgba(26, 23, 18, .08);
+  --shadow-lg: 0 14px 34px rgba(26, 23, 18, .10);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+}
+[data-theme="elegant"] .app-title {
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+  letter-spacing: .012em;
+}
+[data-theme="elegant"] .scan-sheet {
+  --paper: #fffcf4;
+  --ink-line: #d9cfb4;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    Reset & Base
 ════════════════════════════════════════════════════════════════════════ */
