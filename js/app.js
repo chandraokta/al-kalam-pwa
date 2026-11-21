@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-tajwid-fix';
+  const BUILD = '2026-11-22-tajwid-letter';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -382,6 +382,109 @@
   }
 
   const wordRuleCache = new Map();
+
+  // ── Pewarnaan per HURUF (IndoPak) ──────────────────────────────────
+  const AR_MARKS_RE = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640\u200C\u200D\u0653-\u0655]/;
+  const AR_MARKS_G = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640\u200C\u200D\u0653-\u0655]/g;
+  const baseLetters = (t) => String(t).replace(AR_MARKS_G, "");
+
+  /** Pecah markup jadi kata, tiap kata berisi potongan { text, rule }. */
+  function tajwidSegments(html) {
+    if (!html) return [];
+    let src = String(html).replace(/<span\s+class=["']?end["']?\s*>[\s\S]*?<\/span>/g, "");
+    const words = [];
+    let segs = [];
+    let text = "";
+    let rule = null;
+
+    const push = (t, r) => {
+      if (!t) return;
+      const last = segs[segs.length - 1];
+      if (last && last.rule === r) last.text += t;
+      else segs.push({ text: t, rule: r });
+    };
+    const flush = () => {
+      if (text) words.push({ text, segments: segs });
+      text = "";
+      segs = [];
+    };
+
+    let i = 0;
+    while (i < src.length) {
+      if (src[i] === "<") {
+        const close = src.indexOf(">", i);
+        if (close === -1) break;
+        const tag = src.slice(i + 1, close);
+        if (/^tajweed\b/i.test(tag)) {
+          rule = (tag.match(/class\s*=\s*["']?([a-z_]+)/i) || [])[1] || null;
+        } else if (/^\/tajweed/i.test(tag)) {
+          rule = null;
+        }
+        i = close + 1;
+        continue;
+      }
+      const ch = src[i];
+      if (/[\s\u00a0]/.test(ch)) { flush(); i += 1; continue; }
+      text += ch;
+      push(ch, rule);
+      i += 1;
+    }
+    flush();
+    return words;
+  }
+
+  /** Aturan per huruf dasar untuk satu kata markup. */
+  function wordLetterRules(word) {
+    const out = [];
+    for (const seg of word.segments || []) {
+      const g = RULE_TO_GROUP[seg.rule] || null;
+      for (const ch of seg.text) if (!AR_MARKS_RE.test(ch)) out.push(g);
+    }
+    return out;
+  }
+
+  const verseLettersCache = new Map();
+
+  /** ayat → daftar kata { base, rules } sesuai markup tajwid. */
+  async function verseLetterData(verseKey) {
+    if (verseLettersCache.has(verseKey)) return verseLettersCache.get(verseKey);
+    const all = await DataManager.load('tajwid');
+    const words = tajwidSegments((all && all[verseKey]) || '');
+    const data = words.map(w => ({ base: baseLetters(w.text), rules: wordLetterRules(w) }));
+    verseLettersCache.set(verseKey, data);
+    return data;
+  }
+
+  /**
+   * HTML satu kata IndoPak dengan warna per huruf.
+   * null bila jumlah huruf dasar tidak sama (pemanggil pakai cadangan per kata).
+   */
+  function tintedWordHtml(text, rules) {
+    const base = baseLetters(text);
+    if (!rules || !rules.length || base.length !== rules.length) return null;
+    const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    let html = "";
+    let buf = "";
+    let cur = null;
+    let idx = 0;
+    const flush = () => {
+      if (!buf) return;
+      html += cur ? `<span class="taj-${cur}">${esc(buf)}</span>` : esc(buf);
+      buf = "";
+    };
+    for (const ch of text) {
+      const isMark = AR_MARKS_RE.test(ch);
+      const g = isMark ? cur : (rules[idx] || null);
+      if (!isMark) {
+        if (g !== cur) { flush(); cur = g; }
+        idx += 1;
+      }
+      buf += ch;
+    }
+    flush();
+    return html;
+  }
+
 
   /**
    * Urai markup tajwid (HTML) menjadi daftar kata beserta hukum yang ada di dalamnya.
@@ -967,6 +1070,8 @@
 
     // IndoPak tidak punya font berwarna → warnai per kata dengan data tajwid
     const wordTintOn = !!state.showTajwid && mushafKey() === 'indopak';
+    const letterByVerse = new Map();      // vk -> daftar kata markup (per huruf)
+    const wordOrdinal = new Map();        // vk -> nomor kata teks yang sedang ditulis
     // peta: ayat → (posisi kata → grup tajwid). Hanya kata teks (penanda nomor
     // ayat tidak dihitung), supaya indeks sejajar dengan markup tajwid.
     const tintByVerse = new Map();
@@ -986,6 +1091,7 @@
         const m = new Map();
         poss.forEach((p, i) => { if (groups[i]) m.set(p, groups[i]); });
         tintByVerse.set(vk, m);
+        letterByVerse.set(vk, await verseLetterData(vk));
       }
     }
 
@@ -1021,11 +1127,20 @@
                 htm += `<span class="mw mw-end-badge" data-v="${vk}" data-w="${pos}">${toArabicDigits(Number(ayahNo))}</span>`;
               } else if (clean) {
                 let tint = '';
+                let inner = clean;
                 if (wordTintOn) {
-                  const g = tintByVerse.get(vk)?.get(pos);
-                  if (g) tint = ` taj-${g}`;
+                  const ord = wordOrdinal.get(vk) || 0;
+                  wordOrdinal.set(vk, ord + 1);
+                  const markupWord = (letterByVerse.get(vk) || [])[ord];
+                  const perLetter = markupWord ? tintedWordHtml(clean, markupWord.rules) : null;
+                  if (perLetter !== null) {
+                    inner = perLetter;
+                  } else {
+                    const g = tintByVerse.get(vk)?.get(pos);
+                    if (g) tint = ` taj-${g}`;
+                  }
                 }
-                htm += `<span class="mw${tint}" data-v="${vk}" data-w="${pos}">${clean}</span> `;
+                htm += `<span class="mw${tint}" data-v="${vk}" data-w="${pos}">${inner}</span> `;
               }
             } else {
               htm += `<span class="mw${isEnd ? ' mw-end' : ''}" data-v="${vk}" data-w="${pos}">${glyph}</span> `;
