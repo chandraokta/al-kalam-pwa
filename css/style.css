@@ -1803,3 +1803,5 @@ body.is-fullscreen .app-main { margin-top: 0; }
 .sim-score { font-size: .75rem; color: var(--text-muted); }
 .sim-ar { font-family: var(--font-arabic); font-size: 1.25rem; line-height: 1.9; color: var(--text-primary); margin-bottom: 4px; }
 .sim-tr { font-size: .85rem; color: var(--text-secondary); line-height: 1.6; }
+
+.mi-sub { margin-top: 12px; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }

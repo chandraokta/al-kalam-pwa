@@ -37,6 +37,7 @@ const DataManager = (() => {
     { id: 'tafsir_muyassar', file: 'tafsir_muyassar.json.gz', required: false },
     { id: 'words', file: 'words.json.gz', required: false },
     { id: 'similar', file: 'similar.json.gz', required: false },
+    { id: 'morphology', file: 'morphology.json.gz', required: false },
     { id: 'meta', file: 'meta.json.gz', required: true },
   ];
   

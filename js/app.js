@@ -167,7 +167,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qul-c';
+  const BUILD = '2026-11-23-qul-d';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -336,6 +336,21 @@
     return hit ? hit.page : null;
   }
 
+  // ── Label jenis kata (Quranic Arabic Corpus) ──
+  const POS_LABEL = {
+    N: 'Isim (kata benda)', V: 'Fi\u2019il (kata kerja)', P: 'Huruf / partikel',
+    PN: 'Nama (isim \u2018alam)', ADJ: 'Sifat', PRON: 'Kata ganti', DEM: 'Isim isyarah',
+    REL: 'Kata sambung (maushul)', DET: 'Kata sandang', PREF: 'Awalan',
+    SUB: 'Huruf subjungtif', CONJ: 'Kata sambung', EMPH: 'Penguat', INTG: 'Kata tanya',
+    NEG: 'Negasi', VOC: 'Seruan', NUM: 'Bilangan', T: 'Kata waktu', LOC: 'Kata tempat',
+    INL: 'Huruf sisipan', A: 'Singkatan', IMPN: 'Isim fi\u2019il', ADV: 'Kata keterangan',
+  };
+  const posLabel = (p) => {
+    if (!p) return '-';
+    const first = String(p).split('|')[0];
+    return POS_LABEL[first] || first;
+  };
+
   // ── Info Kata: arti & transliterasi per kata (QUL word-by-word) ──
   async function showWordInfo(verseKey, position) {
     const data = await DataManager.load('words');
@@ -346,6 +361,23 @@
     const [surah] = String(verseKey).split(':').map(Number);
     const chapters = await DataManager.load('chapters');
     const ch = chapters.find(c => c.id === surah);
+
+    // morfologi (akar kata, lemma, jenis kata) bila tersedia
+    let morphHtml = '';
+    try {
+      const morph = await DataManager.load('morphology');
+      const segs = morph?.[verseKey]?.[String(idx + 1)] || [];
+      if (segs.length) {
+        const rowsM = segs.map((sg) => {
+          const bits = [`<b dir="rtl">${sg.f || ''}</b>`, posLabel(sg.pos)];
+          if (sg.root) bits.push('akar: ' + sg.root);
+          if (sg.lem) bits.push('lemma: ' + sg.lem);
+          return `<div class="mi-row"><span class="mi-key">${bits[1]}</span><span class="mi-val">${bits[0]}${sg.root ? ' \u00b7 ' + sg.root : ''}${sg.lem ? ' \u00b7 ' + sg.lem : ''}</span></div>`;
+        }).join('');
+        morphHtml = rowsM;
+      }
+    } catch { /* morfologi opsional */ }
+
     openModal(
       `<div class="mi-head"><span class="mi-ar" dir="rtl">${w.ar || ''}</span>` +
       `<span class="mi-name">${verseKey}${ch ? ' \u00b7 ' + (ch.name_simple || '') : ''}</span></div>` +
@@ -353,6 +385,7 @@
       `<div class="mi-row"><span class="mi-key">Transliterasi</span><span class="mi-val">${w.tl || '-'}</span></div>` +
       `<div class="mi-row"><span class="mi-key">Arti</span><span class="mi-val">${w.tr || '-'}</span></div>` +
       `<div class="mi-row"><span class="mi-key">Kata ke-</span><span class="mi-val">${idx + 1} dari ${list.length}</span></div>` +
+      (morphHtml ? `<div class="mi-sub">Morfologi</div>` + morphHtml : '') +
       `</div>` +
       `<div class="mi-actions"><button class="btn" data-word-all="${verseKey}">Lihat semua kata</button></div>`
     );
