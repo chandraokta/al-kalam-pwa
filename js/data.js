@@ -25,6 +25,16 @@ const DataManager = (() => {
     { id: 'translation_eng', file: 'translation_eng_alkalam.json.gz', required: false },
     { id: 'tafsir_short', file: 'tafsir_id_short_fixed.json.gz', required: false },
     { id: 'tafsir_long', file: 'tafsir_id_long_fixed.json.gz', required: false },
+    // terjemahan tambahan (QUL / quran.com)
+    { id: 'translation_kemenag', file: 'translation_kemenag.json.gz', required: false },
+    { id: 'translation_kfh', file: 'translation_kfh.json.gz', required: false },
+    { id: 'translation_saheeh', file: 'translation_saheeh.json.gz', required: false },
+    { id: 'translation_pickthall', file: 'translation_pickthall.json.gz', required: false },
+    { id: 'translation_urdu', file: 'translation_urdu.json.gz', required: false },
+    { id: 'translation_turkish', file: 'translation_turkish.json.gz', required: false },
+    { id: 'translation_translit', file: 'translation_translit.json.gz', required: false },
+    // tafsir tambahan
+    { id: 'tafsir_muyassar', file: 'tafsir_muyassar.json.gz', required: false },
     { id: 'meta', file: 'meta.json.gz', required: true },
   ];
   

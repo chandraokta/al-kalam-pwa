@@ -18,7 +18,9 @@
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
     pageBorder: 'simple',
-    pagePalette: 'soft',   // 'soft' = hijau muda & kuning | 'vivid' = warna legenda
+    pagePalette: 'soft',
+    translationSlug: 'indo',   // terjemahan aktif
+    tafsirSlug: 'short',       // tafsir aktif   // 'soft' = hijau muda & kuning | 'vivid' = warna legenda
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     activePage: null,      // halaman yang sedang dibaca (null = halaman kanan pasangan)
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
@@ -78,6 +80,8 @@
     els.toggleTajwid = $('toggleTajwid');
     els.toggleTajwidPage = $('toggleTajwidPage');
     els.btnSurahInfo = $('btnSurahInfo');
+    els.translationSelect = $('translationSelect');
+    els.tafsirSelect = $('tafsirSelect');
     els.toggleTafsir = $('toggleTafsir');
     els.modeScan = $('modeScan');
     els.modeText = $('modeText');
@@ -163,7 +167,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qul-a';
+  const BUILD = '2026-11-23-qul-b';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -336,6 +340,32 @@
     });
   }
 
+  // ── Terjemahan & tafsir terpilih (dengan cadangan) ──
+  const TRANSLATION_OPTIONS = [
+    ['indo', 'Indonesia'], ['kemenag', 'Kemenag RI'], ['kfh', 'King Fahad Complex'],
+    ['saheeh', 'Saheeh International'], ['pickthall', 'M. Pickthall'],
+    ['urdu', 'Urdu (Jalandhari)'], ['turkish', 'Turki (Diyanet)'],
+    ['translit', 'Transliterasi Latin'],
+  ];
+  const TAFSIR_OPTIONS = [
+    ['short', 'Indonesia ringkas'], ['long', 'Indonesia lengkap'],
+    ['muyassar', 'Muyassar (Arab)'],
+  ];
+
+  async function trFor(verseKey) {
+    const slug = state.translationSlug || 'indo';
+    let t = await DataManager.getTranslation(verseKey, slug);
+    if (!t && slug !== 'indo') t = await DataManager.getTranslation(verseKey, 'indo');
+    if (!t) t = await DataManager.getTranslation(verseKey, 'eng');
+    return t || '';
+  }
+  async function tafFor(verseKey) {
+    const slug = state.tafsirSlug || 'short';
+    let t = await DataManager.getTafsir(verseKey, slug);
+    if (!t && slug !== 'short') t = await DataManager.getTafsir(verseKey, 'short');
+    return t || '';
+  }
+
   function showTajwidRule(rule) {
     const info = TAJWID_RULES[rule];
     const name = info ? info[0] : rule;
@@ -381,6 +411,8 @@
       indopakFont: state.indopakFont,
       pageBorder: state.pageBorder,
       pagePalette: state.pagePalette,
+      translationSlug: state.translationSlug,
+      tafsirSlug: state.tafsirSlug,
     };
     localStorage.setItem('alkalam_settings', JSON.stringify(settings));
   }
@@ -413,6 +445,8 @@
     // 'classic'/'green' (versi lama) dipetakan ke 'simple'
     if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
     if (!['soft', 'vivid'].includes(state.pagePalette)) state.pagePalette = 'soft';
+    if (!TRANSLATION_OPTIONS.some(o => o[0] === state.translationSlug)) state.translationSlug = 'indo';
+    if (!TAFSIR_OPTIONS.some(o => o[0] === state.tafsirSlug)) state.tafsirSlug = 'short';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -432,6 +466,8 @@
     if (els.indopakFontSelect) els.indopakFontSelect.value = state.indopakFont;
     if (els.pageBorderSelect) els.pageBorderSelect.value = state.pageBorder;
     if (els.pagePaletteSelect) els.pagePaletteSelect.value = state.pagePalette;
+    if (els.translationSelect) els.translationSelect.value = state.translationSlug;
+    if (els.tafsirSelect) els.tafsirSelect.value = state.tafsirSlug;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
     els.qariSelect.value = state.qari;
     els.autoPlayNext.checked = state.autoPlayNext;
@@ -778,7 +814,7 @@
     const verses = await DataManager.getVerses(surah);
     const verse = verses.find(v => v.verse_number === ayah);
     const info = await DataManager.getSurah(surah);
-    const tr = await DataManager.getTranslation(verseKey, 'indo');
+    const tr = await trFor(verseKey);
     const lines = [
       verse ? verse.text_uthmani : '',
       '',
@@ -823,7 +859,7 @@
 
   /** Tampilkan tafsir lengkap untuk satu ayat (data sudah tersedia). */
   async function showFullTafsir(verseKey) {
-    const full = await DataManager.getTafsir(verseKey, 'long');
+    const full = await DataManager.getTafsir(verseKey, state.tafsirSlug || 'short');
     if (!full) { showToast('Tafsir lengkap tidak tersedia', 'error'); return; }
     showTafsirPanel(verseKey, full);
   }
@@ -1380,9 +1416,8 @@
     let currentSurah = null;
     for (const { meta } of items) {
       const verseKey = `${meta.surah}:${meta.ayah}`;
-      const tr = await DataManager.getTranslation(verseKey, 'indo') ||
-                 await DataManager.getTranslation(verseKey, 'eng');
-      const taf = state.showTafsir ? await DataManager.getTafsir(verseKey, 'short') : '';
+      const tr = await trFor(verseKey);
+      const taf = state.showTafsir ? await tafFor(verseKey) : '';
       if (meta.surah !== currentSurah) {
         currentSurah = meta.surah;
         const ch = chapters.find(c => c.id === meta.surah);
@@ -1765,9 +1800,8 @@
         let currentSurah = null;
         for (const { meta } of items) {
           const verseKey = `${meta.surah}:${meta.ayah}`;
-          const tr = await DataManager.getTranslation(verseKey, 'indo') ||
-                     await DataManager.getTranslation(verseKey, 'eng');
-          const taf = state.showTafsir ? await DataManager.getTafsir(verseKey, 'short') : '';
+          const tr = await trFor(verseKey);
+          const taf = state.showTafsir ? await tafFor(verseKey) : '';
           const marked = isBookmarked(verseKey);
           if (meta.surah !== currentSurah) {
             currentSurah = meta.surah;
@@ -3010,6 +3044,20 @@
       els.toggleTranslation.setAttribute('aria-pressed', state.showTranslation);
       renderPage(state.currentPage);
     });
+    if (els.translationSelect) {
+      els.translationSelect.addEventListener('change', (e) => {
+        state.translationSlug = e.target.value;
+        saveSettings();
+        renderPage(state.currentPage);
+      });
+    }
+    if (els.tafsirSelect) {
+      els.tafsirSelect.addEventListener('change', (e) => {
+        state.tafsirSlug = e.target.value;
+        saveSettings();
+        renderPage(state.currentPage);
+      });
+    }
     if (els.btnSurahInfo) {
       els.btnSurahInfo.addEventListener('click', async () => {
         const pd = await resolvePageData(state.activePage || state.currentPage);
