@@ -270,11 +270,11 @@
           <strong class="hifz-v">${due.length} ayat · ${dPages.length} hal</strong>
           <span class="hifz-muted">${Object.keys(S.srs).length} ayat · ${Object.keys(S.pageSrs || {}).length} halaman terjadwal</span>
         </div>
-        <div class="hifz-card">
+        <button class="hifz-card hifz-card-btn" data-goto-tab="progress">
           <span class="hifz-k">Kata ditandai</span>
           <strong class="hifz-v">${flaggedCount}</strong>
-          <span class="hifz-muted">dari mode tandai salah</span>
-        </div>
+          <span class="hifz-muted">${flaggedCount ? flaggedPreview() : 'belum ada — aktifkan mode Tandai'}</span>
+        </button>
         ${surahCard}
         ${juzCard}
         ${weekCard}
@@ -404,6 +404,20 @@
     return plan;
   }
 
+  // cache arti kata (untuk menampilkan kata yang ditandai)
+  let wordsCache = null;
+  async function ensureWords() {
+    if (wordsCache) return wordsCache;
+    try { wordsCache = await window.AlKalam.DataManager.load('words'); }
+    catch { wordsCache = {}; }
+    return wordsCache;
+  }
+  function wordAt(verseKey, pos) {
+    const arr = wordsCache && wordsCache[verseKey];
+    if (!arr) return null;
+    return arr.find((w) => Number(w.p) === Number(pos)) || arr[Number(pos) - 1] || null;
+  }
+
   // peta ayat -> halaman (untuk indeks kata ditandai)
   const pageByVerseHifz = new Map();
   async function ensurePageIndexHifz() {
@@ -416,14 +430,33 @@
     } catch { /* diamkan */ }
   }
 
+  function flaggedPreview() {
+    const first = [];
+    for (const [vk, arr] of Object.entries(S.flagged || {})) {
+      for (const pos of arr) { first.push({ vk, pos }); if (first.length >= 2) break; }
+      if (first.length >= 2) break;
+    }
+    const parts = first.map(({ vk, pos }) => {
+      const w = wordAt(vk, pos);
+      return w && w.ar ? `<span class="fw-ar" dir="rtl">${w.ar}</span>` : `${vk} kata ${pos}`;
+    });
+    return parts.length ? `terbaru: ${parts.join(' · ')} — tekan untuk lihat semua` : 'tekan untuk lihat daftar';
+  }
+
   function flaggedListHtml() {
     const items = [];
     for (const [vk, arr] of Object.entries(S.flagged || {})) for (const pos of arr) items.push({ vk, pos });
     if (!items.length) return `<p class="hifz-muted">Belum ada kata ditandai. Aktifkan tombol "Tandai" lalu klik kata yang sering salah.</p>`;
     const rows = items.slice(0, 20).map(({ vk, pos }, i) => {
       const page = pageByVerseHifz.get(vk);
+      const w = wordAt(vk, pos);
+      const kata = w
+        ? `<span class="fw-ar" dir="rtl">${w.ar || ''}</span>` +
+          `${w.tl ? `<span class="fw-tl">${w.tl}</span>` : ''}` +
+          `${w.tr ? `<span class="fw-tr">${w.tr}</span>` : ''}`
+        : `<span class="fw-tr">kata ${pos}</span>`;
       return `<div class="hifz-due wp-row">
-        <span><span class="wp-idx">${i + 1}</span>${vk} · kata ${pos}
+        <span><span class="wp-idx">${i + 1}</span>${vk} · ${kata}
         <span class="wp-sub">${page ? `halaman ${page} · ` : ''}salah baca</span></span>
         <span class="wp-actions">
           ${page ? `<button class="btn btn-sm btn-primary" data-jump="${vk}:${page}">Ke halaman ${page}</button>` : ''}
@@ -621,6 +654,13 @@
         const [vk, pos] = b.dataset.unflag.split(':');
         unflagWord(vk, Number(pos));
         decorate();
+        render();
+      });
+    });
+    view.querySelectorAll('[data-goto-tab]').forEach((b) => {
+      b.addEventListener('click', () => {
+        tab = b.dataset.gotoTab;
+        view.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === tab));
         render();
       });
     });
@@ -1212,6 +1252,7 @@
     if (!el('viewHifz')) return;
     load();
     ensurePageIndexHifz().then(() => render());
+    ensureWords().then(() => render());
     render();
     initMushaf();
     window.AlKalamHifz.applyHideMode = decorate;
