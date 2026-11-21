@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qcf-final';
+  const BUILD = '2026-11-23-start-mushaf';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1557,8 +1557,12 @@
       sheet.style.setProperty('--msize', `${Math.max(10, fs * (avail / (avail + worst)) * 0.995)}px`);
     }
 
-    // 4) skala utuh ke lebar layar
-    const scale = Math.min(1, (stage ? stage.clientWidth : DESIGN_W) / DESIGN_W) || 1;
+    // 4) skala utuh: muat lebar DAN tinggi layar agar halaman terlihat penuh
+    const boxW = stage ? stage.clientWidth : DESIGN_W;
+    const topY = stage ? stage.getBoundingClientRect().top : 0;
+    const availH = Math.max(320, window.innerHeight - topY - 20);
+    const designH = sheet.offsetHeight || 1;
+    const scale = Math.min(1, boxW / DESIGN_W, availH / designH) || 1;
     sheet.style.setProperty('--page-scale', String(scale));
     if (stage) stage.style.height = `${Math.round(sheet.offsetHeight * scale)}px`;
   }
@@ -2739,7 +2743,15 @@
       els.toggleTranslation.setAttribute('aria-pressed', 'false');
     }
     const maxStart = pageCount();
-    const startPage = Math.min(maxStart, Math.max(1, parseInt(params.get('page') || '1', 10) || 1));
+    // Halaman awal: ?page=… → terakhir dibaca → halaman 1
+    let initialPage = parseInt(params.get('page') || '', 10);
+    if (!Number.isFinite(initialPage)) {
+      try {
+        const last = JSON.parse(localStorage.getItem('alkalam_last') || 'null');
+        if (last && last.page) initialPage = last.page;
+      } catch { /* abaikan */ }
+    }
+    const startPage = Math.min(maxStart, Math.max(1, initialPage || 1));
     if (params.get('offline') === '1' && window.ALKALAM_CONFIG) {
       const cfg = window.ALKALAM_CONFIG;
       cfg.offline = true;
@@ -2763,8 +2775,9 @@
 
     // Render first page
     await renderPage(startPage);
-    const hasDeepLink = params.has('page');
-    showView(hasDeepLink ? 'mushaf' : 'home');
+    // Langsung ke mushaf: ukuran layar menentukan 1 atau 2 halaman (spreadWanted)
+    const wantHome = params.get('home') === '1';
+    showView(wantHome ? 'home' : 'mushaf');
 
     // Listen for theme change
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
