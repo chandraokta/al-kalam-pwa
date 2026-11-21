@@ -157,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-tajwid-textref';
+  const BUILD = '2026-11-22-tajwid-audit';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -474,21 +474,82 @@
           : Math.max(dp[i + 1][j], dp[i][j + 1]);
       }
     }
-    const out = new Array(n).fill(null);
-    let i = 0, j = 0, lastRule = null;
+    const out = new Array(n).fill(undefined);
+    let i = 0, j = 0;
     while (i < n && j < m) {
       if (base[i] === markupBase[j]) {
-        out[i] = rules[j] ?? lastRule;
-        if (rules[j]) lastRule = rules[j];
+        out[i] = rules[j] ?? null;
         i++; j++;
       } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-        out[i] = lastRule;        // huruf IndoPak tanpa pasangan
-        i++;
+        i++;                      // huruf IndoPak tanpa pasangan (dibiarkan kosong)
       } else {
         j++;
       }
     }
-    while (i < n) { out[i] = lastRule; i++; }
+    // huruf kosong yang diapit dua huruf beraturan sama ikut diwarnai
+    for (let k = 0; k < n; k++) {
+      if (out[k] !== undefined) continue;
+      let a = k - 1; while (a >= 0 && out[a] === undefined) a--;
+      let b = k + 1; while (b < n && out[b] === undefined) b++;
+      const left = a >= 0 ? out[a] : null;
+      const right = b < n ? out[b] : null;
+      out[k] = (left && right && left === right) ? left : null;
+    }
+    // cadangan terakhir: sebar menurut proporsi (mis. kata yang bentuknya jauh berbeda)
+    if (!out.some(Boolean) && m > 0 && rules.length) {
+      for (let k = 0; k < n; k++) {
+        const j = n > 1 ? Math.round(k * (m - 1) / (n - 1)) : 0;
+        out[k] = rules[Math.min(j, rules.length - 1)] || null;
+      }
+    }
+    return out;
+  }
+
+  /** Kemiripan dua kata (0..1) untuk penyejajaran kata. */
+  function wordSimilarity(a, b) {
+    if (!a || !b) return -0.5;
+    if (a === b) return 1;
+    const n = a.length, m = b.length;
+    if (!n || !m) return -0.4;
+    let prev = new Array(m + 1).fill(0);
+    for (let i = 1; i <= n; i++) {
+      const cur = new Array(m + 1).fill(0);
+      for (let j = 1; j <= m; j++) {
+        cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
+      }
+      prev = cur;
+    }
+    const r = prev[m] / Math.max(n, m);
+    return r >= 0.95 ? 1 : r >= 0.7 ? 0.7 : r >= 0.5 ? 0.4 : -0.4;
+  }
+
+  /**
+   * Sejajarkan daftar kata IndoPak dengan kata markup (Needleman-Wunsch).
+   * Dipakai saat jumlah kata berbeda (217 ayat) agar tetap bisa diwarnai.
+   */
+  function alignWords(indo, markup) {
+    const n = indo.length, m = markup.length;
+    const GAP = -0.55;
+    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n; i >= 0; i--) {
+      for (let j = m; j >= 0; j--) {
+        if (i === n && j === m) dp[i][j] = 0;
+        else if (i === n) dp[i][j] = dp[i][j + 1] + GAP;
+        else if (j === m) dp[i][j] = dp[i + 1][j] + GAP;
+        else dp[i][j] = Math.max(
+          dp[i + 1][j + 1] + wordSimilarity(indo[i], markup[j]),
+          dp[i + 1][j] + GAP,
+          dp[i][j + 1] + GAP);
+      }
+    }
+    const out = new Array(n).fill(-1);
+    let i = 0, j = 0;
+    while (i < n && j < m) {
+      const diag = dp[i + 1][j + 1] + wordSimilarity(indo[i], markup[j]);
+      if (Math.abs(dp[i][j] - diag) < 1e-9) { out[i] = j; i++; j++; }
+      else if (Math.abs(dp[i][j] - (dp[i + 1][j] + GAP)) < 1e-9) i++;
+      else j++;
+    }
     return out;
   }
 
@@ -1045,25 +1106,43 @@
     // ayat tidak dihitung), supaya indeks sejajar dengan markup tajwid.
     const tintByVerse = new Map();
     if (wordTintOn) {
-      const textPos = new Map();                 // vk -> [pos kata teks, urut]
+      const textPos = new Map();                 // vk -> [{ pos, base }] urut
       for (const row of buildRows(layout, page, chapters) || []) {
         if (row.kind !== 'words') continue;
-        for (const [vk, pos, , isEnd] of row.words) {
+        for (const [vk, pos, glyph, isEnd] of row.words) {
           if (isEnd) continue;
+          const txt = String(glyph).replace(/[\uE000-\uF8FF]/g, '').trim();
           if (!textPos.has(vk)) textPos.set(vk, []);
-          textPos.get(vk).push(pos);
+          textPos.get(vk).push({ pos, base: baseLetters(txt) });
         }
       }
-      for (const [vk, poss] of textPos) {
-        const letters = await verseLetterData(vk);      // kata + aturan per huruf
-        if (!letters.length || letters.length !== poss.length) continue;  // jumlah kata beda
-        const m = new Map();
-        poss.forEach((p, i) => {
-          const g = (letters[i].rules || []).find(Boolean) || null;       // aturan dominan kata
-          if (g) m.set(p, g);
+      for (const [vk, items] of textPos) {
+        const markupWords = await verseLetterData(vk);   // [{ base, rules }]
+        if (!markupWords.length) continue;
+
+        // petakan kata IndoPak → kata markup (jumlah sama: langsung; beda: disejajarkan)
+        let mapping;
+        if (markupWords.length === items.length) {
+          mapping = items.map((_, i) => i);
+        } else {
+          mapping = alignWords(items.map(x => x.base), markupWords.map(w => w.base));
+        }
+
+        const byOrdinal = new Map();               // ordinal → kata markup
+        const m = new Map();                       // posisi → grup dominan (cadangan)
+        items.forEach((it, i) => {
+          const j = mapping[i];
+          if (j == null || j < 0) return;
+          const word = markupWords[j];
+          if (!word) return;
+          byOrdinal.set(i, word);
+          const g = (word.rules || []).find(Boolean) || null;
+          if (g) m.set(it.pos, g);
         });
-        tintByVerse.set(vk, m);
-        letterByVerse.set(vk, letters);
+        if (byOrdinal.size) {
+          tintByVerse.set(vk, m);
+          letterByVerse.set(vk, byOrdinal);
+        }
       }
     }
 
@@ -1103,7 +1182,7 @@
                 if (wordTintOn) {
                   const ord = wordOrdinal.get(vk) || 0;
                   wordOrdinal.set(vk, ord + 1);
-                  const markupWord = (letterByVerse.get(vk) || [])[ord];
+                  const markupWord = letterByVerse.get(vk)?.get(ord);
                   const perLetter = markupWord ? tintedWordHtml(clean, markupWord) : null;
                   if (perLetter !== null) {
                     inner = perLetter;
