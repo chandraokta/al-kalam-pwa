@@ -24,7 +24,11 @@ browser dari data layout + font (Madani QCF per halaman, atau IndoPak nastaleeq)
 |---|---|
 | ![](docs/layar-sampul.png) | ![](docs/layar-tajwid.png) |
 
-| Dua halaman (layar lebar) | Tajwid Madani (font berwarna) |
+| Bingkai ornamen klasik | Dua halaman (layar lebar) |
+|---|---|
+| ![](docs/layar-bingkai.png) | ![](docs/layar-dua-halaman.png) |
+
+| Tajwid Madani (font berwarna) |
 |---|---|
 | ![](docs/layar-dua-halaman.png) | ![](docs/layar-tajwid-halaman.png) |
 

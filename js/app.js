@@ -17,6 +17,7 @@
     spreadMode: 'auto',    // 'auto' | 'one' | 'two' — dua halaman seperti buku
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
+    pageBorder: 'classic', // 'classic' = merah-emas seperti cetakan | 'green'
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     mushaf: 'madani',      // 'madani' (QCF 604 hal.) atau 'indopak' (610 hal.)
     showArabic: true,
@@ -108,6 +109,7 @@
     els.pageFontScale = $('pageFontScale');
     els.pageFontScaleVal = $('pageFontScaleVal');
     els.indopakFontSelect = $('indopakFontSelect');
+    els.pageBorderSelect = $('pageBorderSelect');
     els.qariSelect = $('qariSelect');
     els.autoPlayNext = $('autoPlayNext');
     els.repeatAyah = $('repeatAyah');
@@ -155,7 +157,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-font-controls';
+  const BUILD = '2026-11-22-border';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -266,6 +268,7 @@
       spreadMode: state.spreadMode,
       pageFontScale: state.pageFontScale,
       indopakFont: state.indopakFont,
+      pageBorder: state.pageBorder,
     };
     localStorage.setItem('alkalam_settings', JSON.stringify(settings));
   }
@@ -295,6 +298,7 @@
     state.spreadMode = ['auto', 'one', 'two'].includes(state.spreadMode) ? state.spreadMode : 'auto';
     state.pageFontScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100));
     state.indopakFont = ['qul', 'light', 'compact'].includes(state.indopakFont) ? state.indopakFont : 'qul';
+    state.pageBorder = ['classic', 'green'].includes(state.pageBorder) ? state.pageBorder : 'classic';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
@@ -312,6 +316,7 @@
     if (els.pageFontScale) els.pageFontScale.value = state.pageFontScale;
     if (els.pageFontScaleVal) els.pageFontScaleVal.textContent = `${state.pageFontScale}%`;
     if (els.indopakFontSelect) els.indopakFontSelect.value = state.indopakFont;
+    if (els.pageBorderSelect) els.pageBorderSelect.value = state.pageBorder;
     if (els.mushafSelect) els.mushafSelect.value = state.mushaf;
     els.qariSelect.value = state.qari;
     els.autoPlayNext.checked = state.autoPlayNext;
@@ -958,12 +963,16 @@
 
     const style = fontFamily ? ` style="font-family:'${fontFamily}', serif"` : '';
     const mushafClass = mushafKey() === 'indopak' ? ' mushaf-indopak' : '';
+    const borderVariant = state.pageBorder === 'green' ? 'green' : 'classic';
+    const borderHtml = `<div class="page-border ${borderVariant}" aria-hidden="true">` +
+      `<span class="pb-edge h top"></span><span class="pb-edge h bottom"></span>` +
+      `<span class="pb-edge v left"></span><span class="pb-edge v right"></span>` +
+      `<span class="pb-corner tl"></span><span class="pb-corner tr"></span>` +
+      `<span class="pb-corner bl"></span><span class="pb-corner br"></span>` +
+      `</div>`;
     return `<div class="scan-sheet-box" data-sheet="${page}">` +
       `<div class="scan-sheet${mushafClass}">` +
-      `<div class="page-frame" aria-hidden="true">` +
-      `<span class="page-corner tl"></span><span class="page-corner tr"></span>` +
-      `<span class="page-corner bl"></span><span class="page-corner br"></span>` +
-      `</div>` +
+      borderHtml +
       `<div class="mushaf-page-lines"${style}>${htm}</div></div></div>`;
   }
 
@@ -1180,7 +1189,8 @@
     }
 
     // 2) ukuran font agar baris terlebar mengisi halaman (padding 0,9em kiri+kanan)
-    const padEm = mushafKey() === 'indopak' ? 1.8 : 1.5;
+    const borderWide = state.pageBorder !== 'green';
+    const padEm = borderWide ? 2.9 : (mushafKey() === 'indopak' ? 1.8 : 1.5);
     const userScale = Math.min(120, Math.max(80, Number(state.pageFontScale) || 100)) / 100;
     let font = (DESIGN_W / (maxEm + padEm)) * userScale;
     font = Math.max(20, Math.min(64, font));
@@ -2104,6 +2114,13 @@
     if (els.indopakFontSelect) {
       els.indopakFontSelect.addEventListener('change', (e) => {
         state.indopakFont = e.target.value;
+        saveSettings();
+        renderPage(state.currentPage);
+      });
+    }
+    if (els.pageBorderSelect) {
+      els.pageBorderSelect.addEventListener('change', (e) => {
+        state.pageBorder = e.target.value;
         saveSettings();
         renderPage(state.currentPage);
       });

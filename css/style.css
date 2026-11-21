@@ -260,6 +260,70 @@ svg { display: inline-block; vertical-align: middle; }
 /* ═══════════════════════════════════════════════════════════════════════
    Halaman mushaf: render layout + font halaman (QCF)
 ════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   Bingkai ornamen halaman (mirip mushaf cetak IndoPak)
+   Lapisan: pita motif di 4 sisi + rosette di 4 sudut + garis emas/dalam
+════════════════════════════════════════════════════════════════════════ */
+.page-border {
+  --bw: calc(var(--msize, 32px) * 0.42);   /* tebal pita ornamen */
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pb-edge { position: absolute; display: block; }
+.pb-corner {
+  position: absolute; display: block;
+  width: var(--bw); height: var(--bw);
+  background-repeat: no-repeat; background-size: 100% 100%;
+}
+
+/* garis dalam: emas tipis + kertas + garis tipis lagi */
+.page-border::after {
+  content: "";
+  position: absolute;
+  inset: var(--bw);
+  border: 1px solid var(--pb-line, #c8a44a);
+  box-shadow:
+    inset 0 0 0 3px var(--pb-paper, #fffdf6),
+    inset 0 0 0 4px var(--pb-line2, #b8452f);
+  border-radius: 2px;
+}
+
+/* ── varian klasik: merah + emas, motif bunga ── */
+.page-border.classic { --pb-line: #c8a44a; --pb-line2: #b8452f; --pb-paper: #fffdf6; }
+.page-border.classic .pb-corner {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23992f22'/%3E%3Cg fill='none' stroke='%23e8c877' stroke-width='1.3'%3E%3Ccircle cx='32' cy='32' r='13'/%3E%3Ccircle cx='32' cy='32' r='6.5'/%3E%3Cpath d='M32 16v-5M32 53v-5M16 32h-5M53 32h-5'/%3E%3Cpath d='M32 22c4 4 4 16 0 20-4-4-4-16 0-20z'/%3E%3Cpath d='M22 32c4-4 16-4 20 0-4 4-16 4-20 0z'/%3E%3C/g%3E%3Crect x='3' y='3' width='58' height='58' fill='none' stroke='%23e8c877' stroke-width='1'/%3E%3C/svg%3E");
+}
+.page-border.classic .pb-edge.h {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' fill='%23992f22'/%3E%3Cg fill='none' stroke='%23e8c877' stroke-width='1.1'%3E%3Cpath d='M14 4c5 5 5 11 0 16-5-5-5-11 0-16z'/%3E%3Ccircle cx='14' cy='12' r='2.4'/%3E%3Cpath d='M4 24h20' stroke-opacity='.55'/%3E%3C/g%3E%3C/svg%3E");
+}
+.page-border.classic .pb-edge.v {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' fill='%23992f22'/%3E%3Cg fill='none' stroke='%23e8c877' stroke-width='1.1'%3E%3Cpath d='M4 14c5-5 11-5 16 0-5 5-11 5-16 0z'/%3E%3Ccircle cx='12' cy='14' r='2.4'/%3E%3Cpath d='M24 4v20' stroke-opacity='.55'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ── varian hijau: selaras tema aplikasi (bawaan sebelumnya) ── */
+.page-border.green { --pb-line: rgba(150,200,162,.95); --pb-line2: rgba(168,213,181,.55); --pb-paper: #fffdf6; }
+.page-border.green .pb-corner {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%2396c8a2' stroke-width='1.1'%3E%3Cpath d='M2 14C2 7 7 2 14 2'/%3E%3Cpath d='M2 20C2 10 10 2 20 2' stroke-opacity='.45'/%3E%3Ccircle cx='12' cy='12' r='2.6'/%3E%3C/g%3E%3C/svg%3E");
+  background-color: transparent;
+}
+.page-border.green .pb-edge { background: none; }
+
+/* posisi pita */
+.page-border .pb-edge.h { left: var(--bw); right: var(--bw); height: var(--bw); background-repeat: repeat-x; background-size: auto 100%; }
+.page-border .pb-edge.v { top: var(--bw); bottom: var(--bw); width: var(--bw); background-repeat: repeat-y; background-size: 100% auto; }
+.page-border .pb-edge.top { top: 0; }
+.page-border .pb-edge.bottom { bottom: 0; }
+.page-border .pb-edge.left { left: 0; }
+.page-border .pb-edge.right { right: 0; }
+.page-border .pb-corner.tl { top: 0; left: 0; }
+.page-border .pb-corner.tr { top: 0; right: 0; transform: scaleX(-1); }
+.page-border .pb-corner.bl { bottom: 0; left: 0; transform: scaleY(-1); }
+.page-border .pb-corner.br { bottom: 0; right: 0; transform: scale(-1, -1); }
+
 /* bidang halaman: lebar tetap 720px lalu diskalakan utuh ke lebar layar,
    sehingga halaman tidak pernah terpotong berapa pun lebar jendela */
 /* dua halaman bersebelahan (seperti membuka buku) */
