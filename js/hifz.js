@@ -508,18 +508,22 @@
       const overdue = srs ? Math.max(0, (now - srs.due) / DAY) : 0;
       const mistakes = Number(info.mistakes) || 0;
       const flagsN = flags.get(pg) || 0;
+      const rated = !!(last || srs);
       const risk = (last ? daysSince / ivl : 2) + 0.3 * mistakes + 0.2 * flagsN + Math.min(2, overdue / 3);
       const score = Math.max(0, Math.min(100, Math.round(100 - risk * 35)));
-      return { page: pg, score, daysSince: Math.round(daysSince), overdue: Math.round(overdue), mistakes, flags: flagsN };
+      return { page: pg, score, rated, daysSince: Math.round(daysSince), overdue: Math.round(overdue), mistakes, flags: flagsN };
     });
-    const sum = rows.reduce((a, b) => a + b.score, 0);
+    const rated = rows.filter((r) => r.rated);
+    const sum = rated.reduce((a, b) => a + b.score, 0);
     return {
       rows,
-      avg: rows.length ? Math.round(sum / rows.length) : 0,
-      strong: rows.filter((r) => r.score >= 75).length,
-      fragile: rows.filter((r) => r.score >= 50 && r.score < 75).length,
-      weak: rows.filter((r) => r.score < 50).length,
-      atRisk: rows.filter((r) => r.score < 75 || r.overdue > 2).sort((a, b) => a.score - b.score),
+      rated: rated.length,
+      fresh: rows.length - rated.length,
+      avg: rated.length ? Math.round(sum / rated.length) : null,
+      strong: rated.filter((r) => r.score >= 75).length,
+      fragile: rated.filter((r) => r.score >= 50 && r.score < 75).length,
+      weak: rated.filter((r) => r.score < 50).length,
+      atRisk: rated.filter((r) => r.score < 75 || r.overdue > 2).sort((a, b) => a.score - b.score),
     };
   }
 
@@ -529,7 +533,8 @@
       : Object.keys(S.pages).map(Number).sort((a, b) => a - b);
     if (!pages.length) return '';
     const st = retentionStats(pages);
-    const tone = st.avg >= 75 ? 'ok' : st.avg >= 50 ? 'mid' : 'bad';
+    const tone = st.avg === null ? 'mid' : st.avg >= 75 ? 'ok' : st.avg >= 50 ? 'mid' : 'bad';
+    const avgText = st.avg === null ? '—' : `${st.avg}%`;
     const riskRows = st.atRisk.slice(0, 5).map((r) => `
       <div class="hifz-due wp-row">
         <span>Halaman ${r.page}
@@ -541,14 +546,16 @@
       <div class="hifz-cards">
         <div class="hifz-card">
           <span class="hifz-k">Retensi hafalan</span>
-          <strong class="hifz-v ${tone}">${st.avg}%</strong>
-          <span class="hifz-muted">${pages.length} halaman · kuat ${st.strong} · rapuh ${st.fragile} · lemah ${st.weak}</span>
-          <div class="hifz-bar"><i style="width:${st.avg}%"></i></div>
+          <strong class="hifz-v ${tone}">${avgText}</strong>
+          <span class="hifz-muted">${st.rated ? `${st.rated} halaman dinilai · kuat ${st.strong} · rapuh ${st.fragile} · lemah ${st.weak}` : 'belum ada halaman yang pernah diulang'}</span>
+          ${st.fresh ? `<span class="hifz-muted">${st.fresh} halaman belum pernah diulang</span>` : ''}
+          <div class="hifz-bar"><i style="width:${st.avg === null ? 0 : st.avg}%"></i></div>
         </div>
         <div class="hifz-card">
           <span class="hifz-k">Terancam lupa</span>
           <strong class="hifz-v ${st.atRisk.length ? 'bad' : 'ok'}">${st.atRisk.length} halaman</strong>
-          <span class="hifz-muted">${st.atRisk.length ? 'prioritaskan halaman ini hari ini' : 'semua halaman masih segar'}</span>
+          <span class="hifz-muted">${st.atRisk.length ? 'prioritaskan halaman ini hari ini'
+            : st.fresh ? 'belum ada halaman dinilai — mulai dari sesi Sabaq' : 'semua halaman masih segar'}</span>
         </div>
       </div>
       ${riskRows ? `<div class="hifz-list" style="margin-top:8px">${riskRows}</div>` : ''}`;

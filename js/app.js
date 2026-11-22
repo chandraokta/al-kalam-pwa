@@ -190,7 +190,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-murajaah';
+  const BUILD = '2026-11-22-murajaah2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
