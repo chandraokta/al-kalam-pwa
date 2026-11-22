@@ -2300,3 +2300,10 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   place-items: center; background: var(--accent-primary); color: #fff; font-weight: 700; font-size: .8rem; }
 .ob-step b { display: block; margin-bottom: 2px; }
 .ob-step p { margin: 0; font-size: .84rem; color: var(--text-secondary); line-height: 1.5; }
+
+/* ornamen lama disembunyikan: bingkai baru berupa SVG kaligrafi (.page-curls) */
+.page-border.simple::after,
+.page-border.simple::before,
+.scan-sheet.pb-simple .page-border.simple::before,
+.scan-sheet.pb-simple .page-border.simple::after,
+.pb-corner, .pb-edge { display: none !important; }

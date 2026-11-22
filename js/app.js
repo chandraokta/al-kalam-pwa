@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-ia2';
+  const BUILD = '2026-11-23-ornamen';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1763,75 +1763,71 @@
   }
 
 
-  // ── Bingkai lekuk ala kaligrafi (SVG, mengelilingi halaman) ──
+  // ── Bingkai ornamen kaligrafi (SVG, tebal, tanpa gerigi) ──
   let curlSeq = 0;
   function curlFrameSvg() {
     const W = 720, H = 1022;
-    const mSide = 24;        // jarak bingkai dari tepi kiri/kanan
-    const mTop = 42;         // di bawah kepala halaman
-    const mBottom = 22;
-    const r = 30;            // jari-jari lengkung sudut
-    const amp = 3.5;         // tinggi gelombang
-    const per = 24;          // panjang satu gelombang
+    const mSide = 22, mTop = 38, mBottom = 20, r = 26;
     const id = `curl${++curlSeq}`;
+    const x0 = mSide, y0 = mTop, x1 = W - mSide, y1 = H - mBottom;
 
-    const hWave = (y, x0, x1, a = amp) => {
-      let d = `M ${x0} ${y}`;
-      const n = Math.max(2, Math.round(Math.abs(x1 - x0) / per));
-      const step = (x1 - x0) / n;
-      for (let i = 0; i < n; i++) {
-        d += ` q ${step / 4} ${-a} ${step / 2} 0 q ${step / 4} ${a} ${step / 2} 0`;
+    const rect = (k, sw, op, color) =>
+      `<rect x="${x0 + k}" y="${y0 + k}" width="${x1 - x0 - 2 * k}" height="${y1 - y0 - 2 * k}" ` +
+      `rx="${Math.max(10, r - k)}" fill="none" stroke="${color}" stroke-width="${sw}" opacity="${op}"/>`;
+
+    // rosette 8 kelopak di sudut (motif kaligrafi)
+    const rosette = (cx, cy, rad, plen) => {
+      let out = `<circle cx="${cx}" cy="${cy}" r="${rad}" fill="none" stroke="#b8860b" stroke-width="1.5" stroke-opacity=".85"/>`;
+      for (let i = 0; i < 8; i++) {
+        const a = (i * 45) * Math.PI / 180;
+        const px = cx + Math.cos(a) * plen;
+        const py = cy + Math.sin(a) * plen;
+        out += `<ellipse cx="${px}" cy="${py}" rx="3" ry="8.4" transform="rotate(${i * 45} ${px} ${py})" ` +
+          `fill="url(#${id}g)" fill-opacity=".20" stroke="#b8860b" stroke-width="1" stroke-opacity=".8"/>`;
       }
-      return d;
-    };
-    const vWave = (x, y0, y1, a = amp) => {
-      let d = `M ${x} ${y0}`;
-      const n = Math.max(2, Math.round(Math.abs(y1 - y0) / per));
-      const step = (y1 - y0) / n;
-      for (let i = 0; i < n; i++) {
-        d += ` q ${-a} ${step / 4} 0 ${step / 2} q ${a} ${step / 4} 0 ${step / 2}`;
-      }
-      return d;
+      out += `<circle cx="${cx}" cy="${cy}" r="2.4" fill="#b8860b" fill-opacity=".65"/>`;
+      return out;
     };
 
-    // satu bingkai gelombang: dua sisi + lengkung sudut, digeser sejauh off
-    const frame = (off, a, phase) => {
-      const x0 = mSide + off, x1 = W - mSide - off;
-      const y0 = mTop + off, y1 = H - mBottom - off;
-      const rr = r - off;
-      const startOff = phase;                 // geser titik mulai agar gelombang selaras
-      return `<path d="${hWave(y0, x0 + rr + startOff, x1 - rr)}"/>` +
-        `<path d="${hWave(y1, x0 + rr, x1 - rr - startOff)}"/>` +
-        `<path d="${vWave(x0, y0 + rr + startOff, y1 - rr)}"/>` +
-        `<path d="${vWave(x1, y0 + rr, y1 - rr - startOff)}"/>` +
-        `<path d="M ${x0} ${y0 + rr} A ${rr} ${rr} 0 0 1 ${x0 + rr} ${y0}"/>` +
-        `<path d="M ${x1 - rr} ${y0} A ${rr} ${rr} 0 0 1 ${x1} ${y0 + rr}"/>` +
-        `<path d="M ${x1} ${y1 - rr} A ${rr} ${rr} 0 0 1 ${x1 - rr} ${y1}"/>` +
-        `<path d="M ${x0 + rr} ${y1} A ${rr} ${rr} 0 0 1 ${x0} ${y1 - rr}"/>`;
-    };
-
-    // sulur kecil di dalam keempat sudut, mengikuti lengkung
-    const curl = (cx, cy, sx, sy) =>
-      `M ${cx} ${cy + sy * 26} c ${sx * 0} ${sy * -16} ${sx * 12} ${sy * -26} ${sx * 26} ${sy * -26}` +
-      ` c ${sx * 10} 0 ${sx * 17} ${sy * 7} ${sx * 17} ${sy * 16}` +
-      ` c 0 ${sy * 8} ${sx * -6} ${sy * 13} ${sx * -13} ${sy * 13}` +
-      ` c ${sx * -6} 0 ${sx * -10} ${sy * -4} ${sx * -10} ${sy * -9}`;
+    // knot kecil di tengah tiap sisi
+    const sideKnot = (cx, cy, rot) => `<g transform="rotate(${rot} ${cx} ${cy})">
+      <path d="M ${cx} ${cy - 10} L ${cx + 7.5} ${cy} L ${cx} ${cy + 10} L ${cx - 7.5} ${cy} Z"
+        fill="url(#${id}g)" fill-opacity=".22" stroke="#b8860b" stroke-width="1.2"/>
+      <circle cx="${cx}" cy="${cy}" r="1.5" fill="#b8860b"/>
+      <path d="M ${cx - 16} ${cy} q 6 -5.5 12 0 q -6 5.5 -12 0" fill="none" stroke="#5f9e73" stroke-width="1" stroke-opacity=".6"/>
+      <path d="M ${cx + 16} ${cy} q -6 -5.5 -12 0 q 6 5.5 12 0" fill="none" stroke="#5f9e73" stroke-width="1" stroke-opacity=".6"/>
+    </g>`;
 
     return `<svg class="page-curls" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">` +
       `<defs><linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1">` +
-      `<stop offset="0" stop-color="#5f9e73"/><stop offset="0.5" stop-color="#b8860b"/>` +
-      `<stop offset="1" stop-color="#5f9e73"/></linearGradient></defs>` +
-      `<g fill="none" stroke="url(#${id}g)" stroke-width="2" opacity=".62" stroke-linecap="round">` +
-      frame(0, amp) +
+      `<stop offset="0" stop-color="#b8860b"/><stop offset="0.5" stop-color="#5f9e73"/>` +
+      `<stop offset="1" stop-color="#b8860b"/></linearGradient></defs>` +
+      // bingkai tebal: garis luar 4.2 + garis dalam 1.6
+      `<g fill="none" stroke-linejoin="round">` +
+      rect(0, 5, '.88', `#b8860b`) +
+      rect(9, 1.8, '.75', `#5f9e73`) +
+      rect(15, 0.9, '.45', `#b8860b`) +
       `</g>` +
-      `<g fill="none" stroke="#b8860b" stroke-width="1.1" opacity=".5" stroke-linecap="round">` +
-      frame(9, amp * 0.7, per / 2) +
+      // rosette sudut
+      `<g>` +
+      rosette(x0 + 26, y0 + 26, 9.5, 8.4) +
+      rosette(x1 - 26, y0 + 26, 9.5, 8.4) +
+      rosette(x0 + 26, y1 - 26, 9.5, 8.4) +
+      rosette(x1 - 26, y1 - 26, 9.5, 8.4) +
       `</g>` +
-      `<g fill="none" stroke="#b8860b" stroke-width="1.3" opacity=".55" stroke-linecap="round">` +
-      curl(mSide + 12, mTop + 12, 1, 1) +
-      curl(W - mSide - 12, mTop + 12, -1, 1) +
-      curl(mSide + 12, H - mBottom - 12, 1, -1) +
-      curl(W - mSide - 12, H - mBottom - 12, -1, -1) +
+      // lengkung kaligrafi di dalam sudut
+      `<g fill="none" stroke="url(#${id}g)" stroke-width="1.3" stroke-linecap="round" opacity=".8">` +
+      `<path d="M ${x0 + 16} ${y0 + 56} Q ${x0 + 16} ${y0 + 16} ${x0 + 56} ${y0 + 16}"/>` +
+      `<path d="M ${x1 - 16} ${y0 + 56} Q ${x1 - 16} ${y0 + 16} ${x1 - 56} ${y0 + 16}"/>` +
+      `<path d="M ${x0 + 16} ${y1 - 56} Q ${x0 + 16} ${y1 - 16} ${x0 + 56} ${y1 - 16}"/>` +
+      `<path d="M ${x1 - 16} ${y1 - 56} Q ${x1 - 16} ${y1 - 16} ${x1 - 56} ${y1 - 16}"/>` +
+      `</g>` +
+      // knot di tengah sisi
+      `<g>` +
+      sideKnot((x0 + x1) / 2, y0, 0) +
+      sideKnot((x0 + x1) / 2, y1, 0) +
+      sideKnot(x0, (y0 + y1) / 2, 90) +
+      sideKnot(x1, (y0 + y1) / 2, 90) +
       `</g>` +
       `</svg>`;
   }
