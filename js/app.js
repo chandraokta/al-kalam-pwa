@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-hafalanbaru';
+  const BUILD = '2026-11-22-hafalan2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -4233,6 +4233,7 @@
     openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); },
     playPageOnce,
     openModal,
+    ayahTimes,
     startWordLoop,
     stopWordLoop,
     activeSheetPage: () => {

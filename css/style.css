@@ -2234,3 +2234,11 @@ body.is-fullscreen .mini-stop { bottom: 14px; }
 .nh-step.done { opacity: .7; }
 .nh-step.done .nh-no { background: var(--accent-primary); color: #fff; }
 .nh-step.now { border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--accent-primary) inset; }
+
+/* hafalan baru: sembunyi bertahap & penghitung */
+.mw.nh-hidden { color: transparent !important; background: rgba(184,134,11,.22);
+  border-radius: 4px; text-shadow: none !important; }
+.nh-panel { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; margin: 6px 0 10px; border: 1px dashed var(--border-color); border-radius: 10px; }
+.nh-count { font-size: 1.4rem; font-weight: 700; color: var(--accent-primary); }
+.nh-count i { font-style: normal; font-size: .8rem; color: var(--text-muted); }

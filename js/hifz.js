@@ -646,8 +646,21 @@
           <button class="btn btn-sm${a.step === st.n ? ' btn-primary' : ''}" data-${st.act}>${st.label}</button>
         </div>`).join('')}
       </div>
+      ${a.step === 1 ? `<div class="nh-panel">
+        <span class="hifz-muted">Didengar: ${a.listens || 0}/3 putaran</span>
+        <span class="nh-count">${a.listens || 0}<i>/3</i></span>
+      </div>` : ''}
+      ${a.step === 3 ? `<div class="nh-panel">
+        <span class="hifz-muted">Sembunyikan kata secara bertahap (${a.hides || 0}/4)</span>
+        <div class="hifz-actions">
+          ${[25, 50, 75, 100].map((p) => `<button class="btn btn-sm${a.hides === p / 25 ? ' btn-primary' : ''}" data-nh-hide-level="${p}">${p}%</button>`).join('')}
+          <button class="btn btn-sm" data-nh-unhide>Buka semua</button>
+        </div>
+      </div>` : ''}
       <div class="hifz-actions">
-        ${a.step >= 4 ? '<button class="btn btn-sm btn-primary" data-nh-finish>Masukkan ke cakupan & selesai</button>' : '<button class="btn btn-sm btn-primary" data-nh-next>Lanjut langkah berikutnya</button>'}
+        ${a.step >= 4
+          ? '<button class="btn btn-sm btn-primary" data-nh-finish>Masukkan ke cakupan & selesai</button>'
+          : `<button class="btn btn-sm btn-primary" data-nh-next ${a.step === 1 && (a.listens || 0) < 3 ? 'disabled' : ''}>Lanjut langkah berikutnya</button>`}
         <button class="btn btn-sm" data-nh-cancel>Batal</button>
       </div>
     </div>`;
@@ -659,7 +672,7 @@
     const from = Number(document.getElementById('nhFrom')?.value) || 1;
     const to = Number(document.getElementById('nhTo')?.value) || from;
     if (!surah || to < from) { flash('Isi surah dan rentang ayat dengan benar'); return; }
-    nhState().active = { surah, from, to, step: 1, startedAt: Date.now() };
+    nhState().active = { surah, from, to, step: 1, listens: 0, hides: 0, startedAt: Date.now() };
     save();
     await openVersePage(`${surah}:${from}`);
     render();
@@ -670,6 +683,63 @@
     const [s2, a2] = String(vk).split(':').map(Number);
     const pg = versePageOf(s2, a2);
     if (pg) await window.AlKalam.openPage(pg);
+  }
+
+  /** Putar ayat from..to sekali, hitung sebagai 1 putaran bila sampai akhir. */
+  async function nhListen() {
+    const a = nhState().active;
+    if (!a) return;
+    await openVersePage(`${a.surah}:${a.from}`);
+    // putar dulu: playAyah() memuat audio + timing QUL
+    await window.AlKalam.playAyah(`${a.surah}:${a.from}`);
+    // timing QUL bisa selesai dimuat beberapa saat setelah playAyah()
+    let t2 = null;
+    for (let i = 0; i < 30 && !t2; i++) {
+      t2 = window.AlKalam.ayahTimes ? window.AlKalam.ayahTimes(`${a.surah}:${a.to}`) : null;
+      if (!t2) await new Promise((r) => setTimeout(r, 150));
+    }
+    if (!t2) { flash('Timing audio belum tersedia untuk qari ini'); return; }
+    nhState().listening = true;
+    if (nhState().timer) clearInterval(nhState().timer);
+    nhState().timer = setInterval(() => {
+      const nh = nhState();
+      const au = window.AlKalam.audio && window.AlKalam.audio();
+      if (!nh.listening || !au || !nh.active) { clearInterval(nh.timer); return; }
+      if (au.currentTime * 1000 >= t2.to - 80) {
+        au.pause();
+        nh.listening = false;
+        clearInterval(nh.timer);
+        const act = nh.active;
+        act.listens = Math.min(3, (act.listens || 0) + 1);
+        save();
+        render();
+        flash(act.listens >= 3 ? 'Sudah 3× — lanjut ke langkah Baca' : `Putaran ${act.listens}/3 — ulangi lagi`);
+      }
+    }, 250);
+  }
+
+  /** Sembunyikan sebagian kata pada rentang hafalan baru. */
+  async function nhHideLevel(pct) {
+    const a = nhState().active;
+    if (!a) return;
+    await openVersePage(`${a.surah}:${a.from}`);
+    const els = [...document.querySelectorAll('.mw')].filter((el) => {
+      const [s2, a2] = String(el.dataset.v || '').split(':').map(Number);
+      return s2 === Number(a.surah) && a2 >= Number(a.from) && a2 <= Number(a.to);
+    });
+    if (!els.length) { flash('Kata belum termuat — coba lagi'); return; }
+    const n = Math.round((els.length * Number(pct)) / 100);
+    els.forEach((el, i) => el.classList.toggle('nh-hidden', i < n));
+    a.hides = Math.round(Number(pct) / 25);
+    save();
+    render();
+    flash(`${pct}% kata disembunyikan (${n}/${els.length})`);
+  }
+
+  function nhUnhide() {
+    document.querySelectorAll('.mw.nh-hidden').forEach((el) => el.classList.remove('nh-hidden'));
+    const a = nhState().active;
+    if (a) { a.hides = 0; save(); render(); }
   }
 
   async function nhFinish() {
@@ -1275,14 +1345,11 @@
       save(); render();
     });
     view.querySelector('[data-nh-cancel]')?.addEventListener('click', () => {
+      nhUnhide();
       nhState().active = null; save(); render();
     });
     view.querySelector('[data-nh-finish]')?.addEventListener('click', nhFinish);
-    view.querySelector('[data-nh-play]')?.addEventListener('click', async () => {
-      const a = nhState().active; if (!a) return;
-      await openVersePage(`${a.surah}:${a.from}`);
-      try { await window.AlKalam.playPageOnce(versePageOf(a.surah, a.from)); } catch { /* abaikan */ }
-    });
+    view.querySelector('[data-nh-play]')?.addEventListener('click', nhListen);
     view.querySelectorAll('[data-nh-open]').forEach((b) => b.addEventListener('click', async () => {
       const a = nhState().active; if (!a) return;
       await openVersePage(`${a.surah}:${a.from}`);
@@ -1293,6 +1360,8 @@
       const hb = document.getElementById('btnHideMode');
       if (hb && !hb.classList.contains('active')) hb.click();
     });
+    view.querySelectorAll('[data-nh-hide-level]').forEach((b) => b.addEventListener('click', () => nhHideLevel(b.dataset.nhHideLevel)));
+    view.querySelector('[data-nh-unhide]')?.addEventListener('click', nhUnhide);
     view.querySelector('[data-nh-target]')?.addEventListener('click', () => {
       const cur = Number(nhState().target) || 5;
       const v = Number(prompt('Target hafalan baru per hari (ayat):', String(cur)));
