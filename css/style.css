@@ -2142,3 +2142,9 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .qz-score { font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); margin: 8px 0 4px; }
 .qz-done { text-align: center; }
 .qz-done .hifz-actions { justify-content: center; margin-top: 12px; }
+
+/* pencarian: chip cakupan & saran */
+.search-scopes { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 6px; }
+.search-scopes .scope-chip.active { background: var(--accent-primary); color: #fff; border-color: transparent; }
+.search-empty { padding: 18px 4px; }
+.search-suggest { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }

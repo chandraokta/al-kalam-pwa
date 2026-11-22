@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=2026-11-22-p0">
+  <link rel="stylesheet" href="css/style.css?v=2026-11-22-p1">
 </head>
 <body>
   <!-- App Shell -->
@@ -248,6 +248,7 @@
             <option value="kfgqpc-v4">KFGQPC V4</option>
           </select>
           <button class="btn btn-sm" id="btnSurahInfo" title="Info surat" aria-label="Info surat">ⓘ Info</button>
+            <button class="btn btn-sm" id="btnWordInfo" title="Mode Info Kata: ketuk kata untuk arti" aria-label="Mode Info Kata" aria-pressed="false">ℹ Kata</button>
             <button class="btn btn-sm" id="btnHafalan" title="Hafalan & murajaah" aria-label="Hafalan">☾ Hafalan</button>
           <div class="mode-switch" role="group" aria-label="Mode halaman">
             <button class="btn btn-sm mode-btn active" id="modeScan" aria-pressed="true" title="Halaman mushaf dirender dari font QCF">Mushaf</button>
@@ -332,6 +333,12 @@
           <input type="search" id="searchInput" placeholder="Cari ayat (Arab, Indonesia, Inggris)..." aria-label="Cari ayat" autocomplete="off">
           <button class="icon-btn" id="btnClearSearch" aria-label="Hapus pencarian" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
+      </div>
+      <div class="search-scopes" id="searchScopes" role="group" aria-label="Cakupan pencarian">
+        <button class="scope-chip active" data-scope="all">Semua</button>
+        <button class="scope-chip" data-scope="ar">Arab</button>
+        <button class="scope-chip" data-scope="id">Indonesia</button>
+        <button class="scope-chip" data-scope="en">Inggris</button>
       </div>
       <div class="search-results" id="searchResults"></div>
     </section>
@@ -568,7 +575,7 @@
   </script>
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/app.js?v=2026-11-22-p0"></script>
-<script src="js/hifz.js?v=2026-11-22-p0"></script>
+  <script src="js/app.js?v=2026-11-22-p1"></script>
+<script src="js/hifz.js?v=2026-11-22-p1"></script>
 </body>
 </html>

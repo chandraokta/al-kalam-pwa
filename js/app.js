@@ -45,6 +45,8 @@
     loopA: null,
     loopB: null,
     pagePlayUntil: null,   // putar 1 halaman lalu berhenti
+    wordInfoMode: false,   // mode Info Kata: klik kata membuka arti
+    searchScope: 'all',    // all | ar | id | en
     offlinePages: true,
     bookmarks: new Set(),
     audioPlaying: false,
@@ -110,6 +112,7 @@
     els.audioMute = $('audioMute');
     // Search
     els.searchInput = $('searchInput');
+    els.searchScopes = $('searchScopes');
     els.btnClearSearch = $('btnClearSearch');
     els.searchResults = $('searchResults');
     // Bookmarks
@@ -185,7 +188,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-p0';
+  const BUILD = '2026-11-22-p1';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1309,6 +1312,9 @@
   };
 
   function showView(viewName) {
+    if (viewName === 'search' && els.searchResults && !els.searchInput.value.trim() && !els.searchResults.innerHTML.trim()) {
+      renderSearchSuggestions();
+    }
     if (state.currentView && state.currentView !== viewName) {
       state.prevView = state.currentView;
     }
@@ -2224,7 +2230,13 @@
       btn.addEventListener('click', () => playAyah(btn.dataset.play));
     });
     els.mushafContainer.querySelectorAll('.mw').forEach(el => {
-      el.addEventListener('click', () => playAyah(el.dataset.v));
+      el.addEventListener('click', () => {
+        if (state.wordInfoMode) {
+          showWordInfo(el.dataset.v, Number(el.dataset.w) || 1);
+          return;
+        }
+        playAyah(el.dataset.v);
+      });
     });
     els.mushafContainer.querySelectorAll('[data-action="similar"]').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); showSimilar(btn.dataset.verse); });
@@ -2888,7 +2900,7 @@
       ['Laju', 'Kecepatan bacaan (0,75×–1,5×) langsung berlaku saat dipilih.'],
       ['Ulang · Per ayat', 'Ayat yang sedang dibaca diulang N kali (pilihan "Kali"), lalu lanjut ke ayat berikutnya.'],
       ['Ulang · Per halaman', 'Setelah ayat terakhir halaman, kembali ke ayat pertama halaman itu — halaman diulang sampai dihentikan.'],
-      ['Ulang · A-B', 'Klik A-B di ayat awal (tombol berubah "A…"), lalu klik lagi di ayat akhir. Bacaan akan berulang dari A ke B. Klik sekali lagi untuk menghapus.'],
+      ['Ulang · A-B', 'Pilih Ulang → A-B; tombol A-B lalu muncul di bilah. Klik di ayat awal (berubah "A…"), lalu klik lagi di ayat akhir. Klik sekali lagi untuk menghapus.'],
       ['Qari', 'Mengganti qari langsung memuat ulang audio ayat yang sedang diputar.'],
       ['Lanjut otomatis', 'Tombol ▶| : bila menyala, bacaan lanjut ke ayat/surat berikutnya saat audio habis.'],
     ];
@@ -2939,6 +2951,7 @@
       els.audioAutoNext.classList.toggle('off', !state.autoPlayNext);
     }
     if (els.audioAB) {
+      els.audioAB.hidden = state.repeatMode !== 'ab';
       const armed = !!(state.loopA && state.loopB);
       els.audioAB.classList.toggle('armed', armed);
       els.audioAB.title = armed ? `A-B aktif: ${state.loopA} → ${state.loopB} (klik untuk hapus)`
@@ -3326,9 +3339,41 @@
     setTimeout(() => els.searchInput.focus(), 100);
   }
   
+  const SEARCH_SUGGESTIONS = ['rahman', 'sabar', 'Musa', 'cahaya', 'surga', 'hujan'];
+
+  /** Buang harakat/tatweel agar pencarian Arab tidak harus sama persis. */
+  function normalizeArabic(text) {
+    return String(text || '')
+      .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
+      .replace(/[\u0623\u0625\u0622\u0671]/g, '\u0627')
+      .replace(/\u0649/g, '\u064A')
+      .replace(/\u0624/g, '\u0648')
+      .replace(/\u0626/g, '\u064A')
+      .replace(/\u0629/g, '\u0647')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function renderSearchSuggestions() {
+    els.searchResults.innerHTML = `
+      <div class="search-empty">
+        <p class="hifz-muted">Cari kata dalam teks Arab, terjemahan Indonesia, atau Inggris.</p>
+        <div class="search-suggest">
+          ${SEARCH_SUGGESTIONS.map((s) => `<button class="scope-chip" data-suggest="${s}">${s}</button>`).join('')}
+        </div>
+      </div>`;
+    els.searchResults.querySelectorAll('[data-suggest]').forEach((b) => {
+      b.addEventListener('click', () => {
+        els.searchInput.value = b.dataset.suggest;
+        els.btnClearSearch.hidden = false;
+        performSearch(b.dataset.suggest);
+      });
+    });
+  }
+
   async function performSearch(query) {
     if (!query.trim()) {
-      els.searchResults.innerHTML = '';
+      renderSearchSuggestions();
       return;
     }
     state.searchQuery = query;
@@ -3352,7 +3397,16 @@
           const indo = translationIndo?.[verseKey] || '';
           const eng = translationEng?.[verseKey] || '';
           
-          if (arabic.includes(query) || indo.toLowerCase().includes(q) || eng.toLowerCase().includes(q)) {
+          const scope = state.searchScope || 'all';
+          const qAr = normalizeArabic(query);
+          const hitAr = qAr ? (arabic.includes(query) || normalizeArabic(arabic).includes(qAr)) : false;
+          const hitId = indo.toLowerCase().includes(q);
+          const hitEn = eng.toLowerCase().includes(q);
+          const hit = scope === 'ar' ? hitAr
+            : scope === 'id' ? hitId
+            : scope === 'en' ? hitEn
+            : (hitAr || hitId || hitEn);
+          if (hit) {
             const surahInfo = chapters.find(c => c.id === verse.surah);
             results.push({ verse, surahInfo, verseKey, arabic, indo, eng });
             if (results.length >= 50) break;
@@ -3372,7 +3426,16 @@
   
   function renderSearchResults(results, query) {
     if (!results.length) {
-      els.searchResults.innerHTML = '<div class="empty-state">Tidak ada hasil untuk "' + escapeHtml(query) + '"</div>';
+      els.searchResults.innerHTML = '<div class="empty-state">Tidak ada hasil untuk "' + escapeHtml(query) + '"' +
+        '<div class="search-suggest" style="margin-top:10px">' +
+        SEARCH_SUGGESTIONS.map((s) => `<button class="scope-chip" data-suggest="${s}">${s}</button>`).join('') +
+        '</div></div>';
+      els.searchResults.querySelectorAll('[data-suggest]').forEach((b) => {
+        b.addEventListener('click', () => {
+          els.searchInput.value = b.dataset.suggest;
+          performSearch(b.dataset.suggest);
+        });
+      });
       return;
     }
     const q = query.toLowerCase();
@@ -3757,7 +3820,16 @@
     els.audioPrev.addEventListener('click', prevAyah);
     els.audioHelp = $('audioHelp');
     els.audioHelp?.addEventListener('click', () => showAudioHelp());
+    els.btnWordInfo = $('btnWordInfo');
     els.btnHafalan = $('btnHafalan');
+    els.btnWordInfo?.addEventListener('click', () => {
+      state.wordInfoMode = !state.wordInfoMode;
+      els.btnWordInfo.classList.toggle('active', state.wordInfoMode);
+      els.btnWordInfo.setAttribute('aria-pressed', String(state.wordInfoMode));
+      showToast(state.wordInfoMode
+        ? 'Mode Info Kata: ketuk kata untuk melihat arti & morfologi'
+        : 'Mode Info Kata dimatikan');
+    });
     els.btnHafalan?.addEventListener('click', () => {
       showView('hifz');
       try { history.replaceState(null, '', '#hifz'); } catch { location.hash = '#hifz'; }
@@ -3785,6 +3857,13 @@
       clearTimeout(searchDebounce);
       els.btnClearSearch.hidden = !e.target.value;
       searchDebounce = setTimeout(() => performSearch(e.target.value), 300);
+    });
+    els.searchScopes?.querySelectorAll('[data-scope]').forEach((b) => {
+      b.addEventListener('click', () => {
+        state.searchScope = b.dataset.scope;
+        els.searchScopes.querySelectorAll('[data-scope]').forEach((x) => x.classList.toggle('active', x === b));
+        if (els.searchInput.value.trim()) performSearch(els.searchInput.value);
+      });
     });
     els.btnClearSearch.addEventListener('click', () => {
       els.searchInput.value = '';

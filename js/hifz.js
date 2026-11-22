@@ -397,7 +397,6 @@
     const needRemind = S.settings.remind && !doneToday && new Date().getHours() >= 17;
     const surahCard = await surahProgressCard();
     const juzCard = await juzProgressCard();
-    const weekCard = weeklyPlanCard();
 
     return `
       ${needRemind ? `<div class="hifz-remind">Belum ada murajaah hari ini — sisihkan beberapa menit untuk mengulang hafalan.</div>` : ''}
@@ -425,7 +424,6 @@
         </button>
         ${surahCard}
         ${juzCard}
-        ${weekCard}
       </div>
 
       <h3 class="hifz-h">Program murajaah</h3>
@@ -722,15 +720,6 @@
       <h3 class="hifz-h">Kata yang ditandai</h3>
       ${flaggedListHtml()}
 
-      <h3 class="hifz-h">Jadwal mingguan</h3>
-      <div class="hifz-weekplan">
-        ${['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((nm, i) => `
-          <div class="wp-day${i === todayIndex() ? ' today' : ''}">
-            <span>${nm}</span>
-            <div>${(ensureWeekly()[i] || []).map((j) => `<button class="wp-juz${(S.weeklyDone[todayKey()] || []).includes(j) && i === todayIndex() ? ' done' : ''}" data-juz="${j}">${j}</button>`).join('')}</div>
-          </div>`).join('')}
-      </div>
-
       <h3 class="hifz-h">Cadangan data</h3>
       <div class="hifz-actions">
         <button class="btn btn-sm" data-hifz="export">Ekspor JSON</button>
@@ -779,9 +768,19 @@
         ${sel('hifzRemind', s.remind ? '1' : '0', [['1', 'Aktif'], ['0', 'Mati']])}</label>
       <label class="setting-row"><span>Jam notifikasi</span>
         <input id="hifzRemindHour" type="number" min="0" max="23" value="${s.remindHour}"></label>
-      <div class="hifz-actions" style="margin:6px 0 4px">
-        <button class="btn btn-sm" data-hifz="notify">${s.notify ? 'Notifikasi aktif' : 'Aktifkan notifikasi browser'}</button>
-      </div>
+      ${(() => {
+        const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+        if (perm === 'denied') {
+          return `<p class="hifz-muted" style="color:#e0b341">Notifikasi diblokir browser. Buka ikon gembok di bilah alamat → Notifikasi → Izinkan, lalu muat ulang aplikasi.</p>`;
+        }
+        if (perm === 'granted') {
+          return `<div class="hifz-actions" style="margin:6px 0 4px"><button class="btn btn-sm" data-hifz="notify">Notifikasi aktif ✓</button></div>`;
+        }
+        if (perm === 'unsupported') {
+          return `<p class="hifz-muted">Browser ini tidak mendukung notifikasi.</p>`;
+        }
+        return `<div class="hifz-actions" style="margin:6px 0 4px"><button class="btn btn-sm" data-hifz="notify">Aktifkan notifikasi browser</button></div>`;
+      })()}
       <p class="hifz-muted">Pengingat tampil di tab Hari Ini bila sampai sore belum ada murajaah.</p>
 
       <h3 class="hifz-h">Periksa bacaan (Tilawa · Beta)</h3>
