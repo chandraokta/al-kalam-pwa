@@ -110,6 +110,13 @@
     els.audioStop = $('audioStop');
     els.miniStop = $('miniStop');
     els.miniLabel = $('miniLabel');
+    // Pemutar audio dipindah ke <body> agar tetap terlihat di SEMUA tampilan
+    // (sebelumnya berada di dalam seksi Mushaf sehingga ikut tersembunyi
+    // saat pindah ke Hafalan/Cari/dll).
+    try {
+      if (els.audioBar && els.audioBar.parentElement !== document.body) document.body.appendChild(els.audioBar);
+      if (els.miniStop && els.miniStop.parentElement !== document.body) document.body.appendChild(els.miniStop);
+    } catch { /* abaikan */ }
     els.progressBar = $('progressBar');
     els.progressFill = $('progressFill');
     els.audioTime = $('audioTime');
@@ -193,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-stop';
+  const BUILD = '2026-11-22-stop2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
