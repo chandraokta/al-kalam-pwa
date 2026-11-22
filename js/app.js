@@ -185,7 +185,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-kiri';
+  const BUILD = '2026-11-22-aktif';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2190,6 +2190,16 @@
       });
     });
 
+    // klik di lembar mana pun -> lembar itu jadi halaman aktif
+    try {
+      for (const box of els.mushafContainer.querySelectorAll('.scan-sheet-box[data-sheet]')) {
+        box.addEventListener('click', () => {
+          const p = Number(box.dataset.sheet);
+          if (Number.isFinite(p)) applyActivePage(p);
+        });
+      }
+    } catch { /* abaikan */ }
+
     // tandai halaman yang sedang dibaca (selalu, tidak hanya saat terjemahan)
     try {
       for (const box of els.mushafContainer.querySelectorAll('.scan-sheet-box[data-sheet]')) {
@@ -2890,6 +2900,19 @@
     );
   }
 
+  /** Tetapkan halaman aktif tanpa render ulang (ring + label tombol ikut). */
+  function applyActivePage(page, { silent = true } = {}) {
+    const p = Number(page);
+    if (!Number.isFinite(p)) return;
+    if (state.activePage === p) return;
+    state.activePage = p;
+    document.querySelectorAll('.scan-sheet-box[data-sheet]').forEach((box) => {
+      box.classList.toggle('is-active', Number(box.dataset.sheet) === p);
+    });
+    document.dispatchEvent(new CustomEvent('alkalam:activepage', { detail: { page: p } }));
+    if (!silent) showToast(`Halaman aktif: ${p}`);
+  }
+
   /** Putar seluruh halaman sekali, lalu berhenti di akhir halaman. */
   async function playPageOnce(page) {
     await ensurePageIndex();
@@ -3000,6 +3023,12 @@
     if (!force && state.audioCurrent && state.audioCurrent.verseKey === verseKey) return;
     const [surah, ayah] = verseKey.split(':').map(Number);
     state.audioCurrent = { surah, ayah, verseKey };
+
+    // halaman aktif mengikuti ayat yang sedang dibaca
+    if (state.pageIndex) {
+      const pageOfNow = state.pageIndex.byVerse.get(verseKey);
+      if (pageOfNow) applyActivePage(pageOfNow);
+    }
 
     // mode "putar 1 halaman": berhenti begitu ayat di luar halaman diputar
     if (state.pagePlayUntil) {

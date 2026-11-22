@@ -1086,13 +1086,9 @@
     grow.innerHTML = `
       <button class="btn btn-sm toggle-btn" id="btnHideMode" title="Mode hafalan: sembunyikan kata">Sembunyi</button>
       <button class="btn btn-sm toggle-btn" id="btnMark" title="Tandai kata yang sering salah">Tandai</button>
-      <button class="btn btn-sm" id="btnPageOK" title="Tandai halaman ini lancar">Lancar</button>
-      <button class="btn btn-sm" id="btnPageRepeat" title="Tandai halaman ini perlu diulang">Ulang</button>
-      <span class="sheet-pick" id="sheetPick" hidden>
-        <button class="btn btn-sm" data-sheet-pick="0">Kiri</button>
-        <button class="btn btn-sm" data-sheet-pick="1">Kanan</button>
-      </span>
-      <button class="btn btn-sm" id="btnPageLoop" title="Putar halaman yang dipilih (kiri/kanan) sekali">Putar 1 Halaman</button>`;
+      <button class="btn btn-sm" id="btnPageOK" title="Tandai halaman aktif lancar">Lancar</button>
+      <button class="btn btn-sm" id="btnPageRepeat" title="Tandai halaman aktif perlu diulang">Ulang</button>
+      <button class="btn btn-sm" id="btnPageLoop" title="Putar halaman aktif sekali, berhenti di akhir halaman">Putar halaman</button>`;
     bar.parentElement.appendChild(grow);
 
     grow.querySelector('#btnHideMode').addEventListener('click', () => {
@@ -1120,16 +1116,6 @@
       flash('Halaman ' + p + ' masuk daftar ulang');
       render();
     });
-    grow.querySelectorAll('[data-sheet-pick]').forEach((b) => {
-      b.addEventListener('click', () => {
-        const boxes = [...document.querySelectorAll('.scan-sheet-box[data-sheet]')];
-        const box = boxes[Number(b.dataset.sheetPick)];
-        if (!box) return;
-        window.AlKalam.setActivePage(Number(box.dataset.sheet));
-        flash(`Halaman aktif: ${box.dataset.sheet}`);
-      });
-    });
-
     grow.querySelector('#btnPageLoop').addEventListener('click', async () => {
       const st = window.AlKalam.state;
       if (st.pagePlayUntil) {
@@ -1150,21 +1136,18 @@
     document.getElementById('btnHideMode')?.classList.toggle('active', S.settings.hideMode !== 'off');
     document.getElementById('btnMark')?.classList.toggle('active', marking);
     document.getElementById('btnPageLoop')?.classList.toggle('active', !!window.AlKalam.state.pagePlayUntil);
-    updateSheetPicker();
+    updatePageTargets();
   }
 
-  /** Tampilkan pilihan Kiri/Kanan bila tampilan dua halaman. */
-  function updateSheetPicker() {
-    const pick = document.getElementById('sheetPick');
-    if (!pick) return;
-    const boxes = [...document.querySelectorAll('.scan-sheet-box[data-sheet]')];
-    if (boxes.length < 2) { pick.hidden = true; return; }
-    pick.hidden = false;
-    pick.querySelectorAll('[data-sheet-pick]').forEach((btn, i) => {
-      const page = Number(boxes[i] && boxes[i].dataset.sheet);
-      btn.textContent = `${i === 0 ? 'Kiri' : 'Kanan'} ${page || ''}`.trim();
-      btn.classList.toggle('active', Number(window.AlKalam.state.activePage) === page);
-    });
+  /** Tombol halaman menyebut halaman aktif; tidak ada pemilih terpisah. */
+  function updatePageTargets() {
+    const page = window.AlKalam.activeSheetPage ? window.AlKalam.activeSheetPage() : null;
+    const ok = document.getElementById('btnPageOK');
+    const rep = document.getElementById('btnPageRepeat');
+    const loop = document.getElementById('btnPageLoop');
+    if (ok) { ok.textContent = `Lancar ${page || ''}`.trim(); ok.title = `Tandai halaman ${page} lancar`; }
+    if (rep) { rep.textContent = `Ulang ${page || ''}`.trim(); rep.title = `Tandai halaman ${page} perlu diulang`; }
+    if (loop) { loop.textContent = `Putar hal. ${page || ''}`.trim(); loop.title = `Putar halaman ${page} sekali`; }
   }
 
   function flash(msg) {
@@ -1278,6 +1261,8 @@
       a.addEventListener('ended', onEnd);
     }
   }
+
+  document.addEventListener('alkalam:activepage', () => updatePageTargets());
 
   function initMushaf() {
     injectToolbar();
