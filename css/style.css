@@ -2242,3 +2242,16 @@ body.is-fullscreen .mini-stop { bottom: 14px; }
   padding: 8px 10px; margin: 6px 0 10px; border: 1px dashed var(--border-color); border-radius: 10px; }
 .nh-count { font-size: 1.4rem; font-weight: 700; color: var(--accent-primary); }
 .nh-count i { font-style: normal; font-size: .8rem; color: var(--text-muted); }
+
+/* hafalan baru: transliterasi & opsi */
+.nh-translit { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--border-color);
+  border-radius: 10px; background: var(--bg-secondary); direction: ltr; }
+.nh-tr-head { font-size: .68rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 6px; }
+.nh-tr-row { display: flex; gap: 10px; padding: 4px 0; border-top: 1px dashed var(--border-color); }
+.nh-tr-row:first-of-type { border-top: none; }
+.nh-tr-no { min-width: 22px; font-size: .72rem; color: var(--accent-primary); font-weight: 700; }
+.nh-tr-txt { font-size: .88rem; color: var(--text-primary); font-style: italic; line-height: 1.5; }
+.nh-opts { align-items: center; }
+.nh-opts select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border-color);
+  background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: .8rem; }
