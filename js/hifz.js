@@ -50,6 +50,7 @@
     weekly: null,             // [[juz…] × 7] jadwal murajaah
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
+    newHafz: { active: null, log: [], target: 5 },  // mode hafalan baru
   });
 
   let S = emptyState();
@@ -567,6 +568,125 @@
     return null;
   }
 
+  // ── Mode Hafalan Baru ────────────────────────────────────────────────
+  function nhState() {
+    S.newHafz = S.newHafz || { active: null, log: [], target: 5 };
+    return S.newHafz;
+  }
+
+  function versePageOf(surah, ayah) {
+    const pg = pageByVerseHifz.get(`${surah}:${ayah}`);
+    if (pg) return Number(pg);
+    for (const [vk, p2] of pageByVerseHifz) {
+      const [s2, a2] = vk.split(':').map(Number);
+      if (s2 === Number(surah) && a2 >= Number(ayah)) return Number(p2);
+    }
+    return null;
+  }
+
+  function nhTodayCount() {
+    const t = todayKey();
+    return (nhState().log || []).filter((x) => x.day === t)
+      .reduce((a, b) => a + (b.ayahs || 0), 0);
+  }
+
+  function newHafzLogHtml() {
+    const log = (nhState().log || []).slice(0, 6);
+    if (!log.length) return '<p class="hifz-muted">Belum ada hafalan baru yang diselesaikan.</p>';
+    const name = (id) => ((chaptersCache || []).find((c) => c.id === Number(id)) || {}).name_simple || `Surah ${id}`;
+    return `<div class="hifz-list">${log.map((x) => `<div class="hifz-due wp-row">
+      <span>${esc(name(x.surah))} ${x.from}–${x.to}
+        <span class="wp-sub">${x.ayahs} ayat · ${x.day}</span></span></div>`).join('')}</div>`;
+  }
+
+  async function newHafzCardHtml() {
+    await ensureVerseMeta();
+    const nh = nhState();
+    const chapters = chaptersCache || [];
+    const today = nhTodayCount();
+    const target = Math.max(1, Number(nh.target) || 5);
+    const pct = Math.min(100, Math.round((today / target) * 100));
+
+    if (!nh.active) {
+      const cur = window.AlKalam.state.currentSurah || 1;
+      return `<div class="hifz-card nh-card">
+        <span class="hifz-k">Hafalan baru</span>
+        <span class="hifz-muted">Hari ini: ${today}/${target} ayat · tambahkan hafalan, lalu aplikasi menjadwalkannya.</span>
+        <div class="hifz-bar"><i style="width:${pct}%"></i></div>
+        <div class="range-form" style="margin-top:10px">
+          <select id="nhSurah" aria-label="Surah hafalan baru">
+            ${chapters.map((c) => `<option value="${c.id}"${c.id === cur ? ' selected' : ''}>${c.id}. ${esc(c.name_simple || '')} (${c.verses_count} ayat)</option>`).join('')}
+          </select>
+          <input id="nhFrom" type="number" min="1" placeholder="dari ayat" aria-label="Dari ayat">
+          <input id="nhTo" type="number" min="1" placeholder="sampai ayat" aria-label="Sampai ayat">
+          <button class="btn btn-sm btn-primary" data-nh-start>Mulai hafalan</button>
+        </div>
+        <div class="hifz-actions">
+          <button class="btn btn-sm" data-nh-target>Target harian: ${target} ayat</button>
+          <button class="btn btn-sm" data-goto-tab="scope">Kelola cakupan</button>
+        </div>
+      </div>`;
+    }
+
+    const a = nh.active;
+    const name = ((chapters.find((c) => c.id === Number(a.surah)) || {}).name_simple) || `Surah ${a.surah}`;
+    const steps = [
+      { n: 1, title: 'Dengar 3×', sub: 'putar ayat berulang, ikuti bacaan', act: 'nh-play', label: 'Putar' },
+      { n: 2, title: 'Baca 3×', sub: 'baca sendiri mengikuti halaman', act: 'nh-open', label: 'Buka halaman' },
+      { n: 3, title: 'Sembunyi', sub: 'uji dari hafalan tanpa teks', act: 'nh-hide', label: 'Aktifkan Sembunyi' },
+      { n: 4, title: 'Uji', sub: 'baca ulang, lalu selesaikan', act: 'nh-open', label: 'Buka halaman' },
+    ];
+    return `<div class="hifz-card nh-card">
+      <span class="hifz-k">Hafalan baru · ${esc(name)} ${a.from}–${a.to}</span>
+      <strong class="hifz-v">Langkah ${Math.min(a.step, 4)}/4</strong>
+      <div class="nh-steps">
+        ${steps.map((st) => `<div class="nh-step${a.step > st.n ? ' done' : a.step === st.n ? ' now' : ''}">
+          <span class="nh-no">${a.step > st.n ? '✓' : st.n}</span>
+          <span class="nh-txt"><b>${st.title}</b><span class="hifz-muted">${st.sub}</span></span>
+          <button class="btn btn-sm${a.step === st.n ? ' btn-primary' : ''}" data-${st.act}>${st.label}</button>
+        </div>`).join('')}
+      </div>
+      <div class="hifz-actions">
+        ${a.step >= 4 ? '<button class="btn btn-sm btn-primary" data-nh-finish>Masukkan ke cakupan & selesai</button>' : '<button class="btn btn-sm btn-primary" data-nh-next>Lanjut langkah berikutnya</button>'}
+        <button class="btn btn-sm" data-nh-cancel>Batal</button>
+      </div>
+    </div>`;
+
+  }
+
+  async function nhStart() {
+    const surah = Number(document.getElementById('nhSurah')?.value);
+    const from = Number(document.getElementById('nhFrom')?.value) || 1;
+    const to = Number(document.getElementById('nhTo')?.value) || from;
+    if (!surah || to < from) { flash('Isi surah dan rentang ayat dengan benar'); return; }
+    nhState().active = { surah, from, to, step: 1, startedAt: Date.now() };
+    save();
+    await openVersePage(`${surah}:${from}`);
+    render();
+    flash(`Hafalan baru dimulai: ${from}–${to}`);
+  }
+
+  async function openVersePage(vk) {
+    const [s2, a2] = String(vk).split(':').map(Number);
+    const pg = versePageOf(s2, a2);
+    if (pg) await window.AlKalam.openPage(pg);
+  }
+
+  async function nhFinish() {
+    const a = nhState().active;
+    if (!a) return;
+    const ayahs = Math.max(1, a.to - a.from + 1);
+    S.scope.ranges = S.scope.ranges || [];
+    S.scope.ranges.push({ surah: a.surah, from: a.from, to: a.to });
+    nhState().log.unshift({ at: Date.now(), day: todayKey(), surah: a.surah, from: a.from, to: a.to, ayahs });
+    nhState().log = nhState().log.slice(0, 50);
+    nhState().active = null;
+    save();
+    await buildProgram();
+    render();
+    flash(`Hafalan ${a.from}–${a.to} masuk cakupan & jadwal murajaah`);
+  }
+
   async function renderScope() {
     await ensureVerseMeta();
     const chapters = chaptersCache || [];
@@ -652,6 +772,7 @@
     return `
       ${needRemind ? `<div class="hifz-remind">Belum ada murajaah hari ini — sisihkan beberapa menit untuk mengulang hafalan.</div>` : ''}
       ${await programCardHtml()}
+      ${await newHafzCardHtml()}
       ${retentionHtml()}
       <div class="hifz-cards">
         <div class="hifz-card">
@@ -997,6 +1118,9 @@
       <h3 class="hifz-h">Program murajaah 1 pekan</h3>
       ${await weekPlanHtml()}
 
+      <h3 class="hifz-h">Riwayat hafalan baru</h3>
+      ${newHafzLogHtml()}
+
       <h3 class="hifz-h">Riwayat uji</h3>
       ${quizHistoryHtml()}
 
@@ -1142,6 +1266,37 @@
         view.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === tab));
         render();
       });
+    });
+    view.querySelector('[data-nh-start]')?.addEventListener('click', nhStart);
+    view.querySelector('[data-nh-next]')?.addEventListener('click', () => {
+      const nh = nhState();
+      if (!nh.active) return;
+      nh.active.step = Math.min(4, (nh.active.step || 1) + 1);
+      save(); render();
+    });
+    view.querySelector('[data-nh-cancel]')?.addEventListener('click', () => {
+      nhState().active = null; save(); render();
+    });
+    view.querySelector('[data-nh-finish]')?.addEventListener('click', nhFinish);
+    view.querySelector('[data-nh-play]')?.addEventListener('click', async () => {
+      const a = nhState().active; if (!a) return;
+      await openVersePage(`${a.surah}:${a.from}`);
+      try { await window.AlKalam.playPageOnce(versePageOf(a.surah, a.from)); } catch { /* abaikan */ }
+    });
+    view.querySelectorAll('[data-nh-open]').forEach((b) => b.addEventListener('click', async () => {
+      const a = nhState().active; if (!a) return;
+      await openVersePage(`${a.surah}:${a.from}`);
+    }));
+    view.querySelector('[data-nh-hide]')?.addEventListener('click', async () => {
+      const a = nhState().active; if (!a) return;
+      await openVersePage(`${a.surah}:${a.from}`);
+      const hb = document.getElementById('btnHideMode');
+      if (hb && !hb.classList.contains('active')) hb.click();
+    });
+    view.querySelector('[data-nh-target]')?.addEventListener('click', () => {
+      const cur = Number(nhState().target) || 5;
+      const v = Number(prompt('Target hafalan baru per hari (ayat):', String(cur)));
+      if (v && v > 0) { nhState().target = Math.min(50, v); save(); render(); }
     });
     view.querySelectorAll('[data-word-loop]').forEach((b) => {
       b.addEventListener('click', async () => {
