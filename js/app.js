@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-ornamen';
+  const BUILD = '2026-11-23-seragam';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2850,8 +2850,11 @@
       });
     }
 
+    // daftar ulangan DISERAGAMKAN dengan menu Hafalan: 3/5/10/20
+    const REPEAT_OPTS = [3, 5, 10, 20];
+    if (!REPEAT_OPTS.includes(state.repeatTimes)) state.repeatTimes = 3;
     if (els.audioRepeatCount) {
-      els.audioRepeatCount.innerHTML = [1, 2, 3, 4, 5]
+      els.audioRepeatCount.innerHTML = REPEAT_OPTS
         .map(n => `<option value="${n}">${n}×</option>`).join('');
       els.audioRepeatCount.value = String(state.repeatTimes);
     }
@@ -2864,7 +2867,7 @@
       showToast(`Ulang: ${e.target.selectedOptions[0].textContent}`);
     });
     els.audioRepeatCount?.addEventListener('change', (e) => {
-      state.repeatTimes = Number(e.target.value) || 1;
+      state.repeatTimes = Number(e.target.value) || 3;
       state.repeatLeft = state.repeatTimes;
       syncAudioExtras();
     });

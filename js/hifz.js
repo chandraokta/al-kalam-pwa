@@ -1388,11 +1388,11 @@
       <label class="setting-row"><span>Mode sembunyikan</span>
         ${sel('hifzHide', s.hideMode, [['off', 'Mati'], ['kata', 'Sembunyikan kata'], ['ayat', 'Sembunyikan ayat']])}</label>
       <label class="setting-row"><span>Ulangan A-B (kali)</span>
-        <input id="hifzRepeat" type="number" min="1" max="20" value="${s.repeatCount}"></label>
+        ${sel('hifzRepeat', String(s.repeatCount), [['3', '3×'], ['5', '5×'], ['10', '10×'], ['20', '20×']])}</label>
       <label class="setting-row"><span>Jeda antar ulangan (ms)</span>
         <input id="hifzPause" type="number" min="0" max="10000" step="250" value="${s.repeatPause}"></label>
       <label class="setting-row"><span>Kecepatan audio</span>
-        ${sel('hifzRate', s.audioRate, [['0.75', '0,75×'], ['0.9', '0,9×'], ['1', '1×'], ['1.25', '1,25×']])}</label>
+        ${sel('hifzRate', s.audioRate, [['0.75', '0,75×'], ['0.9', '0,9×'], ['1', '1×'], ['1.25', '1,25×'], ['1.5', '1,5×']])}</label>
       <label class="setting-row"><span>Pengingat harian</span>
         ${sel('hifzRemind', s.remind ? '1' : '0', [['1', 'Aktif'], ['0', 'Mati']])}</label>
       <label class="setting-row"><span>Jam notifikasi</span>
@@ -1742,7 +1742,7 @@
       if (input) input.addEventListener('change', () => { S.settings[key] = fn(input.value); save(); render(); });
     };
     bindNum('hifzTarget', 'pageTarget', (v) => clamp(Number(v) || 1, 1, 20));
-    bindNum('hifzRepeat', 'repeatCount', (v) => clamp(Number(v) || 3, 1, 20));
+    bindNum('hifzRepeat', 'repeatCount', (v) => { const n = Number(v) || 3; return [3,5,10,20].includes(n) ? n : 3; });
     bindNum('hifzPause', 'repeatPause', (v) => clamp(Number(v) || 0, 0, 10000));
     const hide = view.querySelector('#hifzHide');
     if (hide) hide.addEventListener('change', () => { S.settings.hideMode = hide.value; save(); decorate(); syncButtons(); });
