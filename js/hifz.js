@@ -1206,7 +1206,21 @@
     } catch { return { page, keys: [] }; }
   }
 
+  // sesi kuis: { kind, done, total, right, wrong }
+  let quizSession = null;
+  const QUIZ_TOTAL = 10;
+
   async function startQuiz(kind) {
+    quizSession = { kind: kind || 'next', done: 0, total: QUIZ_TOTAL, right: 0, wrong: 0 };
+    await nextQuizQuestion();
+  }
+
+  async function nextQuizQuestion() {
+    if (quizSession && quizSession.done >= quizSession.total) { renderQuizResult(); return; }
+    await buildQuizQuestion(quizSession ? quizSession.kind : 'next');
+  }
+
+  async function buildQuizQuestion(kind) {
     const dm = window.AlKalam.DataManager;
     const { page, keys } = await pageVerseKeys();
     if (!keys.length) { window.AlKalamHifz.flash('Ayat halaman belum siap'); return; }
@@ -1272,8 +1286,13 @@
     const optHtml = q.showArabic
       ? q.showArabic.map((o) => `<button class="qz-opt arabic" data-ans="${o.vk}" dir="rtl">${esc(o.ar.length > 120 ? o.ar.slice(0, 120) + ' …' : o.ar)}</button>`).join('')
       : q.options.map((o) => `<button class="qz-opt arabic" data-ans="${o}" dir="rtl">${esc(o)}</button>`).join('');
+    const prog = quizSession
+      ? `<div class="qz-progress"><span>Soal ${Math.min(quizSession.done + 1, quizSession.total)}/${quizSession.total}</span>` +
+        `<span>Benar ${quizSession.right} · Salah ${quizSession.wrong}</span></div>`
+      : '';
     body.innerHTML = `
       <div class="qz-card">
+        ${prog}
         <p class="qz-prompt">${esc(q.prompt)}</p>
         ${q.text ? `<p class="qz-tr">${esc(q.text)}</p>` : ''}
         ${q.arabic ? `<p class="qz-ar${q.arabicBig ? ' big' : ''}" dir="rtl">${q.arabic}</p>` : ''}
@@ -1293,7 +1312,25 @@
           if (x.dataset.ans === q.answer) x.classList.add('right');
           else if (x === b) x.classList.add('wrong');
         });
-        if (res) { res.textContent = ok ? 'Benar ✓' : 'Belum tepat'; res.className = 'qz-result ' + (ok ? 'ok' : 'bad'); }
+        if (quizSession) {
+          quizSession.done += 1;
+          if (ok) quizSession.right += 1; else quizSession.wrong += 1;
+        }
+        const last = quizSession ? quizSession.done >= quizSession.total : true;
+        if (res) {
+          res.textContent = (ok ? 'Benar ✓' : 'Belum tepat') +
+            (quizSession ? ` · ${quizSession.right}/${quizSession.done} benar` : '');
+          res.className = 'qz-result ' + (ok ? 'ok' : 'bad');
+        }
+        // tombol lanjut / lihat hasil
+        const foot = body.querySelector('.qz-foot');
+        if (foot && quizSession) {
+          const nb = document.createElement('button');
+          nb.className = 'btn btn-sm btn-primary';
+          nb.textContent = last ? 'Lihat hasil' : 'Soal berikutnya';
+          nb.addEventListener('click', () => { if (last) renderQuizResult(); else nextQuizQuestion(); });
+          foot.appendChild(nb);
+        }
         srsRate(q.verse, ok ? 2 : 0);
         const d = dayRec();
         d.reviewed = (d.reviewed || 0) + 1;
@@ -1302,6 +1339,25 @@
       });
     });
     body.querySelector('[data-quiz-back]')?.addEventListener('click', () => render());
+  }
+
+  function renderQuizResult() {
+    const body = el('hifzBody');
+    if (!body) return;
+    const q = quizSession || { kind: 'next', done: 0, right: 0, wrong: 0, total: QUIZ_TOTAL };
+    const pct = q.done ? Math.round((q.right / q.done) * 100) : 0;
+    body.innerHTML = `
+      <div class="qz-card qz-done">
+        <p class="qz-progress"><span>Selesai</span><span>${q.done} soal</span></p>
+        <p class="qz-score">${q.right} benar · ${q.wrong} salah · ${pct}%</p>
+        <p class="hifz-muted">Setiap jawaban sudah masuk jadwal ulangan (SRS) ayat tersebut.</p>
+        <div class="hifz-actions">
+          <button class="btn btn-sm btn-primary" data-quiz-again>Ulangi 10 soal</button>
+          <button class="btn btn-sm" data-quiz-back>Kembali</button>
+        </div>
+      </div>`;
+    body.querySelector('[data-quiz-again]')?.addEventListener('click', () => startQuiz(q.kind));
+    body.querySelector('[data-quiz-back]')?.addEventListener('click', () => { quizSession = null; render(); });
   }
 
   // ── integrasi tampilan mushaf ───────────────────────────────────────────

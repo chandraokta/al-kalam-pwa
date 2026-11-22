@@ -185,7 +185,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-cakupan';
+  const BUILD = '2026-11-22-p0';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3737,6 +3737,15 @@
       state.showTafsir = !state.showTafsir;
       els.toggleTafsir.classList.toggle('active', state.showTafsir);
       els.toggleTafsir.setAttribute('aria-pressed', state.showTafsir);
+      // tafsir tampil di panel samping: pastikan panel terbuka
+      if (state.showTafsir && !state.showTranslation) {
+        state.showTranslation = true;
+        if (els.toggleTranslation) {
+          els.toggleTranslation.classList.add('active');
+          els.toggleTranslation.setAttribute('aria-pressed', 'true');
+        }
+        showToast('Panel terjemahan dibuka untuk menampilkan tafsir');
+      }
       renderPage(state.currentPage);
     });
     

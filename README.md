@@ -81,7 +81,7 @@ semua data disimpan sebagai `.json.gz` dan dimuat sesuai kebutuhan.
 | `similar.json.gz` | 5 KB | indeks ayat serupa |
 | `topics.json.gz` | 123 KB | 2.930 topik/tema untuk 4.095 ayat |
 | `translation_*.json.gz` | 2,3 MB | 8 terjemahan |
-| `tafsir_*.json.gz` | 3,7 MB | 3 tafsir |
+| `tafsir_*.json.gz` | 3,8 MB | 3 tafsir (Muyassar lengkap 6.236 ayat) |
 | `qul/*.json.gz` | 3,9 MB | timing kata 7 qari |
 
 Font QCF (604 file) dan font IndoPak **tidak** disimpan di repo — diambil on-demand dari CDN QUL lalu di-cache service worker.

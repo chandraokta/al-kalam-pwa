@@ -2134,3 +2134,11 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
   color: var(--text-secondary); }
 .prog-chip:hover { background: var(--accent-light); border-color: var(--accent-tertiary); }
 .prog-chip.done { background: var(--accent-light); border-color: var(--accent-secondary); color: var(--accent-primary); }
+
+/* kuis: progres & hasil */
+.qz-progress { display: flex; justify-content: space-between; align-items: center;
+  font-size: .72rem; color: var(--text-muted); letter-spacing: .03em;
+  text-transform: uppercase; margin-bottom: 8px; }
+.qz-score { font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); margin: 8px 0 4px; }
+.qz-done { text-align: center; }
+.qz-done .hifz-actions { justify-content: center; margin-top: 12px; }
