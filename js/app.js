@@ -107,6 +107,9 @@
     els.audioPause = $('audioPause');
     els.audioPrev = $('audioPrev');
     els.audioNext = $('audioNext');
+    els.audioStop = $('audioStop');
+    els.miniStop = $('miniStop');
+    els.miniLabel = $('miniLabel');
     els.progressBar = $('progressBar');
     els.progressFill = $('progressFill');
     els.audioTime = $('audioTime');
@@ -190,7 +193,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-murajaah2';
+  const BUILD = '2026-11-22-stop';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3064,6 +3067,10 @@
     const info = await DataManager.getSurah(surah);
     els.audioSurah.textContent = `${info?.name_simple || surah} (${surah})`;
     els.audioAyah.textContent = `Ayat ${ayah}`;
+    if (els.miniStop) {
+      els.miniStop.hidden = false;
+      if (els.miniLabel) els.miniLabel.textContent = `${info?.name_simple || surah} · ${ayah}`;
+    }
 
     // sorot baris/ayat yang sedang dibaca
     document.querySelectorAll('.ayah-row.playing').forEach(el => el.classList.remove('playing'));
@@ -3282,6 +3289,7 @@
     state.surahKeys = [];
     els.audioPlay.hidden = false;
     els.audioPause.hidden = true;
+    if (els.miniStop) els.miniStop.hidden = true;
     els.progressFill.style.width = '0%';
     els.audioTime.textContent = '0:00 / 0:00';
     document.querySelectorAll('.playing').forEach(el => el.classList.remove('playing'));
@@ -3888,6 +3896,21 @@
       if (state.audioCurrent) resumeAudio();
     });
     els.audioPause.addEventListener('click', pauseAudio);
+    els.audioStop?.addEventListener('click', () => { stopAudio(); showToast('Audio dihentikan'); });
+    els.miniStop?.addEventListener('click', () => { stopAudio(); showToast('Audio dihentikan'); });
+    document.addEventListener('keydown', (e) => {
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (document.activeElement && document.activeElement.isContentEditable);
+      if (typing) return;
+      if (e.key === 'Escape' && state.audioCurrent) {
+        e.preventDefault();
+        stopAudio();
+        showToast('Audio dihentikan (Esc)');
+      } else if (e.code === 'Space' && state.audioCurrent) {
+        e.preventDefault();
+        if (audioEl && audioEl.paused) resumeAudio(); else pauseAudio();
+      }
+    });
     els.audioPrev.addEventListener('click', prevAyah);
     els.audioHelp = $('audioHelp');
     els.audioHelp?.addEventListener('click', () => showAudioHelp());

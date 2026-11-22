@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=2026-11-22-murajaah2">
+  <link rel="stylesheet" href="css/style.css?v=2026-11-22-stop">
 </head>
 <body>
   <!-- App Shell -->
@@ -266,6 +266,9 @@
         <!-- Halaman dimuat di sini via JS -->
       </div>
       <!-- Audio Player Bar -->
+      <button class="mini-stop" id="miniStop" hidden aria-label="Hentikan audio">
+        <span class="ms-icon">■</span><span id="miniLabel">Hentikan</span>
+      </button>
       <div class="audio-bar" id="audioBar" role="region" aria-label="Pemutar Audio" hidden>
         <div class="audio-info">
           <span class="audio-surah" id="audioSurah"></span>
@@ -276,6 +279,7 @@
           <button class="icon-btn audio-play-btn" id="audioPlay" aria-label="Putar"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
           <button class="icon-btn" id="audioPause" aria-label="Jeda" hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
           <button class="icon-btn" id="audioNext" aria-label="Ayat berikutnya"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><rect x="18" y="4" width="4" height="16"/></svg></button>
+          <button class="icon-btn audio-stop-btn" id="audioStop" aria-label="Hentikan audio" title="Hentikan (Esc)"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg></button>
         </div>
         <div class="audio-extra">
           <label class="aex" title="Qari"><span>Qari</span>
@@ -576,8 +580,8 @@
   </script>
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/app.js?v=2026-11-22-murajaah2"></script>
-<script src="js/hifz.js?v=2026-11-22-murajaah2"></script>
-  <script src="js/profiles.js?v=2026-11-22-murajaah2"></script>
+  <script src="js/app.js?v=2026-11-22-stop"></script>
+<script src="js/hifz.js?v=2026-11-22-stop"></script>
+  <script src="js/profiles.js?v=2026-11-22-stop"></script>
 </body>
 </html>

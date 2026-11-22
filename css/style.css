@@ -2208,3 +2208,16 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .mw.word-loop { background: rgba(184, 134, 11, .25); outline: 2px solid #b8860b;
   border-radius: 4px; }
 #btnWordLoop.active, #btnWordInfo.active { background: var(--accent-primary); color: #fff; }
+
+/* tombol hentikan audio */
+.audio-stop-btn { color: #e05a5a; }
+.mini-stop { position: fixed; right: 14px; bottom: calc(var(--audio-bar-h) + 14px);
+  z-index: 500; display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 15px; border: none; border-radius: 999px; cursor: pointer;
+  background: #c0392b; color: #fff; font: inherit; font-size: .82rem; font-weight: 600;
+  box-shadow: 0 6px 22px rgba(0,0,0,.4); }
+.mini-stop[hidden] { display: none; }
+.mini-stop .ms-icon { font-size: .95rem; }
+.mini-stop:hover { background: #a93226; }
+body.is-fullscreen .mini-stop { bottom: 14px; }
+@media (max-width: 640px) { .mini-stop { bottom: calc(var(--audio-bar-h) + 8px); right: 10px; } }
