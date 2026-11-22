@@ -46,6 +46,8 @@
     loopB: null,
     pagePlayUntil: null,   // putar 1 halaman lalu berhenti
     wordInfoMode: false,   // mode Info Kata: klik kata membuka arti
+    wordLoopMode: false,   // mode Ulang Kata: klik kata -> loop kata
+    wordLoop: null,        // { vk, pos, start, end, left, total, pauseMs }
     searchScope: 'all',    // all | ar | id | en
     offlinePages: true,
     bookmarks: new Set(),
@@ -188,7 +190,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-profil3';
+  const BUILD = '2026-11-22-murajaah';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2231,10 +2233,9 @@
     });
     els.mushafContainer.querySelectorAll('.mw').forEach(el => {
       el.addEventListener('click', () => {
-        if (state.wordInfoMode) {
-          showWordInfo(el.dataset.v, Number(el.dataset.w) || 1);
-          return;
-        }
+        const pos = Number(el.dataset.w) || 1;
+        if (state.wordInfoMode) { showWordInfo(el.dataset.v, pos); return; }
+        if (state.wordLoopMode) { startWordLoop(el.dataset.v, pos); return; }
         playAyah(el.dataset.v);
       });
     });
@@ -3116,6 +3117,76 @@
   }
 
   // Sorot kata sesuai posisi waktu (timing QUL, kata 1-based)
+  /** Rentang waktu satu kata dari timing QUL. */
+  function wordTimes(verseKey, pos) {
+    const t = ayahTimes(verseKey);
+    if (!t || !Array.isArray(t.segs)) return null;
+    const seg = t.segs.find((x) => Number(x[0]) === Number(pos));
+    return seg ? { start: Number(seg[1]), end: Number(seg[2]) } : null;
+  }
+
+  /** Hentikan loop kata (tanpa mematikan audio global). */
+  function stopWordLoop(silent = false) {
+    if (state.wordLoop) {
+      if (state.wordLoop.raf) cancelAnimationFrame(state.wordLoop.raf);
+      if (state.wordLoop.timer) clearTimeout(state.wordLoop.timer);
+      state.wordLoop = null;
+      document.querySelectorAll('.mw.word-loop').forEach((el) => el.classList.remove('word-loop'));
+      if (!silent) showToast('Loop kata dihentikan');
+    }
+  }
+
+  /** Ulang satu kata N kali dengan jeda untuk meniru. */
+  async function startWordLoop(verseKey, pos, opts = {}) {
+    const times = Number(opts.times) || 5;
+    const pauseMs = Number(opts.pauseMs) || 3000;
+    stopWordLoop(true);
+    if (!audioEl) initAudio();
+    const [surah] = String(verseKey).split(':').map(Number);
+    const loaded = await loadSurahAudio(surah);   // muat audio + timing dulu
+    if (!loaded) { showToast('Audio qari ini tidak tersedia', 'error'); return; }
+    const range = wordTimes(verseKey, pos);
+    if (!range) { showToast('Timing kata belum tersedia untuk qari ini', 'error'); return; }
+    state.wordLoopMode = true;
+    els.btnWordLoop?.classList.add('active');
+    state.repeatMode = 'off';
+    if (els.audioRepeat) els.audioRepeat.value = 'off';
+    syncAudioExtras();
+    await setCurrentAyah(verseKey, { force: true });
+    state.wordLoop = { vk: verseKey, pos, start: range.start, end: range.end, left: times, total: times, pauseMs };
+    showToast(`Ulang kata ${pos} · ${times}× · jeda ${(pauseMs / 1000).toFixed(1)} dtk untuk meniru`);
+    playWordRound();
+  }
+
+  function playWordRound() {
+    const L = state.wordLoop;
+    if (!L || !audioEl) return;
+    document.querySelectorAll('.mw.word-loop').forEach((el) => el.classList.remove('word-loop'));
+    const target = document.querySelector(`.mw[data-v="${L.vk}"][data-w="${L.pos}"]`);
+    if (target) target.classList.add('word-loop');
+    audioEl.playbackRate = Number(state.audioRate) || 1;
+    try { audioEl.currentTime = Math.max(0, L.start / 1000 - 0.05); } catch { /* abaikan */ }
+    audioEl.play().catch(() => {});
+    const tick = () => {
+      if (!state.wordLoop) return;
+      if (audioEl.currentTime * 1000 >= L.end - 10) {
+        audioEl.pause();
+        state.audioPlaying = false;
+        L.left -= 1;
+        if (L.left > 0) {
+          L.timer = setTimeout(() => { if (state.wordLoop) playWordRound(); }, L.pauseMs);
+        } else {
+          const done = L.total;
+          stopWordLoop(true);
+          showToast(`Selesai ${done}× — kata ${L.pos} di ayat ${L.vk}`);
+        }
+        return;
+      }
+      L.raf = requestAnimationFrame(tick);
+    };
+    L.raf = requestAnimationFrame(tick);
+  }
+
   function highlightWordAt(ms) {
     const cur = state.audioCurrent;
     if (!cur) return;
@@ -3821,6 +3892,7 @@
     els.audioHelp = $('audioHelp');
     els.audioHelp?.addEventListener('click', () => showAudioHelp());
     els.btnWordInfo = $('btnWordInfo');
+    els.btnWordLoop = $('btnWordLoop');
     els.btnHafalan = $('btnHafalan');
     els.btnWordInfo?.addEventListener('click', () => {
       state.wordInfoMode = !state.wordInfoMode;
@@ -3829,6 +3901,15 @@
       showToast(state.wordInfoMode
         ? 'Mode Info Kata: ketuk kata untuk melihat arti & morfologi'
         : 'Mode Info Kata dimatikan');
+    });
+    els.btnWordLoop?.addEventListener('click', () => {
+      state.wordLoopMode = !state.wordLoopMode;
+      els.btnWordLoop.classList.toggle('active', state.wordLoopMode);
+      els.btnWordLoop.setAttribute('aria-pressed', String(state.wordLoopMode));
+      if (!state.wordLoopMode) stopWordLoop(true);
+      showToast(state.wordLoopMode
+        ? 'Mode Ulang Kata: ketuk kata untuk diulang + jeda meniru'
+        : 'Mode Ulang Kata dimatikan');
     });
     els.btnHafalan?.addEventListener('click', () => {
       showView('hifz');
@@ -4121,6 +4202,8 @@
     goPage: (p) => renderPage(p),
     openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); },
     playPageOnce,
+    startWordLoop,
+    stopWordLoop,
     activeSheetPage: () => {
       const boxes = [...document.querySelectorAll('.scan-sheet-box[data-sheet]')]
         .map((b) => Number(b.dataset.sheet)).filter(Number.isFinite);

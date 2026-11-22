@@ -2193,3 +2193,18 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 /* profil: picker emoji melebar di bawah baris */
 #profileModal .wp-row { flex-wrap: wrap; }
 #profileModal .pf-emoji-picker { flex-basis: 100%; display: grid; grid-template-columns: repeat(6, 1fr); }
+
+/* tiga sesi harian */
+.session-row { border-top: 1px dashed var(--border-color); padding: 10px 0 6px; }
+.session-row:first-of-type { border-top: none; }
+.session-row .sr-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.session-row .sr-head strong { color: var(--accent-primary); }
+.session-row.done { opacity: .75; }
+.hifz-v.ok { color: #2f7a5c; }
+.hifz-v.mid { color: #b8860b; }
+.hifz-v.bad { color: #dc2626; }
+
+/* mode ulang kata */
+.mw.word-loop { background: rgba(184, 134, 11, .25); outline: 2px solid #b8860b;
+  border-radius: 4px; }
+#btnWordLoop.active, #btnWordInfo.active { background: var(--accent-primary); color: #fff; }

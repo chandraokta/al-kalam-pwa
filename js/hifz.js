@@ -362,6 +362,57 @@
     return [juzTxt, surTxt, rngTxt].filter(Boolean).join(' · ') || 'belum diatur';
   }
 
+  // ── Tiga sesi harian: Sabaq (baru) · Sabqi (baru diulang) · Manzil (lama) ──
+  const SESSION_LABEL = {
+    sabaq: { name: 'Sabaq', sub: "ba'da Subuh · hafalan baru" },
+    sabqi: { name: 'Sabqi', sub: "ba'da Asar · ulang 3 hari terakhir" },
+    manzil: { name: 'Manzil', sub: "ba'da Isya · hafalan lama (rotasi 2 pekan)" },
+  };
+
+  function sessionDone() {
+    const wk = weekKey();
+    S.sessionDone = S.sessionDone || {};
+    S.sessionDone[wk] = S.sessionDone[wk] || {};
+    return S.sessionDone[wk];
+  }
+
+  function dailySessions() {
+    if (!S.program || !Array.isArray(S.program.days)) return null;
+    const idx = new Date().getDay();
+    const day = (i) => S.program.days[(i + 7) % 7] || { pages: [] };
+    const sabaq = (day(idx).pages || []).slice();
+    const sabqiSet = new Set();
+    for (let k = 1; k <= 3; k++) for (const pg of (day(idx - k).pages || [])) sabqiSet.add(pg);
+    for (const pg of sabaq) sabqiSet.delete(pg);
+    const sabqi = [...sabqiSet].sort((a, b) => a - b);
+
+    const all = [...new Set(S.program.days.flatMap((d) => d.pages || []))].sort((a, b) => a - b);
+    const used = new Set([...sabaq, ...sabqi]);
+    const rest = all.filter((pg) => !used.has(pg));
+    // manzil: sisa halaman dibagi rata ke 7 hari (siklus pekan)
+    const n = rest.length;
+    const from = Math.floor((idx * n) / 7);
+    const to = Math.ceil(((idx + 1) * n) / 7);
+    const manzil = rest.slice(from, to);
+
+    return { idx, sabaq, sabqi, manzil, done: sessionDone()[idx] || {} };
+  }
+
+  function markSessionDone(key) {
+    const idx = new Date().getDay();
+    const bucket = sessionDone();
+    bucket[idx] = bucket[idx] || {};
+    bucket[idx][key] = Date.now();
+    // tandai halaman sesi itu selesai hari ini
+    const pages = (S.program.days[idx].pages || []).slice();
+    const rec = dayRec();
+    for (const pg of pages) {
+      if (key !== 'sabaq' && !(S.program.days[idx].pages || []).includes(pg)) continue;
+      S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
+    }
+    save();
+  }
+
   async function programCardHtml() {
     if (scopeEmpty()) {
       return `<div class="hifz-card">
@@ -373,15 +424,26 @@
     }
     const prog = await ensureProgram();
     if (!prog) return '';
-    const idx = new Date().getDay();
-    const today = programToday();
+    const sess = await dailySessions();
+    if (!sess) return '';
+    const idx = sess.idx;
     const done = new Set(dayRec().pages || []);
-    const doneToday = today.filter((p) => done.has(p)).length;
-    const dayMarked = !!planDone()[idx];
-    const chips = today.map((p) => {
-      const ok = done.has(p);
-      return `<button class="prog-chip${ok ? ' done' : ''}" data-gopage="${p}">${ok ? '✓ ' : ''}hal. ${p}</button>`;
-    }).join('');
+    const doneCount = ['sabaq', 'sabqi', 'manzil'].filter((k) => sess.done[k]).length;
+    const totalPages = sess.sabaq.length + sess.sabqi.length + sess.manzil.length;
+    const sessionRow = (key) => {
+      const pages = sess[key] || [];
+      const marked = !!sess.done[key];
+      const chips = pages.map((pg) => `<button class="prog-chip${done.has(pg) ? ' done' : ''}" data-gopage="${pg}">${done.has(pg) ? '✓ ' : ''}hal. ${pg}</button>`).join('');
+      return `<div class="session-row${marked ? ' done' : ''}">
+        <div class="sr-head"><strong>${SESSION_LABEL[key].name}</strong>
+          <span class="hifz-muted">${SESSION_LABEL[key].sub} · ${pages.length} halaman</span></div>
+        <div class="prog-chips">${chips || '<span class="hifz-muted">—</span>'}</div>
+        ${pages.length ? `<div class="hifz-actions">
+          <button class="btn btn-sm" data-session-start="${key}">Mulai</button>
+          <button class="btn btn-sm ${marked ? '' : 'btn-primary'}" data-session-done="${key}" ${marked ? 'disabled' : ''}>${marked ? 'Selesai ✓' : 'Tandai selesai'}</button>
+        </div>` : ''}
+      </div>`;
+    };
     const weekStrip = DAY_NAMES.map((nm, i) => {
       const d = prog.days[i] || { pages: [] };
       const ok = !!planDone()[i];
@@ -392,15 +454,13 @@
     }).join('');
     return `<div class="hifz-card plan-today">
       <span class="hifz-k">Murajaah hari ini · ${DAY_NAMES[idx]}</span>
-      <strong class="hifz-v">${today.length} halaman</strong>
-      <span class="hifz-muted">${today.length ? `hal. ${today[0]}–${today[today.length - 1]} · ${doneToday}/${today.length} selesai`
-        : 'Tidak ada jatah hari ini'} · total ${prog.total} halaman/minggu</span>
-      <div class="prog-chips">${chips || '<span class="hifz-muted">—</span>'}</div>
-      <div class="hifz-actions">
-        <button class="btn btn-sm btn-primary" data-plan-start>Mulai murajaah</button>
-        <button class="btn btn-sm" data-plan-done ${dayMarked ? 'disabled' : ''}>${dayMarked ? 'Hari ini selesai ✓' : 'Tandai hari selesai'}</button>
-        <button class="btn btn-sm" data-goto-tab="scope">Ubah hafalan</button>
-      </div>
+      <strong class="hifz-v">${doneCount}/3 sesi · ${totalPages} halaman</strong>
+      <span class="hifz-muted">Sabaq ${sess.sabaq.length} · Sabqi ${sess.sabqi.length} · Manzil ${sess.manzil.length}
+        · total ${prog.total} halaman/minggu</span>
+      ${sessionRow('sabaq')}
+      ${sessionRow('sabqi')}
+      ${sessionRow('manzil')}
+      <div class="hifz-actions"><button class="btn btn-sm" data-goto-tab="scope">Ubah hafalan</button></div>
       <div class="week-strip">${weekStrip}</div>
     </div>`;
   }
@@ -423,6 +483,81 @@
     }).join('');
     return `<div class="hifz-list">${rows}</div>
       <div class="hifz-actions"><button class="btn btn-sm" data-scope="rebuild">Susun ulang program pekan</button></div>`;
+  }
+
+  // ── Retensi halaman & risiko lupa ─────────────────────────────────────
+  function flaggedPerPage() {
+    const map = new Map();
+    for (const [vk, arr] of Object.entries(S.flagged || {})) {
+      const pg = pageByVerseHifz.get(vk);
+      if (!pg) continue;
+      map.set(pg, (map.get(pg) || 0) + (arr || []).length);
+    }
+    return map;
+  }
+
+  function retentionStats(pages) {
+    const flags = flaggedPerPage();
+    const now = Date.now();
+    const rows = (pages || []).map((pg) => {
+      const srs = S.pageSrs ? S.pageSrs[pg] : null;
+      const info = S.pages[pg] || {};
+      const ivl = srs ? Math.max(1, Number(srs.ivl) || 1) : 1;
+      const last = info.last || (srs ? srs.due - ivl * DAY : 0);
+      const daysSince = last ? (now - last) / DAY : 999;
+      const overdue = srs ? Math.max(0, (now - srs.due) / DAY) : 0;
+      const mistakes = Number(info.mistakes) || 0;
+      const flagsN = flags.get(pg) || 0;
+      const risk = (last ? daysSince / ivl : 2) + 0.3 * mistakes + 0.2 * flagsN + Math.min(2, overdue / 3);
+      const score = Math.max(0, Math.min(100, Math.round(100 - risk * 35)));
+      return { page: pg, score, daysSince: Math.round(daysSince), overdue: Math.round(overdue), mistakes, flags: flagsN };
+    });
+    const sum = rows.reduce((a, b) => a + b.score, 0);
+    return {
+      rows,
+      avg: rows.length ? Math.round(sum / rows.length) : 0,
+      strong: rows.filter((r) => r.score >= 75).length,
+      fragile: rows.filter((r) => r.score >= 50 && r.score < 75).length,
+      weak: rows.filter((r) => r.score < 50).length,
+      atRisk: rows.filter((r) => r.score < 75 || r.overdue > 2).sort((a, b) => a.score - b.score),
+    };
+  }
+
+  function retentionHtml() {
+    const pages = (S.program && Array.isArray(S.program.days))
+      ? [...new Set(S.program.days.flatMap((d) => d.pages || []))].sort((a, b) => a - b)
+      : Object.keys(S.pages).map(Number).sort((a, b) => a - b);
+    if (!pages.length) return '';
+    const st = retentionStats(pages);
+    const tone = st.avg >= 75 ? 'ok' : st.avg >= 50 ? 'mid' : 'bad';
+    const riskRows = st.atRisk.slice(0, 5).map((r) => `
+      <div class="hifz-due wp-row">
+        <span>Halaman ${r.page}
+          <span class="wp-sub">${r.daysSince > 900 ? 'belum pernah diulang' : `${r.daysSince} hari sejak diulang`}${r.overdue > 2 ? ` · lewat ${r.overdue} hari` : ''}${r.mistakes ? ` · ${r.mistakes} kesalahan` : ''}${r.flags ? ` · ${r.flags} kata ditandai` : ''}</span></span>
+        <span class="wp-actions"><button class="btn btn-sm btn-primary" data-jump="${pageFirstVerseOf(r.page) || ''}:${r.page}">Latih</button></span>
+      </div>`).join('');
+    return `
+      <h3 class="hifz-h">Retensi & risiko</h3>
+      <div class="hifz-cards">
+        <div class="hifz-card">
+          <span class="hifz-k">Retensi hafalan</span>
+          <strong class="hifz-v ${tone}">${st.avg}%</strong>
+          <span class="hifz-muted">${pages.length} halaman · kuat ${st.strong} · rapuh ${st.fragile} · lemah ${st.weak}</span>
+          <div class="hifz-bar"><i style="width:${st.avg}%"></i></div>
+        </div>
+        <div class="hifz-card">
+          <span class="hifz-k">Terancam lupa</span>
+          <strong class="hifz-v ${st.atRisk.length ? 'bad' : 'ok'}">${st.atRisk.length} halaman</strong>
+          <span class="hifz-muted">${st.atRisk.length ? 'prioritaskan halaman ini hari ini' : 'semua halaman masih segar'}</span>
+        </div>
+      </div>
+      ${riskRows ? `<div class="hifz-list" style="margin-top:8px">${riskRows}</div>` : ''}`;
+  }
+
+  /** Ayat pertama pada halaman (dari pageMap). */
+  function pageFirstVerseOf(page) {
+    for (const [vk, pg] of pageByVerseHifz) if (pg === Number(page)) return vk;
+    return null;
   }
 
   async function renderScope() {
@@ -510,6 +645,7 @@
     return `
       ${needRemind ? `<div class="hifz-remind">Belum ada murajaah hari ini — sisihkan beberapa menit untuk mengulang hafalan.</div>` : ''}
       ${await programCardHtml()}
+      ${retentionHtml()}
       <div class="hifz-cards">
         <div class="hifz-card">
           <span class="hifz-k">Target hari ini</span>
@@ -637,7 +773,12 @@
     S._notifiedOn = todayKey();
     try {
       new Notification('Al-Kalam — murajaah', {
-        body: 'Belum ada murajaah hari ini. Sisihkan beberapa menit untuk mengulang hafalan.',
+        body: (() => {
+          const s3 = dailySessions();
+          return s3
+            ? `Murajaah hari ini: Sabaq ${s3.sabaq.length}, Sabqi ${s3.sabqi.length}, Manzil ${s3.manzil.length} halaman.`
+            : 'Belum ada murajaah hari ini. Sisihkan beberapa menit untuk mengulang hafalan.';
+        })(),
         icon: 'assets/icons/icon-192.png',
         tag: 'alkalam-murajaah',
       });
@@ -766,6 +907,7 @@
         <span class="wp-sub">${where}</span></span>
         <span class="wp-actions">
           ${meta.page ? `<button class="btn btn-sm btn-primary" data-jump="${vk}:${meta.page}">Ke halaman ${meta.page}</button>` : ''}
+          <button class="btn btn-sm" data-word-loop="${vk}:${pos}">Latih kata</button>
           <button class="btn btn-sm" data-open="${vk}">Ayat</button>
           <button class="btn btn-sm" data-unflag="${vk}:${pos}">Hapus</button>
         </span></div>`;
@@ -994,6 +1136,14 @@
         render();
       });
     });
+    view.querySelectorAll('[data-word-loop]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const [vk, pos] = b.dataset.wordLoop.split(':');
+        const page = pageByVerseHifz.get(vk);
+        if (page) await window.AlKalam.openPage(page);
+        setTimeout(() => window.AlKalam.startWordLoop(vk, Number(pos)), 700);
+      });
+    });
     view.querySelectorAll('[data-jump]').forEach((b) => {
       b.addEventListener('click', async () => {
         const parts = b.dataset.jump.split(':');
@@ -1028,6 +1178,33 @@
         if (i >= 0) arr.splice(i, 1); else arr.push(id);
         save();
         buildProgram().then(() => render());
+      });
+    });
+    view.querySelectorAll('[data-session-start]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const sess = await dailySessions();
+        const pages = sess ? sess[b.dataset.sessionStart] : [];
+        if (!pages || !pages.length) { flash('Tidak ada halaman pada sesi ini'); return; }
+        await window.AlKalam.openPage(pages[0]);
+        try { await window.AlKalam.playPageOnce(pages[0]); } catch { /* abaikan */ }
+      });
+    });
+    view.querySelectorAll('[data-session-done]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const sess = await dailySessions();
+        const key = b.dataset.sessionDone;
+        if (!sess) return;
+        const bucket = sessionDone();
+        bucket[sess.idx] = bucket[sess.idx] || {};
+        bucket[sess.idx][key] = Date.now();
+        const rec = dayRec();
+        for (const pg of (sess[key] || [])) {
+          if (!rec.pages.includes(pg)) rec.pages.push(pg);
+          S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
+        }
+        save();
+        render();
+        flash(`${SESSION_LABEL[key].name} selesai`);
       });
     });
     view.querySelector('[data-plan-start]')?.addEventListener('click', async () => {
