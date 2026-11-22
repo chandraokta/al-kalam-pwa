@@ -46,6 +46,7 @@
     scope: { juz: [], surah: [], ranges: [] },   // hafalan: juz, surat, rentang ayat
     program: null,            // { chunks:[[pages]…], perDay, total, key }
     quizLog: [],              // riwayat hasil kuis
+    planDone: {},             // 'YYYY-Www' -> { indexHari: timestamp }
     weekly: null,             // [[juz…] × 7] jadwal murajaah
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
@@ -274,31 +275,78 @@
     return { pages, ayahs };
   }
 
-  /** Bagi halaman cakupan menjadi potongan berisi perDay halaman. */
+  /** Kunci pekan ISO: 2026-W47 */
+  function weekKey(d = new Date()) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((t - y0) / 86400000) + 1) / 7);
+    return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+  }
+
+  /** Program murajaah 1 pekan: seluruh halaman cakupan dibagi rata ke 7 hari. */
   async function buildProgram() {
     const { pages } = await computeScope();
     if (!pages.length) { S.program = null; save(); return null; }
-    const perDay = Math.max(1, Number(S.settings.pageTarget) || 1);
-    const chunks = [];
-    for (let i = 0; i < pages.length; i += perDay) chunks.push(pages.slice(i, i + perDay));
-    S.program = { chunks, perDay, total: pages.length, key: scopeKey(), at: Date.now() };
+    const n = pages.length;
+    const base = Math.floor(n / 7);
+    const extra = n % 7;
+    const days = [];
+    let cursor = 0;
+    for (let d = 0; d < 7; d++) {
+      const size = base + (d < extra ? 1 : 0);
+      days.push({ pages: pages.slice(cursor, cursor + size) });
+      cursor += size;
+    }
+    S.program = {
+      days,
+      total: n,
+      perDay: Math.ceil(n / 7),
+      key: scopeKey(),
+      at: Date.now(),
+    };
     save();
     return S.program;
   }
 
   async function ensureProgram() {
-    if (!scopeEmpty() && S.program && S.program.key === scopeKey()) return S.program;
+    if (!scopeEmpty() && S.program && S.program.key === scopeKey() && Array.isArray(S.program.days)) return S.program;
     if (scopeEmpty()) { S.program = null; return null; }
     return buildProgram();
   }
 
-  /** Halaman program untuk hari ini (satu potongan per hari, bergilir). */
+  const DAY_NAMES = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+  /** Halaman jatah hari ini menurut program pekan. */
   function programToday() {
-    if (!S.program || !Array.isArray(S.program.chunks) || !S.program.chunks.length) return [];
-    const weeks = Math.floor(Date.now() / (7 * DAY));
-    const idx = new Date().getDay();                 // 0 = Ahad
-    const pos = ((weeks * 7 + idx) % S.program.chunks.length + S.program.chunks.length) % S.program.chunks.length;
-    return S.program.chunks[pos] || [];
+    if (!S.program || !Array.isArray(S.program.days)) return [];
+    const d = S.program.days[new Date().getDay()];
+    return (d && d.pages) || [];
+  }
+
+  function planDone() {
+    const wk = weekKey();
+    S.planDone = S.planDone || {};
+    const keys = Object.keys(S.planDone).sort();
+    while (keys.length > 12) { delete S.planDone[keys.shift()]; }
+    return (S.planDone[wk] = S.planDone[wk] || {});
+  }
+
+  function markPlanDayDone(idx) {
+    const done = planDone();
+    done[idx] = Date.now();
+    // tandai semua halaman hari itu selesai hari ini
+    const d = S.program && S.program.days && S.program.days[idx];
+    if (d) {
+      const rec = dayRec();
+      for (const pg of d.pages) {
+        if (!rec.pages.includes(pg)) rec.pages.push(pg);
+        S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
+      }
+      rec.ayahs = (rec.ayahs || 0) + d.pages.length;
+    }
+    save();
   }
 
   function scopeSummaryText() {
@@ -317,29 +365,64 @@
   async function programCardHtml() {
     if (scopeEmpty()) {
       return `<div class="hifz-card">
-        <span class="hifz-k">Program murajaah</span>
-        <span class="hifz-muted">Isi dulu hafalan yang sudah Anda kuasai (juz atau surat), nanti programnya dibuat otomatis.</span>
-        <div class="hifz-actions"><button class="btn btn-sm btn-primary" data-goto-tab="scope">Atur cakupan hafalan</button></div>
+        <span class="hifz-k">Murajaah harian</span>
+        <span class="hifz-muted">Masukkan hafalan Anda (juz / surat / rentang ayat), lalu aplikasi menyusun
+          program murajaah 1 pekan: seluruh hafalan dibagi rata ke 7 hari.</span>
+        <div class="hifz-actions"><button class="btn btn-sm btn-primary" data-goto-tab="scope">Masukkan hafalan</button></div>
       </div>`;
     }
     const prog = await ensureProgram();
+    if (!prog) return '';
+    const idx = new Date().getDay();
     const today = programToday();
     const done = new Set(dayRec().pages || []);
+    const doneToday = today.filter((p) => done.has(p)).length;
+    const dayMarked = !!planDone()[idx];
     const chips = today.map((p) => {
       const ok = done.has(p);
       return `<button class="prog-chip${ok ? ' done' : ''}" data-gopage="${p}">${ok ? '✓ ' : ''}hal. ${p}</button>`;
     }).join('');
-    const doneCount = today.filter((p) => done.has(p)).length;
-    return `<div class="hifz-card">
-      <span class="hifz-k">Program murajaah hari ini</span>
-      <strong class="hifz-v">${doneCount} / ${today.length} halaman</strong>
-      <span class="hifz-muted">Cakupan: ${esc(scopeSummaryText())} · ${prog ? prog.total : 0} halaman total · ${S.settings.pageTarget || 1} halaman/hari</span>
-      <div class="prog-chips">${chips || '<span class="hifz-muted">Tidak ada jatah hari ini.</span>'}</div>
+    const weekStrip = DAY_NAMES.map((nm, i) => {
+      const d = prog.days[i] || { pages: [] };
+      const ok = !!planDone()[i];
+      return `<button class="week-day${i === idx ? ' today' : ''}${ok ? ' done' : ''}" data-plan-day="${i}">
+        <span class="wd-name">${nm}</span>
+        <span class="wd-pages">${d.pages.length} hlm</span>
+        ${ok ? '<span class="wd-ok">✓</span>' : ''}</button>`;
+    }).join('');
+    return `<div class="hifz-card plan-today">
+      <span class="hifz-k">Murajaah hari ini · ${DAY_NAMES[idx]}</span>
+      <strong class="hifz-v">${today.length} halaman</strong>
+      <span class="hifz-muted">${today.length ? `hal. ${today[0]}–${today[today.length - 1]} · ${doneToday}/${today.length} selesai`
+        : 'Tidak ada jatah hari ini'} · total ${prog.total} halaman/minggu</span>
+      <div class="prog-chips">${chips || '<span class="hifz-muted">—</span>'}</div>
       <div class="hifz-actions">
-        <button class="btn btn-sm" data-goto-tab="scope">Ubah cakupan</button>
-        <button class="btn btn-sm" data-scope="rebuild">Buat ulang program</button>
+        <button class="btn btn-sm btn-primary" data-plan-start>Mulai murajaah</button>
+        <button class="btn btn-sm" data-plan-done ${dayMarked ? 'disabled' : ''}>${dayMarked ? 'Hari ini selesai ✓' : 'Tandai hari selesai'}</button>
+        <button class="btn btn-sm" data-goto-tab="scope">Ubah hafalan</button>
       </div>
+      <div class="week-strip">${weekStrip}</div>
     </div>`;
+  }
+
+  /** Tabel program 1 pekan untuk tab Progres. */
+  async function weekPlanHtml() {
+    if (scopeEmpty()) return `<p class="hifz-muted">Masukkan hafalan dulu di tab Cakupan.</p>`;
+    const prog = await ensureProgram();
+    if (!prog) return `<p class="hifz-muted">Belum ada program.</p>`;
+    const idx = new Date().getDay();
+    const rows = DAY_NAMES.map((nm, i) => {
+      const d = prog.days[i] || { pages: [] };
+      const ok = !!planDone()[i];
+      const range = d.pages.length ? `hal. ${d.pages[0]}–${d.pages[d.pages.length - 1]}` : '—';
+      return `<div class="hifz-due wp-row${i === idx ? ' today' : ''}">
+        <span>${nm}${i === idx ? ' · hari ini' : ''}
+          <span class="wp-sub">${range} · ${d.pages.length} halaman</span></span>
+        <span class="wp-actions">${ok ? '<span class="wp-ok">✓ selesai</span>' : ''}
+          ${d.pages.length ? `<button class="btn btn-sm" data-gopage="${d.pages[0]}">Buka</button>` : ''}</span></div>`;
+    }).join('');
+    return `<div class="hifz-list">${rows}</div>
+      <div class="hifz-actions"><button class="btn btn-sm" data-scope="rebuild">Susun ulang program pekan</button></div>`;
   }
 
   async function renderScope() {
@@ -359,8 +442,7 @@
 
     return `
       <h3 class="hifz-h">Hafalan yang sudah dikuasai</h3>
-      <p class="hifz-muted">Pilih juz dan/atau surat yang sudah Anda hafal. Aplikasi akan menyusun
-        program murajaah otomatis: ${S.settings.pageTarget || 1} halaman per hari, bergilir tiap minggu.</p>
+      <p class="hifz-muted">Pilih juz dan/atau surat yang sudah Anda hafal. Aplikasi akan menyusun program murajaah 1 pekan: seluruh hafalan dibagi rata ke 7 hari.</p>
 
       <div class="hifz-card">
         <span class="hifz-k">Juz</span>
@@ -397,7 +479,7 @@
         <strong class="hifz-v">${pages.length} halaman · ${ayahs} ayat</strong>
         <span class="hifz-muted">Cakupan: ${esc(scopeSummaryText())}${prog ? ` · program ${prog.total} halaman` : ''}</span>
         <div class="hifz-actions">
-          <button class="btn btn-sm btn-primary" data-scope="build">Buat program murajaah</button>
+          <button class="btn btn-sm btn-primary" data-scope="build">Susun program 1 pekan</button>
           <button class="btn btn-sm" data-scope="clear">Hapus cakupan</button>
         </div>
       </div>`;
@@ -427,6 +509,7 @@
 
     return `
       ${needRemind ? `<div class="hifz-remind">Belum ada murajaah hari ini — sisihkan beberapa menit untuk mengulang hafalan.</div>` : ''}
+      ${await programCardHtml()}
       <div class="hifz-cards">
         <div class="hifz-card">
           <span class="hifz-k">Target hari ini</span>
@@ -452,9 +535,6 @@
         ${surahCard}
         ${juzCard}
       </div>
-
-      <h3 class="hifz-h">Program murajaah</h3>
-      ${await programCardHtml()}
 
       <h3 class="hifz-h">Ulangan hari ini</h3>
       <div class="hifz-list">${dueHtml}</div>
@@ -765,6 +845,9 @@
       ${flaggedToolsHtml()}
       ${flaggedListHtml(flagFilter)}
 
+      <h3 class="hifz-h">Program murajaah 1 pekan</h3>
+      ${await weekPlanHtml()}
+
       <h3 class="hifz-h">Riwayat uji</h3>
       ${quizHistoryHtml()}
 
@@ -780,7 +863,8 @@
 
   function renderQuizHome() {
     return `
-      <h3 class="hifz-h">Pilih jenis latihan</h3>
+      <h3 class="hifz-h">Pilih jenis latihan (opsional)</h3>
+      <p class="hifz-muted">Uji dipakai untuk mengecek hafalan. Untuk menjaga hafalan, gunakan program murajaah harian di tab Hari Ini.</p>
       <div class="hifz-list">
         <button class="hifz-due" data-quiz="next">Lanjutkan ayat<span>tebak kata berikutnya</span></button>
         <button class="hifz-due" data-quiz="blank">Lengkapi kata<span>satu kata dihilangkan</span></button>
@@ -944,6 +1028,33 @@
         if (i >= 0) arr.splice(i, 1); else arr.push(id);
         save();
         buildProgram().then(() => render());
+      });
+    });
+    view.querySelector('[data-plan-start]')?.addEventListener('click', async () => {
+      const pages = programToday();
+      if (!pages.length) { flash('Tidak ada jatah hari ini'); return; }
+      await window.AlKalam.openPage(pages[0]);
+      try { await window.AlKalam.playPageOnce(pages[0]); } catch { /* abaikan */ }
+    });
+    view.querySelector('[data-plan-done]')?.addEventListener('click', () => {
+      markPlanDayDone(new Date().getDay());
+      render();
+      flash('Murajaah hari ini ditandai selesai');
+    });
+    view.querySelectorAll('[data-plan-day]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const prog = await ensureProgram();
+        if (!prog) return;
+        const i = Number(b.dataset.planDay);
+        const d = prog.days[i] || { pages: [] };
+        const chips = d.pages.map((pg) => `<button class="prog-chip" data-gopage="${pg}">hal. ${pg}</button>`).join('');
+        const ov = openModal(`<div class="mi-head"><span class="mi-name">Murajaah ${DAY_NAMES[i]}</span></div>
+          <p class="mi-sub">${d.pages.length} halaman${d.pages.length ? ` · hal. ${d.pages[0]}–${d.pages[d.pages.length - 1]}` : ''}</p>
+          <div class="prog-chips">${chips || '<span class="hifz-muted">—</span>'}</div>`);
+        ov.querySelectorAll('[data-gopage]').forEach((x) => x.addEventListener('click', () => {
+          ov.remove();
+          window.AlKalam.goPage(Number(x.dataset.gopage));
+        }));
       });
     });
     view.querySelector('#flagFilter')?.addEventListener('change', (e) => {
