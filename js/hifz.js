@@ -1088,7 +1088,11 @@
       <button class="btn btn-sm toggle-btn" id="btnMark" title="Tandai kata yang sering salah">Tandai</button>
       <button class="btn btn-sm" id="btnPageOK" title="Tandai halaman ini lancar">Lancar</button>
       <button class="btn btn-sm" id="btnPageRepeat" title="Tandai halaman ini perlu diulang">Ulang</button>
-      <button class="btn btn-sm" id="btnPageLoop" title="Putar seluruh halaman ini sekali">Putar 1 Halaman</button>`;
+      <span class="sheet-pick" id="sheetPick" hidden>
+        <button class="btn btn-sm" data-sheet-pick="0">Kiri</button>
+        <button class="btn btn-sm" data-sheet-pick="1">Kanan</button>
+      </span>
+      <button class="btn btn-sm" id="btnPageLoop" title="Putar halaman yang dipilih (kiri/kanan) sekali">Putar 1 Halaman</button>`;
     bar.parentElement.appendChild(grow);
 
     grow.querySelector('#btnHideMode').addEventListener('click', () => {
@@ -1104,18 +1108,28 @@
       syncButtons();
     });
     grow.querySelector('#btnPageOK').addEventListener('click', () => {
-      const p = window.AlKalam.state.currentPage || 1;
+      const p = window.AlKalam.activeSheetPage() || 1;
       markPageStatus(p, 'lancar');
       markPageDone(p, 0);
       flash('Halaman ' + p + ' ditandai lancar');
       render();
     });
     grow.querySelector('#btnPageRepeat').addEventListener('click', () => {
-      const p = window.AlKalam.state.currentPage || 1;
+      const p = window.AlKalam.activeSheetPage() || 1;
       markPageStatus(p, 'lemah', 1);
       flash('Halaman ' + p + ' masuk daftar ulang');
       render();
     });
+    grow.querySelectorAll('[data-sheet-pick]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const boxes = [...document.querySelectorAll('.scan-sheet-box[data-sheet]')];
+        const box = boxes[Number(b.dataset.sheetPick)];
+        if (!box) return;
+        window.AlKalam.setActivePage(Number(box.dataset.sheet));
+        flash(`Halaman aktif: ${box.dataset.sheet}`);
+      });
+    });
+
     grow.querySelector('#btnPageLoop').addEventListener('click', async () => {
       const st = window.AlKalam.state;
       if (st.pagePlayUntil) {
@@ -1125,7 +1139,7 @@
         flash('Berhenti memutar halaman');
         return;
       }
-      const page = st.currentPage || 1;
+      const page = window.AlKalam.activeSheetPage() || st.currentPage || 1;
       const ok = await window.AlKalam.playPageOnce(page);
       syncButtons();
       flash(ok ? `Memutar halaman ${page} — akan berhenti di akhir halaman` : 'Gagal memutar halaman');
@@ -1136,6 +1150,21 @@
     document.getElementById('btnHideMode')?.classList.toggle('active', S.settings.hideMode !== 'off');
     document.getElementById('btnMark')?.classList.toggle('active', marking);
     document.getElementById('btnPageLoop')?.classList.toggle('active', !!window.AlKalam.state.pagePlayUntil);
+    updateSheetPicker();
+  }
+
+  /** Tampilkan pilihan Kiri/Kanan bila tampilan dua halaman. */
+  function updateSheetPicker() {
+    const pick = document.getElementById('sheetPick');
+    if (!pick) return;
+    const boxes = [...document.querySelectorAll('.scan-sheet-box[data-sheet]')];
+    if (boxes.length < 2) { pick.hidden = true; return; }
+    pick.hidden = false;
+    pick.querySelectorAll('[data-sheet-pick]').forEach((btn, i) => {
+      const page = Number(boxes[i] && boxes[i].dataset.sheet);
+      btn.textContent = `${i === 0 ? 'Kiri' : 'Kanan'} ${page || ''}`.trim();
+      btn.classList.toggle('active', Number(window.AlKalam.state.activePage) === page);
+    });
   }
 
   function flash(msg) {

@@ -2112,3 +2112,10 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .fw-tr { font-size: .78rem; color: var(--text-muted); }
 .hifz-card-btn { text-align: left; cursor: pointer; font: inherit; }
 .hifz-card-btn:hover { border-color: var(--accent-tertiary); background: var(--accent-light); }
+
+/* pemilih halaman kiri/kanan (tampilan dua halaman) */
+.sheet-pick { display: inline-flex; gap: 4px; padding: 2px; border-radius: 10px;
+  background: var(--bg-tertiary); }
+.sheet-pick[hidden] { display: none; }
+.sheet-pick .btn { padding: 4px 10px; border-radius: 8px; }
+.sheet-pick .btn.active { background: var(--accent-primary); color: #fff; border-color: transparent; }

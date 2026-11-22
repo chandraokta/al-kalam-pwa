@@ -185,7 +185,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-putar';
+  const BUILD = '2026-11-22-kiri';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2190,11 +2190,11 @@
       });
     });
 
-    // tandai halaman yang sedang dibaca
+    // tandai halaman yang sedang dibaca (selalu, tidak hanya saat terjemahan)
     try {
       for (const box of els.mushafContainer.querySelectorAll('.scan-sheet-box[data-sheet]')) {
         const p = Number(box.dataset.sheet);
-        if (transOnPage && Number.isFinite(p) && p === activePage) box.classList.add('is-active');
+        if (Number.isFinite(p)) box.classList.toggle('is-active', p === activePage);
       }
     } catch { /* abaikan */ }
 
@@ -4004,6 +4004,19 @@
     goPage: (p) => renderPage(p),
     openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); },
     playPageOnce,
+    activeSheetPage: () => {
+      const boxes = [...document.querySelectorAll('.scan-sheet-box[data-sheet]')]
+        .map((b) => Number(b.dataset.sheet)).filter(Number.isFinite);
+      const want = Number(state.activePage);
+      if (boxes.includes(want)) return want;
+      return boxes[0] || state.currentPage;
+    },
+    setActivePage: (p) => {
+      const target = Number(p);
+      if (!Number.isFinite(target)) return;
+      state.activePage = target;
+      renderPage(state.currentPage, true);
+    },
     resolvePageData,
   };
 })();
