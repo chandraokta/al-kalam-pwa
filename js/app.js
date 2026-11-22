@@ -44,6 +44,7 @@
     audioRate: 1,
     loopA: null,
     loopB: null,
+    pagePlayUntil: null,   // putar 1 halaman lalu berhenti
     offlinePages: true,
     bookmarks: new Set(),
     audioPlaying: false,
@@ -184,7 +185,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-tanda';
+  const BUILD = '2026-11-22-putar';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2889,6 +2890,22 @@
     );
   }
 
+  /** Putar seluruh halaman sekali, lalu berhenti di akhir halaman. */
+  async function playPageOnce(page) {
+    await ensurePageIndex();
+    const target = Number(page) || state.currentPage || 1;
+    const list = (state.pageIndex && state.pageIndex.byPage.get(target)) || [];
+    if (!list.length) { showToast('Ayat halaman belum siap', 'error'); return false; }
+    state.pagePlayUntil = target;
+    state.repeatMode = 'off';
+    if (els.audioRepeat) els.audioRepeat.value = 'off';
+    syncAudioExtras();
+    showView('mushaf');
+    await renderPage(target);
+    playAyah(list[0]);
+    return true;
+  }
+
   function syncAudioExtras() {
     if (els.audioRepeat) els.audioRepeat.value = state.repeatMode;
     if (els.audioRepeatCount) els.audioRepeatCount.value = String(state.repeatTimes);
@@ -2983,6 +3000,17 @@
     if (!force && state.audioCurrent && state.audioCurrent.verseKey === verseKey) return;
     const [surah, ayah] = verseKey.split(':').map(Number);
     state.audioCurrent = { surah, ayah, verseKey };
+
+    // mode "putar 1 halaman": berhenti begitu ayat di luar halaman diputar
+    if (state.pagePlayUntil) {
+      const pageNow = state.pageIndex && state.pageIndex.byVerse.get(verseKey);
+      if (pageNow && Number(pageNow) !== Number(state.pagePlayUntil)) {
+        state.pagePlayUntil = null;
+        stopAudio();
+        showToast('Selesai memutar 1 halaman');
+        return;
+      }
+    }
 
     // ayat berganti (bukan karena diulang): setel ulang hitungan ulangan
     if (state._lastPlayed !== verseKey) {
@@ -3975,6 +4003,7 @@
     audio: () => audioEl,
     goPage: (p) => renderPage(p),
     openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); },
+    playPageOnce,
     resolvePageData,
   };
 })();

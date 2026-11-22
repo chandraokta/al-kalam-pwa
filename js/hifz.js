@@ -1088,7 +1088,7 @@
       <button class="btn btn-sm toggle-btn" id="btnMark" title="Tandai kata yang sering salah">Tandai</button>
       <button class="btn btn-sm" id="btnPageOK" title="Tandai halaman ini lancar">Lancar</button>
       <button class="btn btn-sm" id="btnPageRepeat" title="Tandai halaman ini perlu diulang">Ulang</button>
-      <button class="btn btn-sm" id="btnPageLoop" title="Ulangi audio halaman ini">A-B</button>`;
+      <button class="btn btn-sm" id="btnPageLoop" title="Putar seluruh halaman ini sekali">Putar 1 Halaman</button>`;
     bar.parentElement.appendChild(grow);
 
     grow.querySelector('#btnHideMode').addEventListener('click', () => {
@@ -1116,12 +1116,26 @@
       flash('Halaman ' + p + ' masuk daftar ulang');
       render();
     });
-    grow.querySelector('#btnPageLoop').addEventListener('click', toggleLoop);
+    grow.querySelector('#btnPageLoop').addEventListener('click', async () => {
+      const st = window.AlKalam.state;
+      if (st.pagePlayUntil) {
+        st.pagePlayUntil = null;
+        window.AlKalam.stopAudio();
+        syncButtons();
+        flash('Berhenti memutar halaman');
+        return;
+      }
+      const page = st.currentPage || 1;
+      const ok = await window.AlKalam.playPageOnce(page);
+      syncButtons();
+      flash(ok ? `Memutar halaman ${page} — akan berhenti di akhir halaman` : 'Gagal memutar halaman');
+    });
   }
 
   function syncButtons() {
     document.getElementById('btnHideMode')?.classList.toggle('active', S.settings.hideMode !== 'off');
     document.getElementById('btnMark')?.classList.toggle('active', marking);
+    document.getElementById('btnPageLoop')?.classList.toggle('active', !!window.AlKalam.state.pagePlayUntil);
   }
 
   function flash(msg) {
