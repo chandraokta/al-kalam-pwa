@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-hafalan3';
+  const BUILD = '2026-11-22-gabung';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');

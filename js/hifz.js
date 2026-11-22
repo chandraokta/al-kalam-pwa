@@ -365,7 +365,7 @@
 
   // ── Tiga sesi harian: Sabaq (baru) · Sabqi (baru diulang) · Manzil (lama) ──
   const SESSION_LABEL = {
-    sabaq: { name: 'Sabaq', sub: "ba'da Subuh · hafalan baru" },
+    sabaq: { name: 'Sabaq', sub: "ba'da Subuh · hafalan baru hari ini" },
     sabqi: { name: 'Sabqi', sub: "ba'da Asar · ulang 3 hari terakhir" },
     manzil: { name: 'Manzil', sub: "ba'da Isya · hafalan lama (rotasi 2 pekan)" },
   };
@@ -377,20 +377,52 @@
     return S.sessionDone[wk];
   }
 
+  /** Halaman yang memuat rentang ayat tertentu. */
+  function rangePages(surah, from, to) {
+    const pages = new Set();
+    for (let ayah = Number(from); ayah <= Number(to); ayah++) {
+      const pg = pageByVerseHifz.get(`${surah}:${ayah}`);
+      if (pg) pages.add(Number(pg));
+    }
+    return [...pages].sort((a, b) => a - b);
+  }
+
+  function dayWithin(dayStr, n) {
+    const t = new Date(dayStr + 'T00:00:00').getTime();
+    return (Date.now() - t) / DAY <= n;
+  }
+
   function dailySessions() {
     if (!S.program || !Array.isArray(S.program.days)) return null;
     const idx = new Date().getDay();
-    const day = (i) => S.program.days[(i + 7) % 7] || { pages: [] };
-    const sabaq = (day(idx).pages || []).slice();
-    const sabqiSet = new Set();
-    for (let k = 1; k <= 3; k++) for (const pg of (day(idx - k).pages || [])) sabqiSet.add(pg);
-    for (const pg of sabaq) sabqiSet.delete(pg);
-    const sabqi = [...sabqiSet].sort((a, b) => a - b);
+    const mk = (i) => S.program.days[(i + 7) % 7] || { pages: [] };
+    const log = nhState().log || [];
 
+    // Sabaq: halaman yang dihafal HARI INI (mode hafalan baru);
+    // bila belum ada, pakai jatah program pekan hari ini.
+    const todayLog = log.filter((x) => x.day === todayKey());
+    let sabaq = [...new Set(todayLog.flatMap((x) => rangePages(x.surah, x.from, x.to)))];
+    if (!sabaq.length) sabaq = (mk(idx).pages || []).slice();
+
+    // Sabqi: halaman yang dihafal 1-3 hari terakhir.
+    const sabqiSet = new Set();
+    for (const x of log) {
+      if (x.day === todayKey() || !dayWithin(x.day, 3)) continue;
+      for (const pg of rangePages(x.surah, x.from, x.to)) sabqiSet.add(pg);
+    }
+    for (const pg of sabaq) sabqiSet.delete(pg);
+    let sabqi = [...sabqiSet].sort((a, b) => a - b);
+    if (!sabqi.length) {
+      const fb = new Set();
+      for (let k = 1; k <= 3; k++) for (const pg of (mk(idx - k).pages || [])) fb.add(pg);
+      for (const pg of sabaq) fb.delete(pg);
+      sabqi = [...fb].sort((a, b) => a - b);
+    }
+
+    // Manzil: sisa halaman lama dibagi rata ke 7 hari.
     const all = [...new Set(S.program.days.flatMap((d) => d.pages || []))].sort((a, b) => a - b);
     const used = new Set([...sabaq, ...sabqi]);
     const rest = all.filter((pg) => !used.has(pg));
-    // manzil: sisa halaman dibagi rata ke 7 hari (siklus pekan)
     const n = rest.length;
     const from = Math.floor((idx * n) / 7);
     const to = Math.ceil(((idx + 1) * n) / 7);
@@ -404,11 +436,11 @@
     const bucket = sessionDone();
     bucket[idx] = bucket[idx] || {};
     bucket[idx][key] = Date.now();
-    // tandai halaman sesi itu selesai hari ini
-    const pages = (S.program.days[idx].pages || []).slice();
+    const sess = dailySessions();
+    const pages = sess ? (sess[key] || []) : [];
     const rec = dayRec();
     for (const pg of pages) {
-      if (key !== 'sabaq' && !(S.program.days[idx].pages || []).includes(pg)) continue;
+      if (!rec.pages.includes(pg)) rec.pages.push(pg);
       S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
     }
     save();
@@ -608,7 +640,9 @@
     const pct = Math.min(100, Math.round((today / target) * 100));
 
     if (!nh.active) {
-      const cur = window.AlKalam.state.currentSurah || 1;
+      const cur = Number((nh.draft && nh.draft.surah) || window.AlKalam.state.currentSurah || 1);
+      const dFrom = nh.draft && nh.draft.from ? nh.draft.from : '';
+      const dTo = nh.draft && nh.draft.to ? nh.draft.to : '';
       return `<div class="hifz-card nh-card">
         <span class="hifz-k">Hafalan baru</span>
         <span class="hifz-muted">Hari ini: ${today}/${target} ayat · tambahkan hafalan, lalu aplikasi menjadwalkannya.</span>
@@ -617,8 +651,8 @@
           <select id="nhSurah" aria-label="Surah hafalan baru">
             ${chapters.map((c) => `<option value="${c.id}"${c.id === cur ? ' selected' : ''}>${c.id}. ${esc(c.name_simple || '')} (${c.verses_count} ayat)</option>`).join('')}
           </select>
-          <input id="nhFrom" type="number" min="1" placeholder="dari ayat" aria-label="Dari ayat">
-          <input id="nhTo" type="number" min="1" placeholder="sampai ayat" aria-label="Sampai ayat">
+          <input id="nhFrom" type="number" min="1" placeholder="dari ayat" aria-label="Dari ayat" value="${esc(dFrom)}">
+          <input id="nhTo" type="number" min="1" placeholder="sampai ayat" aria-label="Sampai ayat" value="${esc(dTo)}">
           <button class="btn btn-sm btn-primary" data-nh-start>Mulai hafalan</button>
         </div>
         <div class="hifz-actions nh-opts">
@@ -679,6 +713,7 @@
     const from = Number(document.getElementById('nhFrom')?.value) || 1;
     const to = Number(document.getElementById('nhTo')?.value) || from;
     if (!surah || to < from) { flash('Isi surah dan rentang ayat dengan benar'); return; }
+    nhState().draft = { surah, from, to };
     nhState().active = { surah, from, to, step: 1, listens: 0, hides: 0, startedAt: Date.now() };
     save();
     await openVersePage(`${surah}:${from}`);
@@ -804,6 +839,12 @@
     S.scope.ranges.push({ surah: a.surah, from: a.from, to: a.to });
     nhState().log.unshift({ at: Date.now(), day: todayKey(), surah: a.surah, from: a.from, to: a.to, ayahs });
     nhState().log = nhState().log.slice(0, 50);
+    const pages = rangePages(a.surah, a.from, a.to);
+    const rec = dayRec();
+    for (const pg of pages) {
+      if (!rec.pages.includes(pg)) rec.pages.push(pg);
+      S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
+    }
     nhState().active = null;
     save();
     await buildProgram();
@@ -872,6 +913,7 @@
   }
 
   async function renderToday() {
+    await ensureVerseMeta();
     const st = streak();
     const d = dayRec();
     const due = dueVerses(30);
@@ -1415,6 +1457,18 @@
       const hb = document.getElementById('btnHideMode');
       if (hb && !hb.classList.contains('active')) hb.click();
     });
+    const saveDraft = () => {
+      const nh = nhState();
+      nh.draft = {
+        surah: Number(document.getElementById('nhSurah')?.value) || undefined,
+        from: Number(document.getElementById('nhFrom')?.value) || undefined,
+        to: Number(document.getElementById('nhTo')?.value) || undefined,
+      };
+      save();
+    };
+    view.querySelector('#nhSurah')?.addEventListener('change', saveDraft);
+    view.querySelector('#nhFrom')?.addEventListener('input', saveDraft);
+    view.querySelector('#nhTo')?.addEventListener('input', saveDraft);
     view.querySelector('#nhRepeats')?.addEventListener('change', (e) => {
       const nh = nhState();
       nh.repeats = Math.max(1, Math.min(20, Number(e.target.value) || 10));
