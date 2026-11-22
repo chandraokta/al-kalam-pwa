@@ -1121,7 +1121,7 @@
     });
     view.querySelectorAll('[data-train]').forEach((b) => {
       b.addEventListener('click', async () => {
-        await window.AlKalam.goPage(Number(b.dataset.train));
+        await window.AlKalam.openPage(Number(b.dataset.train));
         tab = 'quiz';
         view.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === 'quiz'));
         render();
@@ -1145,10 +1145,12 @@
     });
     view.querySelectorAll('[data-word-loop]').forEach((b) => {
       b.addEventListener('click', async () => {
-        const [vk, pos] = b.dataset.wordLoop.split(':');
+        const parts = b.dataset.wordLoop.split(':');
+        const pos = Number(parts.pop());
+        const vk = parts.join(':');
         const page = pageByVerseHifz.get(vk);
         if (page) await window.AlKalam.openPage(page);
-        setTimeout(() => window.AlKalam.startWordLoop(vk, Number(pos)), 700);
+        setTimeout(() => window.AlKalam.startWordLoop(vk, pos), 700);
       });
     });
     view.querySelectorAll('[data-jump]').forEach((b) => {
@@ -1232,12 +1234,12 @@
         const i = Number(b.dataset.planDay);
         const d = prog.days[i] || { pages: [] };
         const chips = d.pages.map((pg) => `<button class="prog-chip" data-gopage="${pg}">hal. ${pg}</button>`).join('');
-        const ov = openModal(`<div class="mi-head"><span class="mi-name">Murajaah ${DAY_NAMES[i]}</span></div>
+        const ov = window.AlKalam.openModal(`<div class="mi-head"><span class="mi-name">Murajaah ${DAY_NAMES[i]}</span></div>
           <p class="mi-sub">${d.pages.length} halaman${d.pages.length ? ` · hal. ${d.pages[0]}–${d.pages[d.pages.length - 1]}` : ''}</p>
           <div class="prog-chips">${chips || '<span class="hifz-muted">—</span>'}</div>`);
         ov.querySelectorAll('[data-gopage]').forEach((x) => x.addEventListener('click', () => {
           ov.remove();
-          window.AlKalam.goPage(Number(x.dataset.gopage));
+          window.AlKalam.openPage(Number(x.dataset.gopage));
         }));
       });
     });
@@ -1305,7 +1307,7 @@
       });
     }
     view.querySelectorAll('[data-gopage]').forEach((b) => {
-      b.addEventListener('click', () => window.AlKalam.goPage(Number(b.dataset.gopage)));
+      b.addEventListener('click', () => window.AlKalam.openPage(Number(b.dataset.gopage)));
     });
     view.querySelectorAll('[data-juz]').forEach((b) => {
       b.addEventListener('click', () => {
@@ -1321,7 +1323,7 @@
     const start = view.querySelector('[data-hifz="start"]');
     if (start) start.addEventListener('click', async () => {
       const page = window.AlKalam.state.currentPage || 1;
-      await window.AlKalam.goPage(page);
+      await window.AlKalam.openPage(page);
       if (S.settings.hideMode === 'off') S.settings.hideMode = 'kata';
       save();
       document.querySelector('.drawer-item[data-view="mushaf"]')?.click();
@@ -1382,7 +1384,7 @@
   async function startJuz(j) {
     const jp = await juzPages();
     const pages = (jp[j] || []).sort((a, b) => a - b);
-    if (pages.length) window.AlKalam.goPage(pages[0]);
+    if (pages.length) window.AlKalam.openPage(pages[0]);
   }
 
   async function openVerse(vk) {
@@ -1391,7 +1393,7 @@
     const pm = await dm.load('pageMap');
     const pages = pageMapArray(pm);
     const hit = pages.find((p) => (p.verses || []).some((v) => v.surah === s && v.ayah === a));
-    if (hit) window.AlKalam.goPage(hit.page);
+    if (hit) window.AlKalam.openPage(hit.page);
   }
 
   function exportJson() {
