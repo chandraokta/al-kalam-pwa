@@ -2148,3 +2148,7 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .search-scopes .scope-chip.active { background: var(--accent-primary); color: #fff; border-color: transparent; }
 .search-empty { padding: 18px 4px; }
 .search-suggest { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* pencarian: kotak lebih lebar & chip sejajar */
+#viewSearch .search-box { width: 100%; max-width: 680px; }
+#viewSearch .search-box input { width: 100%; }
