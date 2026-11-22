@@ -2181,3 +2181,11 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .profile-btn:hover { border-color: var(--accent-tertiary); color: var(--accent-primary); }
 .profile-btn .pf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf-emoji { font-size: .95rem; }
+
+/* profil: pemilih emoji */
+.pf-emoji-btn { border: none; background: none; cursor: pointer; padding: 0 2px; font-size: 1rem; }
+.pf-emoji-picker { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.pf-emoji-picker[hidden] { display: none; }
+.pf-emoji-picker .pf-emoji { border: 1px solid var(--border-color); border-radius: 8px;
+  padding: 4px 8px; background: var(--bg-card); cursor: pointer; font-size: 1rem; }
+.pf-emoji-picker .pf-emoji:hover { background: var(--accent-light); }
