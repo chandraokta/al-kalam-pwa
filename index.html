@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=2026-11-22-gabung">
+  <link rel="stylesheet" href="css/style.css?v=2026-11-22-ia">
 </head>
 <body>
   <!-- App Shell -->
@@ -163,37 +163,34 @@
             </button>
           </div>
 
-          <div class="home-actions">
-            <button class="home-card" data-go="mushaf">
+          <div class="home-actions home-actions-3">
+            <button class="home-card home-card-lg" data-go="mushaf">
               <span class="home-card-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
               </span>
-              <span class="home-card-label">Mushaf</span>
-              <span class="home-card-hint" id="cardMushafHint">604 halaman</span>
+              <span class="home-card-label">Baca Qur&rsquo;an</span>
+              <span class="home-card-hint" id="cardMushafHint">Mushaf &middot; 604 halaman</span>
             </button>
-            <button class="home-card" data-go="juz">
+            <button class="home-card home-card-lg" data-go="hifz" data-tab="hafal">
               <span class="home-card-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
               </span>
-              <span class="home-card-label">Juz</span>
-              <span class="home-card-hint">30 juz</span>
+              <span class="home-card-label">Tambah Hafalan</span>
+              <span class="home-card-hint">Ayat baru &middot; 3&ndash;20&times;</span>
             </button>
-            <button class="home-card" data-go="search">
+            <button class="home-card home-card-lg" data-go="hifz" data-tab="murajaah">
               <span class="home-card-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7.5"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline></svg>
               </span>
-              <span class="home-card-label">Cari</span>
-              <span class="home-card-hint">Arab · Indonesia</span>
-            </button>
-            <button class="home-card" data-go="bookmarks">
-              <span class="home-card-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-              </span>
-              <span class="home-card-label">Penanda</span>
-              <span class="home-card-hint" id="cardBookmarkHint">0 ayat</span>
+              <span class="home-card-label">Murajaah</span>
+              <span class="home-card-hint">Sabaq &middot; Sabqi &middot; Manzil</span>
             </button>
           </div>
-
+          <div class="home-links">
+            <button class="btn btn-sm" data-go="juz">Juz</button>
+            <button class="btn btn-sm" data-go="search">Cari</button>
+            <button class="btn btn-sm" data-go="bookmarks">Penanda</button>
+          </div>
           <div class="cover-footer">
             <span id="homeNote"></span>
             <span class="cover-credit">Inspirasi: Al-Kalam Digital 2009</span>
@@ -213,11 +210,13 @@
     <section class="view" id="viewHifz" data-view="hifz" role="region" aria-label="Hafalan dan murajaah" hidden>
       <div class="view-header"><h2>Hafalan &amp; Murajaah</h2></div>
       <div class="hifz-tabs" role="tablist">
-        <button class="hifz-tab active" data-hifz-tab="today" role="tab">Hari Ini</button>
-        <button class="hifz-tab" data-hifz-tab="progress" role="tab">Progres</button>
-        <button class="hifz-tab" data-hifz-tab="scope" role="tab">Cakupan</button>
-        <button class="hifz-tab" data-hifz-tab="quiz" role="tab">Uji</button>
-        <button class="hifz-tab" data-hifz-tab="settings" role="tab">Setelan</button>
+        <button class="hifz-tab active" data-hifz-tab="hafal" role="tab">Hafal Baru</button>
+        <button class="hifz-tab" data-hifz-tab="murajaah" role="tab">Murajaah</button>
+        <span class="hifz-tabs-more">
+          <button class="hifz-tab-link" data-goto-tab="scope">Cakupan</button>
+          <button class="hifz-tab-link" data-goto-tab="quiz">Latihan</button>
+          <button class="hifz-tab-link" data-goto-tab="settings">Setelan</button>
+        </span>
       </div>
       <div id="hifzBody"><p class="hifz-muted">Memuat…</p></div>
     </section>
@@ -580,8 +579,26 @@
   </script>
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/app.js?v=2026-11-22-gabung"></script>
-<script src="js/hifz.js?v=2026-11-22-gabung"></script>
-  <script src="js/profiles.js?v=2026-11-22-gabung"></script>
+  <script src="js/app.js?v=2026-11-22-ia"></script>
+<script src="js/hifz.js?v=2026-11-22-ia"></script>
+  <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi utama">
+    <button class="bn-item" data-nav="mushaf" aria-label="Baca Qur'an">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+      <span>Baca</span>
+    </button>
+    <button class="bn-item" data-nav="hafal" aria-label="Hafalan baru">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+      <span>Hafal</span>
+    </button>
+    <button class="bn-item" data-nav="murajaah" aria-label="Murajaah">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline></svg>
+      <span>Murajaah</span>
+    </button>
+    <button class="bn-item" data-nav="lainnya" aria-label="Menu lainnya">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+      <span>Lainnya</span>
+    </button>
+  </nav>
+  <script src="js/profiles.js?v=2026-11-22-ia"></script>
 </body>
 </html>

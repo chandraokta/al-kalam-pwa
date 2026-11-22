@@ -215,7 +215,7 @@
 
   // ── UI ──────────────────────────────────────────────────────────────────
   const el = (id) => document.getElementById(id);
-  let tab = 'today';
+  let tab = 'hafal';
 
   function pageStatusClass(st) {
     return st === 'lancar' ? 'ok' : st === 'lemah' ? 'bad' : st === 'sedang' ? 'mid' : 'none';
@@ -227,7 +227,9 @@
     const body = el('hifzBody');
     if (!body) return;
     view.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === tab));
-    if (tab === 'today') body.innerHTML = await renderToday();
+    if (tab === 'hafal') body.innerHTML = await renderHafal();
+    else if (tab === 'murajaah') body.innerHTML = await renderMurajaah();
+    else if (tab === 'today') body.innerHTML = await renderToday();
     else if (tab === 'progress') body.innerHTML = await renderProgress();
     else if (tab === 'quiz') body.innerHTML = renderQuizHome();
     else if (tab === 'scope') body.innerHTML = await renderScope();
@@ -850,6 +852,49 @@
     await buildProgram();
     render();
     flash(`Hafalan ${a.from}–${a.to} masuk cakupan & jadwal murajaah`);
+  }
+
+  // ── Layar 1: Hafal Baru ────────────────────────────────────────────────
+  async function renderHafal() {
+    await ensureVerseMeta();
+    const nh = nhState();
+    const today = nhTodayCount();
+    const target = Math.max(1, Number(nh.target) || 5);
+    return `
+      <h3 class="hifz-h">Hafalan baru hari ini</h3>
+      <p class="hifz-muted" style="margin-top:-6px">Hari ini: ${today}/${target} ayat. Setelah selesai, hafalan otomatis masuk jadwal murajaah.</p>
+      ${await newHafzCardHtml()}
+      <h3 class="hifz-h">Riwayat hafalan baru</h3>
+      ${newHafzLogHtml()}
+      <div class="hifz-actions">
+        <button class="btn btn-sm" data-goto-tab="scope">Kelola cakupan hafalan</button>
+        <button class="btn btn-sm" data-goto-tab="murajaah">Buka murajaah</button>
+      </div>`;
+  }
+
+  // ── Layar 2: Murajaah ──────────────────────────────────────────────────
+  async function renderMurajaah() {
+    await ensureVerseMeta();
+    return `
+      <h3 class="hifz-h">Murajaah hari ini</h3>
+      ${await programCardHtml()}
+      ${retentionHtml()}
+      <details class="hifz-fold">
+        <summary>Program murajaah 1 pekan</summary>
+        ${await weekPlanHtml()}
+      </details>
+      <div class="hifz-actions">
+        <button class="btn btn-sm" data-goto-tab="scope">Kelola hafalan</button>
+        <button class="btn btn-sm" data-goto-tab="quiz">Latihan (opsional)</button>
+        <button class="btn btn-sm" data-goto-tab="settings">Setelan</button>
+      </div>`;
+  }
+
+  function showTab(t) {
+    tab = t || 'hafal';
+    const view = el('viewHifz');
+    view?.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === tab));
+    render();
   }
 
   async function renderScope() {
@@ -2378,7 +2423,7 @@
     }
   }
 
-  window.AlKalamHifz = {
+  window.AlKalamHifz = { showTab,
     get state() { return S; },
     save, markPageDone, markPageStatus, flagWord, unflagWord, isFlagged,
     srsRate, dueVerses, render, mount, todayKey,

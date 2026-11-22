@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-gabung';
+  const BUILD = '2026-11-22-ia';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2998,6 +2998,7 @@
 
     const [surah, ayah] = verseKey.split(':').map(Number);
     els.audioBar.hidden = false;
+    document.body.classList.add('has-audio');
     document.querySelectorAll('.scan-sheet').forEach(applyPageScale);
     els.audioPlay.hidden = false;
     els.audioPause.hidden = true;
@@ -3297,6 +3298,7 @@
     els.audioPlay.hidden = false;
     els.audioPause.hidden = true;
     if (els.miniStop) els.miniStop.hidden = true;
+    document.body.classList.remove('has-audio');
     els.progressFill.style.width = '0%';
     els.audioTime.textContent = '0:00 / 0:00';
     document.querySelectorAll('.playing').forEach(el => el.classList.remove('playing'));
@@ -3731,6 +3733,30 @@
   // ═══════════════════════════════════════════════════════════════
   function bindEvents() {
     // Drawer
+    // Navigasi bawah: Baca / Hafal / Murajaah / Lainnya
+    document.querySelectorAll('[data-nav]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const nav = b.dataset.nav;
+        if (nav === 'lainnya') { openDrawer(); return; }
+        if (nav === 'mushaf') { showView('mushaf'); return; }
+        showView('hifz');
+        window.AlKalamHifz?.showTab?.(nav === 'hafal' ? 'hafal' : 'murajaah');
+        document.querySelectorAll('[data-nav]').forEach((x) => x.classList.toggle('active', x === b));
+      });
+    });
+    // tautan kecil (Juz/Cari/Penanda) di Awal
+    document.querySelectorAll('[data-go]:not([data-tab])').forEach((b) => {
+      b.addEventListener('click', () => showView(b.dataset.go));
+    });
+    // Kartu "Awal": data-go + data-tab membuka layar Hafal/Murajaah
+    document.querySelectorAll('[data-go][data-tab]').forEach((b) => {
+      b.addEventListener('click', (e) => {
+        e.stopImmediatePropagation();
+        showView('hifz');
+        window.AlKalamHifz?.showTab?.(b.dataset.tab);
+        document.querySelectorAll('[data-nav]').forEach((x) => x.classList.toggle('active', x.dataset.nav === b.dataset.tab));
+      }, true);
+    });
     els.btnMenu.addEventListener('click', openDrawer);
     els.btnCloseDrawer.addEventListener('click', closeDrawer);
     els.drawerOverlay.addEventListener('click', closeDrawer);
