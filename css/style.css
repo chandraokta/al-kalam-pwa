@@ -2152,3 +2152,9 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 /* pencarian: kotak lebih lebar & chip sejajar */
 #viewSearch .search-box { width: 100%; max-width: 680px; }
 #viewSearch .search-box input { width: 100%; }
+
+/* form rentang ayat */
+.range-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.range-form select, .range-form input { padding: 7px 10px; border-radius: var(--radius-md);
+  border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: .84rem; }
+.range-form input[type="number"] { width: 110px; }

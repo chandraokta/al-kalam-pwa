@@ -43,8 +43,9 @@
     pageSrs: {},              // '42' -> { due:ts, ivl:1, reps:0 }  (ulangan tingkat halaman)
     flagged: {},              // '2:255' -> [posisi kata…]
     verses: {},               // '2:255' -> { status:'lancar'|'lemah', last:ts }
-    scope: { juz: [], surah: [] },   // hafalan yang sudah dikuasai
-    program: null,            // { days:[[pages]×7], perDay, total, key }
+    scope: { juz: [], surah: [], ranges: [] },   // hafalan: juz, surat, rentang ayat
+    program: null,            // { chunks:[[pages]…], perDay, total, key }
+    quizLog: [],              // riwayat hasil kuis
     weekly: null,             // [[juz…] × 7] jadwal murajaah
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
@@ -244,7 +245,8 @@
   function scopeKey() {
     const j = [...(S.scope.juz || [])].sort((a, b) => a - b).join(',');
     const u = [...(S.scope.surah || [])].sort((a, b) => a - b).join(',');
-    return `${j}|${u}`;
+    const r = (S.scope.ranges || []).map((x) => `${x.surah}:${x.from}-${x.to}`).sort().join(',');
+    return `${j}|${u}|${r}`;
   }
 
   function scopeEmpty() {
@@ -261,7 +263,11 @@
     for (const p of pm) {
       const verses = p.verses || [];
       if (!verses.length) continue;
-      const hit = verses.some((v) => juzSet.has(Number(v.juz)) || surSet.has(Number(v.surah)));
+      const ranges = S.scope.ranges || [];
+    const inRange = (v) => ranges.some((r) =>
+      Number(r.surah) === Number(v.surah) && Number(v.ayah) >= r.from && Number(v.ayah) <= r.to);
+    const hit = verses.some((v) =>
+      juzSet.has(Number(v.juz)) || surSet.has(Number(v.surah)) || inRange(v));
       if (hit) { pages.push(p.page); ayahs += verses.length; }
     }
     pages.sort((a, b) => a - b);
@@ -298,9 +304,14 @@
   function scopeSummaryText() {
     const juz = (S.scope.juz || []).slice().sort((a, b) => a - b);
     const sur = (S.scope.surah || []).slice().sort((a, b) => a - b);
+    const ranges = S.scope.ranges || [];
+    const chName = (id) => ((chaptersCache || []).find((c) => c.id === Number(id)) || {}).name_simple || `Surah ${id}`;
     const juzTxt = juz.length ? `Juz ${juz.join(', ')}` : '';
     const surTxt = sur.length ? `${sur.length} surat` : '';
-    return [juzTxt, surTxt].filter(Boolean).join(' · ') || 'belum diatur';
+    const rngTxt = ranges.length
+      ? ranges.map((r) => `${chName(r.surah)} ${r.from}–${r.to}`).join(', ')
+      : '';
+    return [juzTxt, surTxt, rngTxt].filter(Boolean).join(' · ') || 'belum diatur';
   }
 
   async function programCardHtml() {
@@ -363,6 +374,22 @@
         <input type="search" id="scopeSearch" class="hifz-input" placeholder="Cari surat…" aria-label="Cari surat">
         <div class="scope-grid scope-grid-surah" id="scopeSurahGrid">${surahChips}</div>
         <div class="hifz-actions"><button class="btn btn-sm" data-scope="none-surah">Kosongkan surat</button></div>
+      </div>
+
+      <div class="hifz-card">
+        <span class="hifz-k">Rentang ayat (opsional)</span>
+        <p class="hifz-muted">Untuk hafalan sebagian, mis. Al-Baqarah ayat 1–20.</p>
+        <div class="range-form">
+          <select id="rangeSurah" aria-label="Surah">
+            ${chapters.map((c) => `<option value="${c.id}">${c.id}. ${esc(c.name_simple || '')}</option>`).join('')}
+          </select>
+          <input id="rangeFrom" type="number" min="1" placeholder="dari ayat" aria-label="Dari ayat">
+          <input id="rangeTo" type="number" min="1" placeholder="sampai ayat" aria-label="Sampai ayat">
+          <button class="btn btn-sm btn-primary" data-scope="add-range">Tambah</button>
+        </div>
+        ${(S.scope.ranges || []).length ? `<div class="hifz-list">${S.scope.ranges.map((r, i) => `
+          <div class="hifz-due wp-row"><span>${esc((chapters.find((c) => c.id === Number(r.surah)) || {}).name_simple || r.surah)} · ayat ${r.from}–${r.to}</span>
+          <span class="wp-actions"><button class="btn btn-sm" data-range-del="${i}">Hapus</button></span></div>`).join('')}</div>` : ''}
       </div>
 
       <div class="hifz-card">
@@ -619,9 +646,26 @@
     return parts.length ? `terbaru: ${parts.join(' · ')} — tekan untuk lihat semua` : 'tekan untuk lihat daftar';
   }
 
-  function flaggedListHtml() {
+  let flagFilter = 'all';
+
+  function flaggedToolsHtml() {
+    const surahs = [...new Set(Object.keys(S.flagged || {}).map((k) => Number(k.split(':')[0])))].sort((a, b) => a - b);
+    if (!surahs.length) return '';
+    return `<div class="range-form">
+      <select id="flagFilter" aria-label="Saring kata ditandai">
+        <option value="all">Semua surah</option>
+        ${surahs.map((id) => `<option value="${id}"${String(flagFilter) === String(id) ? ' selected' : ''}>${esc((chaptersCache || []).find((c) => c.id === id)?.name_simple || ('Surah ' + id))}</option>`).join('')}
+      </select>
+      <button class="btn btn-sm" data-flag-del-all>Hapus semua tanda</button>
+    </div>`;
+  }
+
+  function flaggedListHtml(filter) {
     const items = [];
-    for (const [vk, arr] of Object.entries(S.flagged || {})) for (const pos of arr) items.push({ vk, pos });
+    for (const [vk, arr] of Object.entries(S.flagged || {})) {
+      if (filter && filter !== 'all' && Number(String(vk).split(':')[0]) !== Number(filter)) continue;
+      for (const pos of arr) items.push({ vk, pos });
+    }
     if (!items.length) return `<p class="hifz-muted">Belum ada kata ditandai. Aktifkan tombol "Tandai" lalu klik kata yang sering salah.</p>`;
     const rows = items.slice(0, 20).map(({ vk, pos }, i) => {
       const meta = metaFor(vk);
@@ -718,7 +762,11 @@
         : `<p class="hifz-muted">Belum ada data. Tandai hasil murajaah pada halaman untuk mengisi daftar ini.</p>`}
 
       <h3 class="hifz-h">Kata yang ditandai</h3>
-      ${flaggedListHtml()}
+      ${flaggedToolsHtml()}
+      ${flaggedListHtml(flagFilter)}
+
+      <h3 class="hifz-h">Riwayat uji</h3>
+      ${quizHistoryHtml()}
 
       <h3 class="hifz-h">Cadangan data</h3>
       <div class="hifz-actions">
@@ -737,7 +785,8 @@
         <button class="hifz-due" data-quiz="next">Lanjutkan ayat<span>tebak kata berikutnya</span></button>
         <button class="hifz-due" data-quiz="blank">Lengkapi kata<span>satu kata dihilangkan</span></button>
         <button class="hifz-due" data-quiz="match">Cocokkan terjemahan<span>pilih ayat yang sesuai</span></button>
-        <button class="hifz-due" data-quiz="similar">Ayat serupa<span>bedakan mutashabihat</span></button>
+        <button class="hifz-due" data-quiz="similar">Ayat serupa<span>bedakan mutashihat</span></button>
+        <button class="hifz-due" data-quiz="random">Acak<span>campur seluruh jenis soal</span></button>
       </div>
       <label class="setting-row" style="margin-top:14px"><span>Cakupan soal</span>
         <select id="hifzScope">
@@ -747,6 +796,18 @@
         </select>
       </label>
     `;
+  }
+
+  function quizHistoryHtml() {
+    const log = (S.quizLog || []).slice(0, 5);
+    if (!log.length) return `<p class="hifz-muted">Belum ada hasil uji. Buka tab Uji lalu jawab beberapa soal.</p>`;
+    const kindName = { next: 'Lanjutkan ayat', blank: 'Lengkapi kata', match: 'Cocokkan terjemahan', similar: 'Ayat serupa', random: 'Acak' };
+    return `<div class="hifz-list">${log.map((x) => {
+      const d = new Date(x.at || Date.now());
+      const pct = x.done ? Math.round((x.right / x.done) * 100) : 0;
+      return `<div class="hifz-due wp-row"><span>${kindName[x.kind] || x.kind}
+        <span class="wp-sub">${d.toLocaleDateString('id-ID')} · ${x.right}/${x.done} benar · ${pct}%</span></span></div>`;
+    }).join('')}</div>`;
   }
 
   function renderSettings() {
@@ -783,7 +844,7 @@
       })()}
       <p class="hifz-muted">Pengingat tampil di tab Hari Ini bila sampai sore belum ada murajaah.</p>
 
-      <h3 class="hifz-h">Periksa bacaan (Tilawa · Beta)</h3>
+      <h3 class="hifz-h">Periksa bacaan (Tilawa · Beta · Eksperimental)</h3>
       <div class="hifz-card">
         <span class="hifz-muted">Pengenal bacaan <b>on-device</b> (model ~68 MB, diunduh sekali lalu disimpan browser).
         Ia menandai kata yang salah atau terlewat saat Anda membaca — <b>bukan penilaian</b>, hanya isyarat untuk diperiksa.</span>
@@ -793,9 +854,11 @@
           <li>Bacalah halaman yang sedang terbuka di mushaf dengan tenang; halaman yang diperiksa ditampilkan di status.</li>
           <li>Kata bermasalah muncul di daftar di bawah dan <b>otomatis masuk “Kata ditandai”</b>, sehingga bisa dibuka lagi nanti.</li>
         </ol>
+        <p class="hifz-muted" style="color:#e0b341">Eksperimental: akurasi belum tervalidasi dengan mikrofon nyata. Gunakan sebagai isyarat, bukan penilaian.</p>
         <div class="hifz-actions" style="margin-top:10px">
           <button class="btn btn-sm btn-primary" data-hifz="tilawa">Mulai periksa bacaan</button>
           <button class="btn btn-sm" data-hifz="tilawaStop" hidden>Hentikan</button>
+          <button class="btn btn-sm" data-hifz="micTest">Uji mikrofon</button>
         </div>
         <label class="setting-row" style="margin-top:8px"><span>Model</span>
           ${sel('hifzTilawaTier', s.tilawaTier, [['auto', 'Otomatis'], ['full', 'Penuh (68 MB)'], ['lite', 'Ringan (25 MB)']])}</label>
@@ -883,6 +946,28 @@
         buildProgram().then(() => render());
       });
     });
+    view.querySelector('#flagFilter')?.addEventListener('change', (e) => {
+      flagFilter = e.target.value;
+      render();
+    });
+    view.querySelector('[data-flag-del-all]')?.addEventListener('click', () => {
+      const n = Object.values(S.flagged || {}).reduce((a, b) => a + (b || []).length, 0);
+      if (!n) return;
+      if (!confirm(`Hapus semua ${n} tanda kata?`)) return;
+      S.flagged = {};
+      save();
+      decorate();
+      render();
+      flash('Semua tanda kata dihapus');
+    });
+    view.querySelectorAll('[data-range-del]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const i = Number(b.dataset.rangeDel);
+        (S.scope.ranges || []).splice(i, 1);
+        save();
+        buildProgram().then(() => render());
+      });
+    });
     view.querySelectorAll('[data-scope]').forEach((b) => {
       b.addEventListener('click', async () => {
         const act = b.dataset.scope;
@@ -890,6 +975,19 @@
         else if (act === 'none-juz') S.scope.juz = [];
         else if (act === 'none-surah') S.scope.surah = [];
         else if (act === 'clear') S.scope = { juz: [], surah: [] };
+        else if (act === 'add-range') {
+          const surah = Number(view.querySelector('#rangeSurah')?.value);
+          const from = Number(view.querySelector('#rangeFrom')?.value);
+          const to = Number(view.querySelector('#rangeTo')?.value);
+          if (!surah || !from || !to || from < 1 || to < from) { flash('Isi surah dan rentang ayat dengan benar'); return; }
+          S.scope.ranges = S.scope.ranges || [];
+          S.scope.ranges.push({ surah, from, to });
+          save();
+          await buildProgram();
+          render();
+          flash(`Rentang ditambahkan: ${surah}:${from}–${to}`);
+          return;
+        }
         else if (act === 'build' || act === 'rebuild') {
           const prog = await buildProgram();
           flash(prog ? `Program dibuat: ${prog.total} halaman` : 'Pilih cakupan dulu');
@@ -939,6 +1037,7 @@
     view.querySelector('[data-hifz="record"]')?.addEventListener('click', toggleRecording);
     view.querySelector('[data-hifz="tilawa"]')?.addEventListener('click', startTilawa);
     view.querySelector('[data-hifz="tilawaStop"]')?.addEventListener('click', stopTilawa);
+    view.querySelector('[data-hifz="micTest"]')?.addEventListener('click', testMic);
 
     const exp = view.querySelector('[data-hifz="export"]');
     if (exp) exp.addEventListener('click', exportJson);
@@ -1016,6 +1115,12 @@
       try {
         const d = JSON.parse(String(fr.result));
         if (!d || typeof d !== 'object' || !d.settings) throw new Error('format');
+        const nPages = Object.keys(d.pages || {}).length;
+        const nFlag = Object.values(d.flagged || {}).reduce((a, b) => a + (b || []).length, 0);
+        const nDays = Object.keys(d.days || {}).length;
+        const ok = confirm('Impor data hafalan?\n\nData saat ini akan DIGANTI.\n' +
+          `Halaman: ${nPages} · Kata ditandai: ${nFlag} · Hari tercatat: ${nDays}`);
+        if (!ok) { render(); return; }
         S = Object.assign(emptyState(), d, { settings: Object.assign(emptyState().settings, d.settings) });
         save();
         render();
@@ -1041,6 +1146,39 @@
     row.className = 'hifz-due' + (kind === 'bad' ? ' bad' : '');
     row.textContent = text;
     box.prepend(row);
+  }
+
+  /** Uji cepat: apakah mikrofon menghasilkan suara? */
+  async function testMic() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      tilawaStatus('Browser tidak mendukung mikrofon');
+      return;
+    }
+    tilawaStatus('Meminta izin mikrofon…');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      const src = ctx.createMediaStreamSource(stream);
+      const an = ctx.createAnalyser();
+      an.fftSize = 1024;
+      src.connect(an);
+      const buf = new Float32Array(an.fftSize);
+      let peak = 0;
+      const t0 = performance.now();
+      while (performance.now() - t0 < 2000) {
+        an.getFloatTimeDomainData(buf);
+        for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      stream.getTracks().forEach((t) => t.stop());
+      try { await ctx.close(); } catch { /* abaikan */ }
+      if (peak > 0.02) tilawaStatus(`Mikrofon OK — level suara ${peak.toFixed(2)}`);
+      else if (peak > 0.002) tilawaStatus(`Mikrofon terdeteksi, suara lemah (${peak.toFixed(3)})`);
+      else tilawaStatus('Mikrofon terdeteksi tetapi senyap — periksa input perangkat');
+    } catch (e) {
+      tilawaStatus('Gagal mengakses mikrofon: ' + (e && e.message ? e.message : e));
+    }
   }
 
   async function startTilawa() {
@@ -1220,6 +1358,7 @@
   }
 
   async function buildQuizQuestion(kind) {
+    const wantRandom = kind === 'random';
     const dm = window.AlKalam.DataManager;
     const { page, keys } = await pageVerseKeys();
     if (!keys.length) { window.AlKalamHifz.flash('Ayat halaman belum siap'); return; }
@@ -1228,6 +1367,14 @@
     ]);
     const body = el('hifzBody');
     if (!body) return;
+
+    // acak: pilih hanya jenis yang datanya tersedia di halaman ini
+    if (wantRandom) {
+      const pool = ['match'];
+      if (keys.some((k) => (words[k] || []).length >= 3)) pool.push('next', 'blank');
+      if (keys.some((k) => similar && similar[k])) pool.push('similar');
+      kind = pool[rnd(pool.length)];
+    }
 
     const vkOf = (vk) => {
       const [s2, a2] = vk.split(':').map(Number);
@@ -1344,6 +1491,12 @@
     const body = el('hifzBody');
     if (!body) return;
     const q = quizSession || { kind: 'next', done: 0, right: 0, wrong: 0, total: QUIZ_TOTAL };
+    if (quizSession && q.done > 0) {
+      S.quizLog = Array.isArray(S.quizLog) ? S.quizLog : [];
+      S.quizLog.unshift({ at: Date.now(), kind: q.kind, done: q.done, right: q.right, wrong: q.wrong });
+      S.quizLog = S.quizLog.slice(0, 20);
+      save();
+    }
     const pct = q.done ? Math.round((q.right / q.done) * 100) : 0;
     body.innerHTML = `
       <div class="qz-card qz-done">
