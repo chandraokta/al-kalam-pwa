@@ -2289,3 +2289,14 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   background: var(--bg-card); padding: 8px 12px; }
 .hifz-fold summary { cursor: pointer; font-weight: 600; font-size: .86rem; color: var(--text-secondary); }
 .hifz-fold[open] summary { margin-bottom: 8px; }
+
+/* panel Alat & panduan */
+.mushaf-tools { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 4px 0;
+  border-top: 1px dashed var(--border-color); margin-top: 8px; }
+.mushaf-tools[hidden] { display: none; }
+.ob-step { display: flex; gap: 12px; padding: 10px 0; border-top: 1px dashed var(--border-color); }
+.ob-step:first-of-type { border-top: none; }
+.ob-no { width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; display: grid;
+  place-items: center; background: var(--accent-primary); color: #fff; font-weight: 700; font-size: .8rem; }
+.ob-step b { display: block; margin-bottom: 2px; }
+.ob-step p { margin: 0; font-size: .84rem; color: var(--text-secondary); line-height: 1.5; }

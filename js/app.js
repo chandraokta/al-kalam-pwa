@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-22-ia';
+  const BUILD = '2026-11-22-ia2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3758,6 +3758,26 @@
       }, true);
     });
     els.btnMenu.addEventListener('click', openDrawer);
+
+    // Panel "Alat" pada toolbar mushaf
+    const btnTools = $('btnTools');
+    const toolsPanel = $('mushafTools');
+    btnTools?.addEventListener('click', () => {
+      if (!toolsPanel) return;
+      toolsPanel.hidden = !toolsPanel.hidden;
+      btnTools.setAttribute('aria-expanded', String(!toolsPanel.hidden));
+      btnTools.textContent = toolsPanel.hidden ? 'Alat ▾' : 'Alat ▴';
+    });
+
+    // Panduan singkat (3 langkah)
+    $('menuGuide')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeDrawer();
+      localStorage.removeItem('alkalam_onboarded');
+      showOnboarding(true);
+    });
+    setTimeout(() => showOnboarding(false), 1200);
+
     els.btnCloseDrawer.addEventListener('click', closeDrawer);
     els.drawerOverlay.addEventListener('click', closeDrawer);
     els.drawerItems.forEach(item => {
@@ -4249,6 +4269,31 @@
   }
   
   // Expose for debugging
+  /** Panduan 3 langkah untuk pengguna baru (sekali saja). */
+  function showOnboarding(force) {
+    if (!force && localStorage.getItem('alkalam_onboarded') === '1') return;
+    const ov = openModal(`
+      <div class="ob">
+        <div class="ob-step"><span class="ob-no">1</span><div><b>Baca Qur'an</b>
+          <p>Mushaf per halaman, 7 qari, terjemahan, tafsir, dan tajwid. Tekan tombol <b>Putar</b> di bawah untuk mendengarkan.</p></div></div>
+        <div class="ob-step"><span class="ob-no">2</span><div><b>Tambah hafalan</b>
+          <p>Pilih surah &amp; ayat, atur ulangan sampai 20&times;, nyalakan transliterasi bila perlu. Aplikasi memandu 4 langkah sampai selesai.</p></div></div>
+        <div class="ob-step"><span class="ob-no">3</span><div><b>Murajaah otomatis</b>
+          <p>Setelah hafal, halaman masuk jadwal: <b>Sabaq</b> hari ini, <b>Sabqi</b> 1&ndash;3 hari, lalu <b>Manzil</b> bergilir tiap pekan.</p></div></div>
+      </div>
+      <div class="hifz-actions" style="margin-top:14px">
+        <button class="btn btn-primary" data-ob="hafal">Mulai dengan hafalan</button>
+        <button class="btn" data-ob="baca">Baca Qur'an dulu</button>
+        <button class="btn" data-ob="close">Tutup</button>
+      </div>`);
+    const done = () => { localStorage.setItem('alkalam_onboarded', '1'); ov.remove(); };
+    ov.querySelector('[data-ob="hafal"]')?.addEventListener('click', () => {
+      done(); showView('hifz'); window.AlKalamHifz?.showTab?.('hafal');
+    });
+    ov.querySelector('[data-ob="baca"]')?.addEventListener('click', () => { done(); showView('mushaf'); });
+    ov.querySelector('[data-ob="close"]')?.addEventListener('click', done);
+  }
+
   window.AlKalam = {
     state,
     DataManager,
@@ -4258,6 +4303,7 @@
     goPage: (p) => renderPage(p),
     openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); },
     playPageOnce,
+    showOnboarding,
     openModal,
     ayahTimes,
     startWordLoop,

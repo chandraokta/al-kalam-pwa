@@ -2205,7 +2205,7 @@
   function mushafRoot() { return document.getElementById('mushafContainer'); }
 
   function injectToolbar() {
-    const bar = document.querySelector('.mushaf-toolbar .toolbar-group');
+    const bar = document.getElementById('mushafTools') || document.querySelector('.mushaf-toolbar .toolbar-group');
     if (!bar || document.getElementById('btnHideMode')) return;
     const grow = document.createElement('div');
     grow.className = 'toolbar-group hifz-tools';
