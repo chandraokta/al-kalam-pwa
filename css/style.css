@@ -2117,3 +2117,20 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 @media (hover: hover) {
   .scan-sheet-box[data-sheet]:hover .scan-sheet { box-shadow: 0 0 0 1px var(--border-color); }
 }
+
+/* cakupan hafalan + program murajaah */
+.scope-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.scope-grid-surah { max-height: 240px; overflow-y: auto; padding: 2px; }
+.scope-chip { font: inherit; font-size: .78rem; padding: 5px 10px; cursor: pointer;
+  border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-card);
+  color: var(--text-secondary); }
+.scope-chip:hover { border-color: var(--accent-tertiary); }
+.scope-chip.active { background: var(--accent-primary); border-color: transparent; color: #fff; }
+.hifz-input { width: 100%; padding: 8px 12px; margin: 6px 0; border-radius: var(--radius-md);
+  border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font: inherit; }
+.prog-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.prog-chip { font: inherit; font-size: .8rem; padding: 6px 12px; cursor: pointer;
+  border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-card);
+  color: var(--text-secondary); }
+.prog-chip:hover { background: var(--accent-light); border-color: var(--accent-tertiary); }
+.prog-chip.done { background: var(--accent-light); border-color: var(--accent-secondary); color: var(--accent-primary); }

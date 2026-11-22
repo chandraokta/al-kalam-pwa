@@ -43,6 +43,8 @@
     pageSrs: {},              // '42' -> { due:ts, ivl:1, reps:0 }  (ulangan tingkat halaman)
     flagged: {},              // '2:255' -> [posisi kata…]
     verses: {},               // '2:255' -> { status:'lancar'|'lemah', last:ts }
+    scope: { juz: [], surah: [] },   // hafalan yang sudah dikuasai
+    program: null,            // { days:[[pages]×7], perDay, total, key }
     weekly: null,             // [[juz…] × 7] jadwal murajaah
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
@@ -221,11 +223,157 @@
     if (!view) return;
     const body = el('hifzBody');
     if (!body) return;
+    view.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === tab));
     if (tab === 'today') body.innerHTML = await renderToday();
     else if (tab === 'progress') body.innerHTML = await renderProgress();
     else if (tab === 'quiz') body.innerHTML = renderQuizHome();
+    else if (tab === 'scope') body.innerHTML = await renderScope();
     else body.innerHTML = renderSettings();
     bind();
+  }
+
+  // ── Cakupan hafalan + program murajaah ────────────────────────────────
+  let pageMapCache = null;
+  async function loadPageMap() {
+    if (pageMapCache) return pageMapCache;
+    try { pageMapCache = await window.AlKalam.DataManager.load('pageMap'); }
+    catch { pageMapCache = []; }
+    return pageMapCache || [];
+  }
+
+  function scopeKey() {
+    const j = [...(S.scope.juz || [])].sort((a, b) => a - b).join(',');
+    const u = [...(S.scope.surah || [])].sort((a, b) => a - b).join(',');
+    return `${j}|${u}`;
+  }
+
+  function scopeEmpty() {
+    return !(S.scope.juz || []).length && !(S.scope.surah || []).length;
+  }
+
+  /** Halaman & ayat yang termasuk cakupan hafalan. */
+  async function computeScope() {
+    const pm = await loadPageMap();
+    const juzSet = new Set((S.scope.juz || []).map(Number));
+    const surSet = new Set((S.scope.surah || []).map(Number));
+    const pages = [];
+    let ayahs = 0;
+    for (const p of pm) {
+      const verses = p.verses || [];
+      if (!verses.length) continue;
+      const hit = verses.some((v) => juzSet.has(Number(v.juz)) || surSet.has(Number(v.surah)));
+      if (hit) { pages.push(p.page); ayahs += verses.length; }
+    }
+    pages.sort((a, b) => a - b);
+    return { pages, ayahs };
+  }
+
+  /** Bagi halaman cakupan menjadi potongan berisi perDay halaman. */
+  async function buildProgram() {
+    const { pages } = await computeScope();
+    if (!pages.length) { S.program = null; save(); return null; }
+    const perDay = Math.max(1, Number(S.settings.pageTarget) || 1);
+    const chunks = [];
+    for (let i = 0; i < pages.length; i += perDay) chunks.push(pages.slice(i, i + perDay));
+    S.program = { chunks, perDay, total: pages.length, key: scopeKey(), at: Date.now() };
+    save();
+    return S.program;
+  }
+
+  async function ensureProgram() {
+    if (!scopeEmpty() && S.program && S.program.key === scopeKey()) return S.program;
+    if (scopeEmpty()) { S.program = null; return null; }
+    return buildProgram();
+  }
+
+  /** Halaman program untuk hari ini (satu potongan per hari, bergilir). */
+  function programToday() {
+    if (!S.program || !Array.isArray(S.program.chunks) || !S.program.chunks.length) return [];
+    const weeks = Math.floor(Date.now() / (7 * DAY));
+    const idx = new Date().getDay();                 // 0 = Ahad
+    const pos = ((weeks * 7 + idx) % S.program.chunks.length + S.program.chunks.length) % S.program.chunks.length;
+    return S.program.chunks[pos] || [];
+  }
+
+  function scopeSummaryText() {
+    const juz = (S.scope.juz || []).slice().sort((a, b) => a - b);
+    const sur = (S.scope.surah || []).slice().sort((a, b) => a - b);
+    const juzTxt = juz.length ? `Juz ${juz.join(', ')}` : '';
+    const surTxt = sur.length ? `${sur.length} surat` : '';
+    return [juzTxt, surTxt].filter(Boolean).join(' · ') || 'belum diatur';
+  }
+
+  async function programCardHtml() {
+    if (scopeEmpty()) {
+      return `<div class="hifz-card">
+        <span class="hifz-k">Program murajaah</span>
+        <span class="hifz-muted">Isi dulu hafalan yang sudah Anda kuasai (juz atau surat), nanti programnya dibuat otomatis.</span>
+        <div class="hifz-actions"><button class="btn btn-sm btn-primary" data-goto-tab="scope">Atur cakupan hafalan</button></div>
+      </div>`;
+    }
+    const prog = await ensureProgram();
+    const today = programToday();
+    const done = new Set(dayRec().pages || []);
+    const chips = today.map((p) => {
+      const ok = done.has(p);
+      return `<button class="prog-chip${ok ? ' done' : ''}" data-gopage="${p}">${ok ? '✓ ' : ''}hal. ${p}</button>`;
+    }).join('');
+    const doneCount = today.filter((p) => done.has(p)).length;
+    return `<div class="hifz-card">
+      <span class="hifz-k">Program murajaah hari ini</span>
+      <strong class="hifz-v">${doneCount} / ${today.length} halaman</strong>
+      <span class="hifz-muted">Cakupan: ${esc(scopeSummaryText())} · ${prog ? prog.total : 0} halaman total · ${S.settings.pageTarget || 1} halaman/hari</span>
+      <div class="prog-chips">${chips || '<span class="hifz-muted">Tidak ada jatah hari ini.</span>'}</div>
+      <div class="hifz-actions">
+        <button class="btn btn-sm" data-goto-tab="scope">Ubah cakupan</button>
+        <button class="btn btn-sm" data-scope="rebuild">Buat ulang program</button>
+      </div>
+    </div>`;
+  }
+
+  async function renderScope() {
+    await ensureVerseMeta();
+    const chapters = chaptersCache || [];
+    const { pages, ayahs } = await computeScope();
+    const prog = await ensureProgram();
+
+    const juzChips = Array.from({ length: 30 }, (_, i) => i + 1).map((j) =>
+      `<button class="scope-chip${(S.scope.juz || []).includes(j) ? ' active' : ''}" data-scope-juz="${j}">Juz ${j}</button>`
+    ).join('');
+
+    const surahChips = chapters.map((c) =>
+      `<button class="scope-chip${(S.scope.surah || []).includes(c.id) ? ' active' : ''}" data-scope-surah="${c.id}" data-name="${esc((c.name_simple || '').toLowerCase())}">
+        ${c.id}. ${esc(c.name_simple || '')}</button>`
+    ).join('');
+
+    return `
+      <h3 class="hifz-h">Hafalan yang sudah dikuasai</h3>
+      <p class="hifz-muted">Pilih juz dan/atau surat yang sudah Anda hafal. Aplikasi akan menyusun
+        program murajaah otomatis: ${S.settings.pageTarget || 1} halaman per hari, bergilir tiap minggu.</p>
+
+      <div class="hifz-card">
+        <span class="hifz-k">Juz</span>
+        <div class="scope-grid">${juzChips}</div>
+        <div class="hifz-actions"><button class="btn btn-sm" data-scope="all-juz">Pilih semua juz</button>
+          <button class="btn btn-sm" data-scope="none-juz">Kosongkan juz</button></div>
+      </div>
+
+      <div class="hifz-card">
+        <span class="hifz-k">Surat</span>
+        <input type="search" id="scopeSearch" class="hifz-input" placeholder="Cari surat…" aria-label="Cari surat">
+        <div class="scope-grid scope-grid-surah" id="scopeSurahGrid">${surahChips}</div>
+        <div class="hifz-actions"><button class="btn btn-sm" data-scope="none-surah">Kosongkan surat</button></div>
+      </div>
+
+      <div class="hifz-card">
+        <span class="hifz-k">Ringkasan</span>
+        <strong class="hifz-v">${pages.length} halaman · ${ayahs} ayat</strong>
+        <span class="hifz-muted">Cakupan: ${esc(scopeSummaryText())}${prog ? ` · program ${prog.total} halaman` : ''}</span>
+        <div class="hifz-actions">
+          <button class="btn btn-sm btn-primary" data-scope="build">Buat program murajaah</button>
+          <button class="btn btn-sm" data-scope="clear">Hapus cakupan</button>
+        </div>
+      </div>`;
   }
 
   async function renderToday() {
@@ -279,6 +427,9 @@
         ${juzCard}
         ${weekCard}
       </div>
+
+      <h3 class="hifz-h">Program murajaah</h3>
+      ${await programCardHtml()}
 
       <h3 class="hifz-h">Ulangan hari ini</h3>
       <div class="hifz-list">${dueHtml}</div>
@@ -713,6 +864,54 @@
         }, 700);
       });
     });
+    view.querySelectorAll('[data-scope-juz]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const j = Number(b.dataset.scopeJuz);
+        const arr = S.scope.juz || (S.scope.juz = []);
+        const i = arr.indexOf(j);
+        if (i >= 0) arr.splice(i, 1); else arr.push(j);
+        save();
+        buildProgram().then(() => render());
+      });
+    });
+    view.querySelectorAll('[data-scope-surah]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const id = Number(b.dataset.scopeSurah);
+        const arr = S.scope.surah || (S.scope.surah = []);
+        const i = arr.indexOf(id);
+        if (i >= 0) arr.splice(i, 1); else arr.push(id);
+        save();
+        buildProgram().then(() => render());
+      });
+    });
+    view.querySelectorAll('[data-scope]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const act = b.dataset.scope;
+        if (act === 'all-juz') S.scope.juz = Array.from({ length: 30 }, (_, i) => i + 1);
+        else if (act === 'none-juz') S.scope.juz = [];
+        else if (act === 'none-surah') S.scope.surah = [];
+        else if (act === 'clear') S.scope = { juz: [], surah: [] };
+        else if (act === 'build' || act === 'rebuild') {
+          const prog = await buildProgram();
+          flash(prog ? `Program dibuat: ${prog.total} halaman` : 'Pilih cakupan dulu');
+          if (prog) { tab = 'today'; }
+        }
+        save();
+        await (act === 'build' || act === 'rebuild' ? Promise.resolve() : buildProgram());
+        render();
+      });
+    });
+    const scopeSearch = view.querySelector('#scopeSearch');
+    if (scopeSearch) {
+      scopeSearch.addEventListener('input', () => {
+        const q = scopeSearch.value.trim().toLowerCase();
+        view.querySelectorAll('[data-scope-surah]').forEach((chip) => {
+          const name = chip.dataset.name || '';
+          const id = chip.dataset.scopeSurah;
+          chip.hidden = !!q && !name.includes(q) && !id.startsWith(q);
+        });
+      });
+    }
     view.querySelectorAll('[data-gopage]').forEach((b) => {
       b.addEventListener('click', () => window.AlKalam.goPage(Number(b.dataset.gopage)));
     });
