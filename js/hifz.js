@@ -404,6 +404,33 @@
     return plan;
   }
 
+  // cache data ayat & surat untuk keterangan juz/surat
+  let versesCache = null;
+  let chaptersCache = null;
+  async function ensureVerseMeta() {
+    if (versesCache && chaptersCache) return;
+    try {
+      const [vs, ch] = await Promise.all([
+        window.AlKalam.DataManager.load('verses'),
+        window.AlKalam.DataManager.load('chapters'),
+      ]);
+      versesCache = vs || {};
+      chaptersCache = ch || [];
+    } catch { versesCache = versesCache || {}; chaptersCache = chaptersCache || []; }
+  }
+  function metaFor(verseKey) {
+    const [surah, ayah] = String(verseKey).split(':').map(Number);
+    const arr = versesCache && versesCache[String(surah)];
+    const v = arr && arr.find((x) => x.verse_number === ayah);
+    const ch = chaptersCache && chaptersCache.find((c) => c.id === surah);
+    return {
+      surah, ayah,
+      juz: v && v.juz_number ? v.juz_number : null,
+      name: (ch && ch.name_simple) || `Surah ${surah}`,
+      page: pageByVerseHifz.get(verseKey) || null,
+    };
+  }
+
   // cache arti kata (untuk menampilkan kata yang ditandai)
   let wordsCache = null;
   async function ensureWords() {
@@ -448,18 +475,24 @@
     for (const [vk, arr] of Object.entries(S.flagged || {})) for (const pos of arr) items.push({ vk, pos });
     if (!items.length) return `<p class="hifz-muted">Belum ada kata ditandai. Aktifkan tombol "Tandai" lalu klik kata yang sering salah.</p>`;
     const rows = items.slice(0, 20).map(({ vk, pos }, i) => {
-      const page = pageByVerseHifz.get(vk);
+      const meta = metaFor(vk);
       const w = wordAt(vk, pos);
       const kata = w
         ? `<span class="fw-ar" dir="rtl">${w.ar || ''}</span>` +
           `${w.tl ? `<span class="fw-tl">${w.tl}</span>` : ''}` +
           `${w.tr ? `<span class="fw-tr">${w.tr}</span>` : ''}`
         : `<span class="fw-tr">kata ${pos}</span>`;
+      const where = [
+        meta.juz ? `Juz ${meta.juz}` : null,
+        meta.name,
+        `ayat ${meta.ayah}`,
+        meta.page ? `hal. ${meta.page}` : null,
+      ].filter(Boolean).join(' · ');
       return `<div class="hifz-due wp-row">
-        <span><span class="wp-idx">${i + 1}</span>${vk} · ${kata}
-        <span class="wp-sub">${page ? `halaman ${page} · ` : ''}salah baca</span></span>
+        <span><span class="wp-idx">${i + 1}</span>${kata}
+        <span class="wp-sub">${where}</span></span>
         <span class="wp-actions">
-          ${page ? `<button class="btn btn-sm btn-primary" data-jump="${vk}:${page}">Ke halaman ${page}</button>` : ''}
+          ${meta.page ? `<button class="btn btn-sm btn-primary" data-jump="${vk}:${meta.page}">Ke halaman ${meta.page}</button>` : ''}
           <button class="btn btn-sm" data-open="${vk}">Ayat</button>
           <button class="btn btn-sm" data-unflag="${vk}:${pos}">Hapus</button>
         </span></div>`;
@@ -1281,6 +1314,7 @@
     load();
     ensurePageIndexHifz().then(() => render());
     ensureWords().then(() => render());
+    ensureVerseMeta().then(() => render());
     render();
     initMushaf();
     window.AlKalamHifz.applyHideMode = decorate;
