@@ -2189,3 +2189,7 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .pf-emoji-picker .pf-emoji { border: 1px solid var(--border-color); border-radius: 8px;
   padding: 4px 8px; background: var(--bg-card); cursor: pointer; font-size: 1rem; }
 .pf-emoji-picker .pf-emoji:hover { background: var(--accent-light); }
+
+/* profil: picker emoji melebar di bawah baris */
+#profileModal .wp-row { flex-wrap: wrap; }
+#profileModal .pf-emoji-picker { flex-basis: 100%; display: grid; grid-template-columns: repeat(6, 1fr); }
