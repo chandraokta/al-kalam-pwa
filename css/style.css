@@ -2173,3 +2173,11 @@ html.in-mushaf, html.in-mushaf body { overflow: hidden; height: 100%; }
 .wp-row.today { border-color: var(--accent-tertiary); }
 .wp-ok { color: var(--accent-primary); font-size: .78rem; }
 @media (max-width: 640px) { .week-strip { grid-template-columns: repeat(4, 1fr); } }
+
+/* profil anggota keluarga */
+.profile-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+  border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-card);
+  color: var(--text-secondary); font: inherit; font-size: .8rem; cursor: pointer; max-width: 140px; }
+.profile-btn:hover { border-color: var(--accent-tertiary); color: var(--accent-primary); }
+.profile-btn .pf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-emoji { font-size: .95rem; }

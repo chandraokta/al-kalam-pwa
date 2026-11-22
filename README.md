@@ -61,6 +61,7 @@ semua data disimpan sebagai `.json.gz` dan dimuat sesuai kebutuhan.
 - **Uji:** lanjutkan ayat, lengkapi kata, cocokkan terjemahan, ayat serupa — cakupan halaman/surah/juz
 - **Di mushaf:** Sembunyi (kata/ayat), Tandai (kata salah), Lancar/Ulang (halaman), A-B (ulangi audio), nomor ayat = penilaian ayat
 - **Dengar juz**, **rekam bacaan** (MediaRecorder), **Tilawa (Beta)** — pengenal bacaan on-device
+- **Profil anggota keluarga**: satu perangkat, banyak pengguna — hafalan, setelan, penanda, dan posisi baca terpisah per profil
 
 ## Data
 
