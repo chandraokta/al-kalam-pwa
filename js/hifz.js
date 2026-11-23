@@ -1384,13 +1384,13 @@
     return `
       <h3 class="hifz-h">Setelan hafalan</h3>
       <label class="setting-row"><span>Target halaman/hari</span>
-        <input id="hifzTarget" type="number" min="1" max="20" value="${s.pageTarget}"></label>
+        ${sel('hifzTarget', String(s.pageTarget), [['1', '1 halaman'], ['2', '2 halaman'], ['3', '3 halaman'], ['5', '5 halaman'], ['10', '10 halaman'], ['20', '20 halaman']])}</label>
       <label class="setting-row"><span>Mode sembunyikan</span>
         ${sel('hifzHide', s.hideMode, [['off', 'Mati'], ['kata', 'Sembunyikan kata'], ['ayat', 'Sembunyikan ayat']])}</label>
       <label class="setting-row"><span>Ulangan A-B (kali)</span>
         ${sel('hifzRepeat', String(s.repeatCount), [['3', '3×'], ['5', '5×'], ['10', '10×'], ['20', '20×']])}</label>
-      <label class="setting-row"><span>Jeda antar ulangan (ms)</span>
-        <input id="hifzPause" type="number" min="0" max="10000" step="250" value="${s.repeatPause}"></label>
+      <label class="setting-row"><span>Jeda antar ulangan</span>
+        ${sel('hifzPause', String(s.repeatPause), [['500', '0,5 detik'], ['1000', '1 detik'], ['1500', '1,5 detik'], ['2000', '2 detik'], ['3000', '3 detik'], ['5000', '5 detik']])}</label>
       <label class="setting-row"><span>Kecepatan audio</span>
         ${sel('hifzRate', s.audioRate, [['0.75', '0,75×'], ['0.9', '0,9×'], ['1', '1×'], ['1.25', '1,25×'], ['1.5', '1,5×']])}</label>
       <label class="setting-row"><span>Pengingat harian</span>
@@ -1741,9 +1741,9 @@
       const input = view.querySelector(`#${id}`);
       if (input) input.addEventListener('change', () => { S.settings[key] = fn(input.value); save(); render(); });
     };
-    bindNum('hifzTarget', 'pageTarget', (v) => clamp(Number(v) || 1, 1, 20));
+    bindNum('hifzTarget', 'pageTarget', (v) => { const n = Number(v) || 1; return [1,2,3,5,10,20].includes(n) ? n : 1; });
     bindNum('hifzRepeat', 'repeatCount', (v) => { const n = Number(v) || 3; return [3,5,10,20].includes(n) ? n : 3; });
-    bindNum('hifzPause', 'repeatPause', (v) => clamp(Number(v) || 0, 0, 10000));
+    bindNum('hifzPause', 'repeatPause', (v) => { const n = Number(v) || 1500; return [500,1000,1500,2000,3000,5000].includes(n) ? n : 1500; });
     const hide = view.querySelector('#hifzHide');
     if (hide) hide.addEventListener('change', () => { S.settings.hideMode = hide.value; save(); decorate(); syncButtons(); });
     const remindHour = view.querySelector('#hifzRemindHour');

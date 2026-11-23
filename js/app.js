@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-seragam';
+  const BUILD = '2026-11-23-seragam2';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
