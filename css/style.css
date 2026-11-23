@@ -352,10 +352,10 @@ svg { display: inline-block; vertical-align: middle; }
 /* ── kepala halaman: surat · nomor halaman · juz ── */
 .page-head {
   position: absolute;
-  top: calc(var(--bw) + 6px);
-  left: calc(var(--bw) + 14px);
-  right: calc(var(--bw) + 14px);
-  height: calc(var(--msize, 32px) * 0.6);
+  top: 2px;
+  left: calc(var(--bw) + 16px);
+  right: calc(var(--bw) + 16px);
+  height: 18px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;

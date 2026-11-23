@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-seragam2';
+  const BUILD = '2026-11-23-qulframe';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1763,72 +1763,65 @@
   }
 
 
-  // ── Bingkai ornamen kaligrafi (SVG, tebal, tanpa gerigi) ──
+  // ── Bingkai halaman bergaya mushaf Madani/QUL (arabesque hijau–pink) ──
   let curlSeq = 0;
   function curlFrameSvg() {
     const W = 720, H = 1022;
-    const mSide = 22, mTop = 38, mBottom = 20, r = 26;
+    const m = 20;                 // jarak bingkai dari tepi lembar
+    const band = 24;              // lebar pita ornamen
+    const x0 = m, y0 = m, x1 = W - m, y1 = H - m;
     const id = `curl${++curlSeq}`;
-    const x0 = mSide, y0 = mTop, x1 = W - mSide, y1 = H - mBottom;
 
-    const rect = (k, sw, op, color) =>
-      `<rect x="${x0 + k}" y="${y0 + k}" width="${x1 - x0 - 2 * k}" height="${y1 - y0 - 2 * k}" ` +
-      `rx="${Math.max(10, r - k)}" fill="none" stroke="${color}" stroke-width="${sw}" opacity="${op}"/>`;
+    // motif sulur + bunga, diulang sebagai pattern
+    const tile = `
+      <rect width="40" height="${band}" fill="#f7f3e2"/>
+      <path d="M0 ${band - 5} C 9 ${band - 5} 11 5 23 5 C 35 5 37 ${band - 5} 46 ${band - 5}"
+        fill="none" stroke="#3f7d4a" stroke-width="1.2"/>
+      <path d="M9 ${band - 5} C 11 ${band - 11} 16 ${band - 13} 20 ${band - 13}
+               C 18 ${band - 8} 15 ${band - 5} 9 ${band - 5}" fill="#5a9a5f" opacity=".9"/>
+      <path d="M37 ${band - 5} C 35 ${band - 11} 30 ${band - 13} 26 ${band - 13}
+               C 28 ${band - 8} 31 ${band - 5} 37 ${band - 5}" fill="#5a9a5f" opacity=".9"/>
+      <circle cx="23" cy="6.5" r="2.8" fill="#d98bb6"/>
+      <circle cx="19.4" cy="9" r="2.1" fill="#d98bb6" opacity=".92"/>
+      <circle cx="26.6" cy="9" r="2.1" fill="#d98bb6" opacity=".92"/>
+      <circle cx="23" cy="6.5" r="1" fill="#c9a227"/>
+      <path d="M0 ${band - 5} h46" stroke="#c9a227" stroke-width=".7" opacity=".55"/>
+    `;
 
-    // rosette 8 kelopak di sudut (motif kaligrafi)
-    const rosette = (cx, cy, rad, plen) => {
-      let out = `<circle cx="${cx}" cy="${cy}" r="${rad}" fill="none" stroke="#b8860b" stroke-width="1.5" stroke-opacity=".85"/>`;
+    // rosette floral di sudut
+    const rosette = (cx, cy) => {
+      let out = `<circle cx="${cx}" cy="${cy}" r="12" fill="#f7f3e2" stroke="#3f7d4a" stroke-width="1.1"/>`;
       for (let i = 0; i < 8; i++) {
         const a = (i * 45) * Math.PI / 180;
-        const px = cx + Math.cos(a) * plen;
-        const py = cy + Math.sin(a) * plen;
-        out += `<ellipse cx="${px}" cy="${py}" rx="3" ry="8.4" transform="rotate(${i * 45} ${px} ${py})" ` +
-          `fill="url(#${id}g)" fill-opacity=".20" stroke="#b8860b" stroke-width="1" stroke-opacity=".8"/>`;
+        const px = cx + Math.cos(a) * 7.2;
+        const py = cy + Math.sin(a) * 7.2;
+        out += `<ellipse cx="${px}" cy="${py}" rx="2.6" ry="5.2" transform="rotate(${i * 45} ${px} ${py})"
+          fill="${i % 2 ? '#d98bb6' : '#5a9a5f'}" opacity=".9" stroke="#3f7d4a" stroke-width=".5"/>`;
       }
-      out += `<circle cx="${cx}" cy="${cy}" r="2.4" fill="#b8860b" fill-opacity=".65"/>`;
+      out += `<circle cx="${cx}" cy="${cy}" r="2.4" fill="#c9a227"/>`;
       return out;
     };
 
-    // knot kecil di tengah tiap sisi
-    const sideKnot = (cx, cy, rot) => `<g transform="rotate(${rot} ${cx} ${cy})">
-      <path d="M ${cx} ${cy - 10} L ${cx + 7.5} ${cy} L ${cx} ${cy + 10} L ${cx - 7.5} ${cy} Z"
-        fill="url(#${id}g)" fill-opacity=".22" stroke="#b8860b" stroke-width="1.2"/>
-      <circle cx="${cx}" cy="${cy}" r="1.5" fill="#b8860b"/>
-      <path d="M ${cx - 16} ${cy} q 6 -5.5 12 0 q -6 5.5 -12 0" fill="none" stroke="#5f9e73" stroke-width="1" stroke-opacity=".6"/>
-      <path d="M ${cx + 16} ${cy} q -6 -5.5 -12 0 q 6 5.5 12 0" fill="none" stroke="#5f9e73" stroke-width="1" stroke-opacity=".6"/>
-    </g>`;
-
     return `<svg class="page-curls" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">` +
-      `<defs><linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1">` +
-      `<stop offset="0" stop-color="#b8860b"/><stop offset="0.5" stop-color="#5f9e73"/>` +
-      `<stop offset="1" stop-color="#b8860b"/></linearGradient></defs>` +
-      // bingkai tebal: garis luar 4.2 + garis dalam 1.6
-      `<g fill="none" stroke-linejoin="round">` +
-      rect(0, 5, '.88', `#b8860b`) +
-      rect(9, 1.8, '.75', `#5f9e73`) +
-      rect(15, 0.9, '.45', `#b8860b`) +
+      `<defs>
+        <pattern id="${id}h" width="40" height="${band}" patternUnits="userSpaceOnUse">${tile}</pattern>
+        <pattern id="${id}v" width="40" height="${band}" patternUnits="userSpaceOnUse"
+          patternTransform="rotate(90)">${tile}</pattern>
+      </defs>` +
+      // pita atas & bawah
+      `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${band}" fill="url(#${id}h)"/>` +
+      `<rect x="${x0}" y="${y1 - band}" width="${x1 - x0}" height="${band}" fill="url(#${id}h)"/>` +
+      // pita kiri & kanan
+      `<rect x="${x0}" y="${y0}" width="${band}" height="${y1 - y0}" fill="url(#${id}v)"/>` +
+      `<rect x="${x1 - band}" y="${y0}" width="${band}" height="${y1 - y0}" fill="url(#${id}v)"/>` +
+      // garis emas luar & dalam
+      `<g fill="none" stroke="#c9a227">` +
+      `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" stroke-width="1.6"/>` +
+      `<rect x="${x0 + band}" y="${y0 + band}" width="${x1 - x0 - 2 * band}" height="${y1 - y0 - 2 * band}" stroke-width="1.2"/>` +
       `</g>` +
-      // rosette sudut
-      `<g>` +
-      rosette(x0 + 26, y0 + 26, 9.5, 8.4) +
-      rosette(x1 - 26, y0 + 26, 9.5, 8.4) +
-      rosette(x0 + 26, y1 - 26, 9.5, 8.4) +
-      rosette(x1 - 26, y1 - 26, 9.5, 8.4) +
-      `</g>` +
-      // lengkung kaligrafi di dalam sudut
-      `<g fill="none" stroke="url(#${id}g)" stroke-width="1.3" stroke-linecap="round" opacity=".8">` +
-      `<path d="M ${x0 + 16} ${y0 + 56} Q ${x0 + 16} ${y0 + 16} ${x0 + 56} ${y0 + 16}"/>` +
-      `<path d="M ${x1 - 16} ${y0 + 56} Q ${x1 - 16} ${y0 + 16} ${x1 - 56} ${y0 + 16}"/>` +
-      `<path d="M ${x0 + 16} ${y1 - 56} Q ${x0 + 16} ${y1 - 16} ${x0 + 56} ${y1 - 16}"/>` +
-      `<path d="M ${x1 - 16} ${y1 - 56} Q ${x1 - 16} ${y1 - 16} ${x1 - 56} ${y1 - 16}"/>` +
-      `</g>` +
-      // knot di tengah sisi
-      `<g>` +
-      sideKnot((x0 + x1) / 2, y0, 0) +
-      sideKnot((x0 + x1) / 2, y1, 0) +
-      sideKnot(x0, (y0 + y1) / 2, 90) +
-      sideKnot(x1, (y0 + y1) / 2, 90) +
-      `</g>` +
+      // rosette sudut menutup pertemuan pita
+      `<g>` + rosette(x0 + band / 2, y0 + band / 2) + rosette(x1 - band / 2, y0 + band / 2) +
+      rosette(x0 + band / 2, y1 - band / 2) + rosette(x1 - band / 2, y1 - band / 2) + `</g>` +
       `</svg>`;
   }
 
