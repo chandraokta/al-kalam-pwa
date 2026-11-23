@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-pita2';
+  const BUILD = '2026-11-24-polos';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1766,6 +1766,9 @@
   // ── Bingkai halaman bergaya mushaf Madani/QUL (arabesque hijau–pink) ──
   let curlSeq = 0;
   function curlFrameSvg() {
+    // Pita ornamen tepi dihapus (mengikuti QUL: tanpa pita pinggir).
+    return '';
+    /* eslint-disable no-unreachable */
     const W = 720, H = 1022;
     const m = 20;                 // jarak bingkai dari tepi lembar
     const band = 24;              // lebar pita ornamen

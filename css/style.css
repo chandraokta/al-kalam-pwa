@@ -2325,3 +2325,21 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .msurah-meta {
   font-size: calc(var(--msize, 32px) * 0.4);
 }
+
+/* ── halaman tanpa pita tepi: kertas kontras + garis tipis ─────────── */
+.scan-sheet {
+  background:
+    radial-gradient(120% 80% at 50% 0%, #fffef9 0%, #fbf7ea 48%, #f6f1e0 100%);
+  border: 1px solid #ddd2b8;
+  box-shadow:
+    0 0 0 1px rgba(201, 162, 39, .28),
+    0 2px 6px rgba(0, 0, 0, .10),
+    0 18px 40px -18px rgba(0, 0, 0, .30);
+}
+.page-curls { display: none; }
+/* kepala halaman kembali ke posisi semula (di dalam margin kertas) */
+.page-head {
+  top: calc(var(--bw) + 6px);
+  height: calc(var(--msize, 32px) * 0.6);
+  font-size: calc(var(--msize, 32px) * 0.33);
+}
