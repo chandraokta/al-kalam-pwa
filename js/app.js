@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-23-qulframe';
+  const BUILD = '2026-11-23-pita';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
