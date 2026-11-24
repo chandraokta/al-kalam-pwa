@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=2026-11-24-tahap5">
+  <link rel="stylesheet" href="css/style.css?v=2026-11-24-modul">
 </head>
 <body>
   <!-- App Shell -->
@@ -97,6 +97,18 @@
       <a href="#bookmarks" class="drawer-item" data-view="bookmarks">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
         <span>Penanda</span>
+      </a>
+      <a href="#hifz" class="drawer-item" data-view="hifz" data-hifz-tab="progress">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"></path><path d="M4 19h16"></path><path d="M8 16v-5"></path><path d="M12 16V8"></path><path d="M16 16v-3"></path></svg>
+        <span>Progres &amp; rapor</span>
+      </a>
+      <a href="#hifz" class="drawer-item" data-view="hifz" data-hifz-tab="quiz">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M9 9a3 3 0 1 1 4 2.8c-.7.3-1 .9-1 1.7"></path><path d="M12 17h.01"></path></svg>
+        <span>Latihan (opsional)</span>
+      </a>
+      <a href="#hifz" class="drawer-item" data-view="hifz" data-hifz-tab="settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+        <span>Setelan hafalan</span>
       </a>
       <a href="#panduan" class="drawer-item" id="menuGuide">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v.01"></path><path d="M11 12h1v5h1"></path></svg>
@@ -218,8 +230,6 @@
         <button class="hifz-tab" data-hifz-tab="murajaah" role="tab">Murajaah</button>
         <span class="hifz-tabs-more">
           <button class="hifz-tab-link" data-goto-tab="scope">Cakupan</button>
-          <button class="hifz-tab-link" data-goto-tab="quiz">Latihan</button>
-          <button class="hifz-tab-link" data-goto-tab="settings">Setelan</button>
         </span>
       </div>
       <div id="hifzBody"><p class="hifz-muted">Memuat…</p></div>
@@ -593,8 +603,8 @@
   </script>
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/app.js?v=2026-11-24-tahap5"></script>
-<script src="js/hifz.js?v=2026-11-24-tahap5"></script>
+  <script src="js/app.js?v=2026-11-24-modul"></script>
+<script src="js/hifz.js?v=2026-11-24-modul"></script>
   <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi utama">
     <button class="bn-item" data-nav="mushaf" aria-label="Baca Qur'an">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
@@ -613,6 +623,6 @@
       <span>Lainnya</span>
     </button>
   </nav>
-  <script src="js/profiles.js?v=2026-11-24-tahap5"></script>
+  <script src="js/profiles.js?v=2026-11-24-modul"></script>
 </body>
 </html>

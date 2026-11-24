@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-tahap5';
+  const BUILD = '2026-11-24-modul';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3778,7 +3778,10 @@
     els.drawerItems.forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
+        const tab = item.dataset.hifzTab;
         showView(item.dataset.view);
+        if (tab) window.AlKalamHifz?.showTab?.(tab);
+        closeDrawer();
       });
     });
     

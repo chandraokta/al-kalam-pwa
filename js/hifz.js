@@ -218,6 +218,8 @@
   // ── UI ──────────────────────────────────────────────────────────────────
   const el = (id) => document.getElementById(id);
   let tab = 'hafal';
+  let hafalTab = 'target';
+  let murajaahTab = 'hariini';
 
   function pageStatusClass(st) {
     return st === 'lancar' ? 'ok' : st === 'lemah' ? 'bad' : st === 'sedang' ? 'mid' : 'none';
@@ -1287,15 +1289,22 @@
     const nh = nhState();
     const today = nhTodayCount();
     const target = Math.max(1, Number(nh.target) || 5);
+    const sub = (id, label) => `<button class="sub-tab${hafalTab === id ? ' active' : ''}" data-hafal-sub="${id}">${label}</button>`;
+    let body = '';
+    if (hafalTab === 'target') {
+      body = `${await methodCardHtml()}
+        <h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>
+        ${await newHafzCardHtml()}`;
+    } else if (hafalTab === 'setoran') {
+      body = setoranHtml();
+    } else {
+      body = `${raporHtml()}
+        <h3 class="hifz-h">Riwayat hafalan baru</h3>
+        ${newHafzLogHtml()}`;
+    }
     return `
-      <h3 class="hifz-h">Hafalan baru hari ini</h3>
-      ${await methodCardHtml()}
-      ${raporHtml()}
-      ${setoranHtml()}
-      <p class="hifz-muted" style="margin-top:-6px">Hari ini: ${today}/${target} ayat. Setelah selesai, hafalan otomatis masuk jadwal murajaah.</p>
-      ${await newHafzCardHtml()}
-      <h3 class="hifz-h">Riwayat hafalan baru</h3>
-      ${newHafzLogHtml()}
+      <div class="sub-tabs">${sub('target', 'Target')}${sub('setoran', 'Setoran')}${sub('riwayat', 'Riwayat')}</div>
+      ${body}
       <div class="hifz-actions">
         <button class="btn btn-sm" data-goto-tab="scope">Kelola cakupan hafalan</button>
         <button class="btn btn-sm" data-goto-tab="murajaah">Buka murajaah</button>
@@ -1305,24 +1314,34 @@
   // ── Layar 2: Murajaah ──────────────────────────────────────────────────
   async function renderMurajaah() {
     await ensureVerseMeta();
+    const sub = (id, label) => `<button class="sub-tab${murajaahTab === id ? ' active' : ''}" data-mj-sub="${id}">${label}</button>`;
+    let body = '';
+    if (murajaahTab === 'hariini') {
+      body = `${await programCardHtml()}
+        <details class="hifz-fold">
+          <summary>Program murajaah 1 pekan</summary>
+          ${await weekPlanHtml()}
+        </details>`;
+    } else if (murajaahTab === 'metode') {
+      body = (await methodMurajaahHtml()) || `<div class="hifz-card"><span class="hifz-k">Metode murajaah</span>
+        <span class="hifz-muted">Masukkan hafalan dulu agar metode bisa menyusun jadwal.</span>
+        <div class="hifz-actions"><button class="btn btn-sm btn-primary" data-goto-tab="scope">Masukkan hafalan</button></div></div>`;
+    } else {
+      body = retentionHtml();
+    }
     return `
-      <h3 class="hifz-h">Murajaah hari ini</h3>
-      ${await methodMurajaahHtml()}
-      ${await programCardHtml()}
-      ${retentionHtml()}
-      <details class="hifz-fold">
-        <summary>Program murajaah 1 pekan</summary>
-        ${await weekPlanHtml()}
-      </details>
+      <div class="sub-tabs">${sub('hariini', 'Hari Ini')}${sub('metode', 'Metode')}${sub('retensi', 'Retensi')}</div>
+      ${body}
       <div class="hifz-actions">
         <button class="btn btn-sm" data-goto-tab="scope">Kelola hafalan</button>
-        <button class="btn btn-sm" data-goto-tab="quiz">Latihan (opsional)</button>
         <button class="btn btn-sm" data-goto-tab="settings">Setelan</button>
       </div>`;
   }
 
   function showTab(t) {
     tab = t || 'hafal';
+    if (tab === 'hafal') hafalTab = 'target';
+    if (tab === 'murajaah') murajaahTab = 'hariini';
     const view = el('viewHifz');
     view?.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === tab));
     render();
@@ -1876,6 +1895,14 @@
     const view = el('viewHifz');
     if (!view) return;
 
+    view.querySelectorAll('[data-hafal-sub]').forEach((b) => b.addEventListener('click', () => {
+      hafalTab = b.dataset.hafalSub;
+      render();
+    }));
+    view.querySelectorAll('[data-mj-sub]').forEach((b) => b.addEventListener('click', () => {
+      murajaahTab = b.dataset.mjSub;
+      render();
+    }));
     view.querySelectorAll('[data-hifz-tab]').forEach((b) => {
       b.addEventListener('click', () => {
         tab = b.dataset.hifzTab;

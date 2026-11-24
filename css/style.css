@@ -2361,3 +2361,9 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .sim-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
 .sim-row span:first-child { font-size: .84rem; }
 .mw.flash { background: rgba(201, 162, 39, .35) !important; border-radius: 4px; }
+
+/* sub-tab per modul */
+.sub-tabs { display: flex; gap: 6px; margin: 4px 0 12px; }
+.sub-tab { flex: 1; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--border-color);
+  background: var(--bg-card); color: var(--text-secondary); font: inherit; font-size: .82rem; cursor: pointer; }
+.sub-tab.active { background: var(--accent-primary); color: #fff; border-color: transparent; font-weight: 600; }
