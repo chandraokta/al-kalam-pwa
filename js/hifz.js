@@ -51,7 +51,7 @@
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
     newHafz: { active: null, log: [], target: 5, repeats: 10, translit: false },  // mode hafalan baru
-    methods: { newMem: null, murajaah: { cursor: 0, breakUntil: null } },  // metode Al-Qasim
+    methods: { newMem: null, murajaah: { mode: 'beriringan', cursor: 0, breakUntil: null, breakSet: {}, khatamAt: null } },  // metode Al-Qasim
   });
 
   let S = emptyState();
@@ -493,7 +493,7 @@
       <strong class="hifz-v">${doneCount}/3 sesi · ${totalPages} halaman</strong>
       <span class="hifz-muted">Sabaq ${sess.sabaq.length} · Sabqi ${sess.sabqi.length} · Manzil ${sess.manzil.length}
         · total ${prog.total} halaman/minggu</span>
-      ${sessionRow('sabaq')}
+      ${isMurajaahBreak() ? '' : sessionRow('sabaq')}
       ${sessionRow('sabqi')}
       ${sessionRow('manzil')}
       <div class="hifz-actions"><button class="btn btn-sm" data-goto-tab="scope">Ubah hafalan</button></div>
@@ -862,7 +862,7 @@
 
   function methodsState() {
     S.methods = S.methods || { newMem: null, murajaah: { cursor: 0, breakUntil: null } };
-    S.methods.murajaah = S.methods.murajaah || { cursor: 0, breakUntil: null };
+    S.methods.murajaah = S.methods.murajaah || { mode: 'beriringan', cursor: 0, breakUntil: null, breakSet: {}, khatamAt: null };
     return S.methods;
   }
 
@@ -1081,38 +1081,113 @@
     flash('Metode selesai — hafalan masuk cakupan & murajaah');
   }
 
-  // ── Murajaah Beriringan (kuota dari daftar hafalan pengguna) ──────────
-  async function murajaahPlan() {
+  // ══ Murajaah: Beriringan / Wirid 7 Hari / Pasca-Khatam ══════════════
+  const WIRID = [
+    { code: 'Fa', from: 1, to: 4 },
+    { code: 'Mim', from: 5, to: 9 },
+    { code: 'Ya', from: 10, to: 16 },
+    { code: 'Ba', from: 17, to: 25 },
+    { code: 'Syin', from: 26, to: 36 },
+    { code: 'Wau', from: 37, to: 49 },
+    { code: 'Qaf', from: 50, to: 114 },
+  ];
+
+  function mjState() {
+    const m = methodsState();
+    m.murajaah.breakSet = m.murajaah.breakSet || {};
+    return m.murajaah;
+  }
+
+  async function scopeJuzDone() {
     const { pages } = await computeScope();
-    if (!pages.length) return null;
     const pm = await pageMapIndex();
     const juzSet = new Set();
     for (const pg of pages) {
       const p2 = pm.find((x) => Number(x.page) === Number(pg));
       for (const v of (p2 && p2.verses) || []) if (v.juz) juzSet.add(Number(v.juz));
     }
-    const juzDone = juzSet.size;
-    const stage = juzDone <= 10 ? '1-10' : juzDone <= 20 ? '11-20' : '21-30';
-    const quota = stage === '1-10' ? 4 : 8;
-    const cur = methodsState().murajaah.cursor || 0;
-    const picked = [];
-    for (let i = 0; i < quota && i < pages.length; i++) picked.push(pages[(cur + i) % pages.length]);
-    return { juzDone, stage, quota, pages: picked, cursor: cur };
+    return { juzDone: juzSet.size, pages };
+  }
+
+  /** Atur masa jeda otomatis setelah 10 dan 20 juz. */
+  function syncBreak(juzDone) {
+    const st = mjState();
+    const key = juzDone <= 10 ? '1-10' : juzDone <= 20 ? '11-20' : '21-30';
+    if (key !== '1-10' && !st.breakSet[key]) {
+      const days = key === '11-20' ? 30 : 60;
+      st.breakUntil = Date.now() + days * DAY;
+      st.breakSet[key] = true;
+      save();
+    }
+    if (st.breakUntil && st.breakUntil <= Date.now()) { st.breakUntil = null; save(); }
+    return key;
+  }
+
+  async function murajaahPlan() {
+    const { juzDone, pages } = await scopeJuzDone();
+    if (!pages.length) return null;
+    const st = mjState();
+    syncBreak(juzDone);
+    const key = juzDone <= 10 ? '1-10' : juzDone <= 20 ? '11-20' : '21-30';
+    const inBreak = !!(st.breakUntil && st.breakUntil > Date.now());
+    const breakDays = inBreak ? Math.ceil((st.breakUntil - Date.now()) / DAY) : 0;
+    const quota = (key === '1-10' && !inBreak) ? 4 : 8;
+    const mode = st.mode || 'beriringan';
+
+    let picked = [];
+    let label = '';
+    if (mode === 'beriringan') {
+      const cur = st.cursor || 0;
+      for (let i = 0; i < quota && i < pages.length; i++) picked.push(pages[(cur + i) % pages.length]);
+      label = `Tahap ${key}${inBreak ? ' · masa jeda' : ''}`;
+    } else if (mode === 'wirid') {
+      const w = WIRID[new Date().getDay()];
+      const pm = await pageMapIndex();
+      const fromPage = (pm.find((x) => (x.verses || []).some((v) => Number(v.surah) === w.from)) || {}).page;
+      const toPage = (pm.find((x) => (x.verses || []).some((v) => Number(v.surah) === w.to)) || {}).page;
+      for (let pg = Number(fromPage); pg <= Number(toPage) && picked.length < 20; pg++) picked.push(pg);
+      label = `Wirid ${w.code}: QS ${w.from}–${w.to}`;
+    } else {
+      // pasca-khatam
+      const khatam = st.khatamAt || (juzDone >= 30 ? Date.now() : 0);
+      if (!st.khatamAt && juzDone >= 30) { st.khatamAt = khatam; save(); }
+      const month = khatam ? Math.floor((Date.now() - khatam) / (30 * DAY)) : 0;
+      const jp = await juzPages();
+      const half = (j) => (jp[String(j)] || []).slice(0, 10);
+      if (month === 0) { picked = half(1); label = `Bulan 1: 10 juz pertama · ½ juz/hari`; }
+      else if (month === 1) { picked = [...half(11), ...half(1).slice(0, 8)]; label = `Bulan 2: 10 juz kedua + 8 hlm juz pertama`; }
+      else if (month === 2) { picked = [...half(21), ...half(1).slice(0, 8), ...half(11).slice(0, 8)]; label = `Bulan 3: 10 juz ketiga + 8 + 8 hlm`; }
+      else { picked = [...half(1), ...half(2)]; label = `Tahun mutqin: 2 juz/hari (ulang 3×)`; }
+    }
+    return { juzDone, key, quota, inBreak, breakDays, pages: picked, label, mode };
   }
 
   async function methodMurajaahHtml() {
     const plan = await murajaahPlan();
     if (!plan) return '';
-    const chips = plan.pages.map((pg) => `<button class="prog-chip" data-gopage="${pg}">hal. ${pg}</button>`).join('');
-    return `<div class="hifz-card">
-      <span class="hifz-k">Metode murajaah beriringan</span>
-      <span class="hifz-muted">Tahap ${plan.stage} · ${plan.juzDone} juz dalam daftar · kuota ${plan.quota} halaman/hari</span>
-      <div class="prog-chips">${chips}</div>
+    const st = mjState();
+    const modes = [['beriringan', 'Beriringan'], ['wirid', 'Wirid 7 Hari'], ['pascakhatam', 'Pasca-Khatam']];
+    const chips = plan.pages.slice(0, 12).map((pg) => `<button class="prog-chip" data-gopage="${pg}">hal. ${pg}</button>`).join('');
+    const more = plan.pages.length > 12 ? `<span class="hifz-muted">+${plan.pages.length - 12} lagi</span>` : '';
+    return `<div class="hifz-card method-card">
+      <span class="hifz-k">Metode murajaah</span>
+      <div class="hifz-actions" style="margin:2px 0 8px">
+        ${modes.map(([v, t]) => `<button class="btn btn-sm${(st.mode || 'beriringan') === v ? ' btn-primary' : ''}" data-mj-mode="${v}">${t}</button>`).join('')}
+      </div>
+      <span class="hifz-muted">${plan.label} · ${plan.juzDone} juz dalam daftar · kuota ${plan.quota} halaman</span>
+      ${plan.inBreak && plan.mode === 'beriringan' ? `<span class="hifz-muted" style="color:#e0b341">Masa jeda ${plan.breakDays} hari lagi — Sabaq ditunda, fokus 8 halaman/hari.</span>` : ''}
+      <div class="prog-chips">${chips || '<span class="hifz-muted">—</span>'}${more}</div>
       <div class="hifz-actions">
         <button class="btn btn-sm" data-mj-play>Putar halaman pertama</button>
         <button class="btn btn-sm btn-primary" data-mj-done>Tandai ulangan selesai</button>
       </div>
     </div>`;
+  }
+
+  // tandai Sabaq ditunda saat masa jeda (dibaca programCardHtml)
+  function isMurajaahBreak() {
+    const st = methodsState().murajaah;
+    return !!(st.breakUntil && st.breakUntil > Date.now());
   }
 
   // ── Layar 1: Hafal Baru ────────────────────────────────────────────────
@@ -1816,6 +1891,13 @@
       save();
       render();
     });
+    view.querySelectorAll('[data-mj-mode]').forEach((b) => b.addEventListener('click', () => {
+      const st = mjState();
+      st.mode = b.dataset.mjMode;
+      if (st.mode === 'pascakhatam' && !st.khatamAt) st.khatamAt = Date.now();
+      save();
+      render();
+    }));
     view.querySelector('[data-mj-play]')?.addEventListener('click', async () => {
       const plan = await murajaahPlan();
       if (!plan || !plan.pages.length) return;
