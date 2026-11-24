@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-mobile';
+  const BUILD = '2026-11-24-trans';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -1258,6 +1258,17 @@
   }
 
   /** Kembali ke ayat yang sedang dibaca ("tengah" pada DVD). */
+  /** True bila lembar terjemahan berada DI SAMPING mushaf (desktop), bukan bertumpuk (HP). */
+  function transIsSideBySide() {
+    const t = document.querySelector('.trans-sheet');
+    if (!t) return false;
+    const m = [...document.querySelectorAll('.scan-sheet')].find((s2) => !s2.classList.contains('trans-sheet'));
+    if (!m) return false;
+    const a = t.getBoundingClientRect();
+    const b = m.getBoundingClientRect();
+    return a.left > b.right - 30 && Math.abs(a.top - b.top) < 80;
+  }
+
   /** Geser halaman terjemahan/tafsir di lembar sebelah ke ayat yang dibaca. */
   function scrollTranslationTo(verseKey) {
     if (!verseKey) return false;
@@ -1282,7 +1293,7 @@
     const el = document.querySelector(`.mw[data-v="${verseKey}"]`);
     if (el) scrollSheetTo(el);
     // halaman terjemahan/tafsir di lembar sebelah ikut bergulir
-    const row = document.querySelector(`.trans-sheet .scan-text-row[data-verse="${verseKey}"]`);
+    const row = null;   // panel terjemahan tidak diikuti otomatis
     if (row) {
       const body = row.closest('.trans-body');
       if (body && body.scrollHeight > body.clientHeight + 4) {
@@ -1295,7 +1306,8 @@
       }
       return;
     }
-    const textRow = document.querySelector(`.ayah-row[data-verse="${verseKey}"], .scan-text-row[data-verse="${verseKey}"]`);
+    const textRow = document.querySelector(`.ayah-row[data-verse="${verseKey}"]`)
+      || (transIsSideBySide() ? document.querySelector(`.scan-text-row[data-verse="${verseKey}"]`) : null);
     if (textRow) { textRow.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
     // target belum ada (lembar baru sedang digambar): coba sekali lagi
     if (!followPlaying._retry) {
@@ -2425,8 +2437,14 @@
     if (box.scrollHeight <= box.clientHeight + 4) return false;
     const tb = el.getBoundingClientRect();
     const bb = box.getBoundingClientRect();
-    const delta = (tb.top + tb.bottom) / 2 - (bb.top + bb.bottom) / 2;
-    if (Math.abs(delta) < 24) return true;
+    // Jangan memusatkan kata: pertahankan pandangan pada halaman mushaf.
+    // Gulir hanya bila kata keluar dari "zona nyaman" (12%-72% tinggi kotak).
+    const topBand = bb.top + bb.height * 0.12;
+    const botBand = bb.top + bb.height * 0.72;
+    if (tb.top >= topBand && tb.bottom <= botBand) return true;
+    const want = bb.height * 0.32;          // taruh kata sekitar 1/3 atas
+    const delta = (tb.top - bb.top) - want;
+    if (Math.abs(delta) < 16) return true;
     box.scrollTo({ top: Math.max(0, box.scrollTop + delta), behavior: 'smooth' });
     return true;
   }
@@ -3081,7 +3099,8 @@
     // sorot baris/ayat yang sedang dibaca
     document.querySelectorAll('.ayah-row.playing').forEach(el => el.classList.remove('playing'));
     followPlaying(verseKey);
-    scrollTranslationTo(verseKey);
+    // Panel terjemahan TIDAK ikut bergulir otomatis saat audio berjalan;
+    // fokus tetap pada halaman mushaf (dapat digulir manual oleh pengguna).
     document.querySelectorAll('.mw.ayah-on').forEach(el => el.classList.remove('ayah-on'));
     document.querySelectorAll('.mw[data-v]').forEach(el => {
       if (el.dataset.v === verseKey) el.classList.add('ayah-on');
