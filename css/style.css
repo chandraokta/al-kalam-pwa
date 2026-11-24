@@ -2343,3 +2343,15 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   height: calc(var(--msize, 32px) * 0.6);
   font-size: calc(var(--msize, 32px) * 0.33);
 }
+
+/* metode 20x per ayat */
+.method-card { border: 1px solid var(--accent-tertiary); }
+.mt-list { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; max-height: 240px; overflow: auto; }
+.mt-step { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--border-color); background: var(--bg-card); }
+.mt-step .mt-no { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-size: .7rem; font-weight: 700; background: var(--bg-secondary); color: var(--text-secondary); }
+.mt-step .mt-txt { display: flex; gap: 6px; align-items: baseline; font-size: .84rem; }
+.mt-step.done { opacity: .65; }
+.mt-step.done .mt-no { background: var(--accent-primary); color: #fff; }
+.mt-step.now { border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--accent-primary) inset; }

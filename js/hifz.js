@@ -51,6 +51,7 @@
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
     newHafz: { active: null, log: [], target: 5, repeats: 10, translit: false },  // mode hafalan baru
+    methods: { newMem: null, murajaah: { cursor: 0, breakUntil: null } },  // metode Al-Qasim
   });
 
   let S = emptyState();
@@ -854,6 +855,266 @@
     flash(`Hafalan ${a.from}–${a.to} masuk cakupan & jadwal murajaah`);
   }
 
+  // ══ Metode 20× per ayat (Dr. Abdul Muhsin Al-Qasim) ══════════════════
+  const METHOD_TARGETS = [
+    ['page', '1 Halaman'], ['half', '½ Halaman'], ['ayat', 'Jumlah Ayat'], ['range', 'Rentang'],
+  ];
+
+  function methodsState() {
+    S.methods = S.methods || { newMem: null, murajaah: { cursor: 0, breakUntil: null } };
+    S.methods.murajaah = S.methods.murajaah || { cursor: 0, breakUntil: null };
+    return S.methods;
+  }
+
+  async function versesOnPage(page) {
+    const pm = await pageMapIndex();
+    const p2 = pm.find((x) => Number(x.page) === Number(page));
+    return ((p2 && p2.verses) || []).map((v) => ({ surah: Number(v.surah), ayah: Number(v.ayah) }));
+  }
+
+  function segmentsFromVerses(list) {
+    const segs = [];
+    for (const v of list) {
+      const last = segs[segs.length - 1];
+      if (last && last.surah === v.surah) last.to = Math.max(last.to, v.ayah);
+      else segs.push({ surah: v.surah, from: v.ayah, to: v.ayah });
+    }
+    return segs;
+  }
+
+  /** Pecah halaman menjadi dua berdasar jumlah kata (mendekati separuh baris). */
+  async function halfPageVerses(page) {
+    const list = await versesOnPage(page);
+    if (list.length < 2) return list;
+    const words = await window.AlKalam.DataManager.load('words');
+    const counts = list.map((v) => ((words[`${v.surah}:${v.ayah}`] || []).length) || 1);
+    const total = counts.reduce((a, b) => a + b, 0);
+    let acc = 0;
+    const half = [];
+    for (let i = 0; i < list.length; i++) {
+      half.push(list[i]);
+      acc += counts[i];
+      if (acc >= total / 2) break;
+    }
+    return half;
+  }
+
+  async function methodTargetSegments(m) {
+    if (m.mode === 'page') return segmentsFromVerses(await versesOnPage(m.page));
+    if (m.mode === 'half') return segmentsFromVerses(await halfPageVerses(m.page));
+    if (m.mode === 'ayat') {
+      const ch = (chaptersCache || []).find((c) => c.id === Number(m.surah));
+      const max = ch ? ch.verses_count : 286;
+      const to = Math.min(max, Number(m.from) + Number(m.count) - 1);
+      return [{ surah: Number(m.surah), from: Number(m.from), to }];
+    }
+    return [{ surah: Number(m.surah), from: Number(m.from), to: Number(m.to) }];
+  }
+
+  function segmentsLabel(segs) {
+    const nm = (id) => ((chaptersCache || []).find((c) => c.id === Number(id)) || {}).name_simple || `Surah ${id}`;
+    return segs.map((x) => `${nm(x.surah)} ${x.from}–${x.to}`).join(' + ');
+  }
+
+  function buildMethodSteps(segs, group, repeat) {
+    const steps = [];
+    for (const seg of segs) {
+      const groups = [];
+      for (let a = seg.from; a <= seg.to; a += group) groups.push({ from: a, to: Math.min(seg.to, a + group - 1) });
+      for (const g of groups) {
+        for (let a = g.from; a <= g.to; a++) steps.push({ kind: 'ayah', surah: seg.surah, from: a, to: a, repeat });
+        if (g.to > g.from) steps.push({ kind: 'group', surah: seg.surah, from: g.from, to: g.to, repeat });
+      }
+      if (groups.length > 1) steps.push({ kind: 'all', surah: seg.surah, from: seg.from, to: seg.to, repeat });
+    }
+    return steps;
+  }
+
+  function stepLabel(st) {
+    if (!st) return '';
+    if (st.kind === 'ayah') return `Ayat ${st.from}`;
+    if (st.kind === 'group') return `Gabung ${st.from}–${st.to}`;
+    return `Seluruh ${st.from}–${st.to}`;
+  }
+
+  async function methodCardHtml() {
+    await ensureVerseMeta();
+    const m = methodsState().newMem;
+    const chapters = chaptersCache || [];
+    if (!m) {
+      const page = window.AlKalam.state.activePage || window.AlKalam.state.currentPage || 1;
+      return `<div class="hifz-card method-card">
+        <span class="hifz-k">Metode 20× per Ayat</span>
+        <span class="hifz-muted">Hafal tiap ayat 20×, gabungkan per kelompok, lalu ulangi semuanya.</span>
+        <div class="hifz-actions" style="margin:8px 0">
+          ${METHOD_TARGETS.map(([v, t]) => `<button class="btn btn-sm${v === 'page' ? ' btn-primary' : ''}" data-mt-target="${v}">${t}</button>`).join('')}
+        </div>
+        <div class="range-form" id="mtForm">
+          <input id="mtPage" type="number" min="1" max="604" value="${page}" aria-label="Halaman" style="width:90px">
+          <select id="mtSurah" aria-label="Surah" hidden>
+            ${chapters.slice().sort((a, b) => b.id - a.id).map((c) => `<option value="${c.id}">${c.id}. ${esc(c.name_simple || '')}</option>`).join('')}
+          </select>
+          <input id="mtFrom" type="number" min="1" value="1" aria-label="Dari ayat" hidden style="width:90px">
+          <input id="mtCount" type="number" min="1" value="5" aria-label="Jumlah ayat" hidden style="width:90px">
+          <input id="mtTo" type="number" min="1" value="5" aria-label="Sampai ayat" hidden style="width:90px">
+          <select id="mtGroup" aria-label="Kelompok ayat">
+            ${[2, 4, 6, 8].map((n) => `<option value="${n}"${n === 4 ? ' selected' : ''}>Kelompok ${n} ayat</option>`).join('')}
+          </select>
+          <select id="mtRepeat" aria-label="Ulangan">
+            ${[3, 5, 10, 20].map((n) => `<option value="${n}"${n === 20 ? ' selected' : ''}>${n}×</option>`).join('')}
+          </select>
+          <button class="btn btn-sm btn-primary" data-mt-start>Mulai metode</button>
+        </div>
+        <span class="hifz-muted" id="mtPreview">Pilih target lalu tekan Mulai.</span>
+      </div>`;
+    }
+
+    const st = m.steps[m.step] || null;
+    const done = m.step >= m.steps.length;
+    const list = m.steps.map((x, i) => `<div class="mt-step${i < m.step ? ' done' : i === m.step ? ' now' : ''}">
+      <span class="mt-no">${i < m.step ? '✓' : i + 1}</span>
+      <span class="mt-txt">${stepLabel(x)} <span class="hifz-muted">${x.repeat}×</span></span></div>`).join('');
+    return `<div class="hifz-card method-card">
+      <span class="hifz-k">Metode 20× per Ayat</span>
+      <span class="hifz-muted">${segmentsLabel(m.segments)} · ${m.steps.length} langkah · kelompok ${m.group}</span>
+      ${done ? '' : `<strong class="hifz-v">Langkah ${m.step + 1}/${m.steps.length} · ${stepLabel(st)} · ${m.listens || 0}/${st.repeat} putaran</strong>`}
+      ${done ? '<strong class="hifz-v">Semua langkah selesai ✓</strong>' : ''}
+      <div class="mt-list">${list}</div>
+      <div class="hifz-actions">
+        ${done
+          ? '<button class="btn btn-sm btn-primary" data-mt-finish>Masukkan ke cakupan</button>'
+          : `<button class="btn btn-sm btn-primary" data-mt-play>${m.listening ? 'Hentikan' : `Putar ${st.repeat}×`}</button>
+             <button class="btn btn-sm" data-mt-next ${(m.listens || 0) < st.repeat ? 'disabled' : ''}>Langkah berikutnya</button>`}
+        <button class="btn btn-sm" data-mt-cancel>Batal</button>
+      </div>
+    </div>`;
+  }
+
+  function stopMethodPlay() {
+    const m = methodsState().newMem;
+    if (!m) return;
+    m.listening = false;
+    if (m.timer) { clearInterval(m.timer); m.timer = null; }
+    const au = window.AlKalam.audio && window.AlKalam.audio();
+    if (au) au.pause();
+    save();
+    render();
+  }
+
+  async function methodPlay() {
+    const m = methodsState().newMem;
+    if (!m) { flash('Mulai metode dulu'); return; }
+    if (m.listening) { stopMethodPlay(); return; }
+    const st = m.steps[m.step];
+    if (!st) return;
+    const vk = `${st.surah}:${st.from}`;
+    await openVersePage(vk);
+    // jangan menunggu playAyah selesai (kadang lambat memuat audio);
+    // mulai pemutaran lalu tunggu timing tersedia
+    window.AlKalam.playAyah(vk).catch(() => { /* audio menyusul */ });
+    let t1 = null, t2 = null;
+    for (let i = 0; i < 40 && (!t1 || !t2); i++) {
+      t1 = window.AlKalam.ayahTimes ? window.AlKalam.ayahTimes(`${st.surah}:${st.from}`) : null;
+      t2 = window.AlKalam.ayahTimes ? window.AlKalam.ayahTimes(`${st.surah}:${st.to}`) : null;
+      if (!t1 || !t2) await new Promise((r) => setTimeout(r, 150));
+    }
+    if (!t1 || !t2) { flash('Timing audio belum tersedia'); return; }
+
+    m.listening = true;
+    m.total = st.repeat;
+    save();
+    render();
+
+    const startTick = () => {
+      const mm = methodsState().newMem;
+      if (!mm) return;
+      if (mm.timer) clearInterval(mm.timer);
+      mm.timer = setInterval(() => {
+        const m2 = methodsState().newMem;
+        const au = window.AlKalam.audio && window.AlKalam.audio();
+        if (!m2 || !m2.listening || !au) { if (m2 && m2.timer) clearInterval(m2.timer); return; }
+        if (au.currentTime * 1000 >= t2.to - 80) {
+          au.pause();
+          if (m2.timer) { clearInterval(m2.timer); m2.timer = null; }
+          m2.listens = Math.min(st.repeat, (m2.listens || 0) + 1);
+          save();
+          render();
+          if (m2.listens >= st.repeat) {
+            m2.listening = false;
+            save();
+            render();
+            flash('Langkah selesai — tekan "Langkah berikutnya"');
+          } else {
+            m2.timer = setTimeout(() => {
+              const m3 = methodsState().newMem;
+              if (!m3 || !m3.listening) return;
+              const au2 = window.AlKalam.audio && window.AlKalam.audio();
+              if (au2) {
+                try { au2.currentTime = Math.max(0, (t1.from || 0) / 1000); } catch { /* abaikan */ }
+                au2.play().catch(() => {});
+              }
+              startTick();
+            }, 700);
+          }
+        }
+      }, 250);
+    };
+    startTick();
+  }
+
+  async function methodFinish() {
+    const m = methodsState().newMem;
+    if (!m) return;
+    const segs = await methodTargetSegments(m);
+    S.scope.ranges = S.scope.ranges || [];
+    for (const seg of segs) S.scope.ranges.push({ surah: seg.surah, from: seg.from, to: seg.to });
+    const pages = [...new Set(segs.flatMap((x) => rangePages(x.surah, x.from, x.to)))];
+    const rec = dayRec();
+    for (const pg of pages) {
+      if (!rec.pages.includes(pg)) rec.pages.push(pg);
+      S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
+    }
+    methodsState().newMem = null;
+    save();
+    await buildProgram();
+    render();
+    flash('Metode selesai — hafalan masuk cakupan & murajaah');
+  }
+
+  // ── Murajaah Beriringan (kuota dari daftar hafalan pengguna) ──────────
+  async function murajaahPlan() {
+    const { pages } = await computeScope();
+    if (!pages.length) return null;
+    const pm = await pageMapIndex();
+    const juzSet = new Set();
+    for (const pg of pages) {
+      const p2 = pm.find((x) => Number(x.page) === Number(pg));
+      for (const v of (p2 && p2.verses) || []) if (v.juz) juzSet.add(Number(v.juz));
+    }
+    const juzDone = juzSet.size;
+    const stage = juzDone <= 10 ? '1-10' : juzDone <= 20 ? '11-20' : '21-30';
+    const quota = stage === '1-10' ? 4 : 8;
+    const cur = methodsState().murajaah.cursor || 0;
+    const picked = [];
+    for (let i = 0; i < quota && i < pages.length; i++) picked.push(pages[(cur + i) % pages.length]);
+    return { juzDone, stage, quota, pages: picked, cursor: cur };
+  }
+
+  async function methodMurajaahHtml() {
+    const plan = await murajaahPlan();
+    if (!plan) return '';
+    const chips = plan.pages.map((pg) => `<button class="prog-chip" data-gopage="${pg}">hal. ${pg}</button>`).join('');
+    return `<div class="hifz-card">
+      <span class="hifz-k">Metode murajaah beriringan</span>
+      <span class="hifz-muted">Tahap ${plan.stage} · ${plan.juzDone} juz dalam daftar · kuota ${plan.quota} halaman/hari</span>
+      <div class="prog-chips">${chips}</div>
+      <div class="hifz-actions">
+        <button class="btn btn-sm" data-mj-play>Putar halaman pertama</button>
+        <button class="btn btn-sm btn-primary" data-mj-done>Tandai ulangan selesai</button>
+      </div>
+    </div>`;
+  }
+
   // ── Layar 1: Hafal Baru ────────────────────────────────────────────────
   async function renderHafal() {
     await ensureVerseMeta();
@@ -862,6 +1123,7 @@
     const target = Math.max(1, Number(nh.target) || 5);
     return `
       <h3 class="hifz-h">Hafalan baru hari ini</h3>
+      ${await methodCardHtml()}
       <p class="hifz-muted" style="margin-top:-6px">Hari ini: ${today}/${target} ayat. Setelah selesai, hafalan otomatis masuk jadwal murajaah.</p>
       ${await newHafzCardHtml()}
       <h3 class="hifz-h">Riwayat hafalan baru</h3>
@@ -877,6 +1139,7 @@
     await ensureVerseMeta();
     return `
       <h3 class="hifz-h">Murajaah hari ini</h3>
+      ${await methodMurajaahHtml()}
       ${await programCardHtml()}
       ${retentionHtml()}
       <details class="hifz-fold">
@@ -1501,6 +1764,76 @@
       await openVersePage(`${a.surah}:${a.from}`);
       const hb = document.getElementById('btnHideMode');
       if (hb && !hb.classList.contains('active')) hb.click();
+    });
+    // Metode 20× per ayat
+    let mtMode = 'page';
+    const syncMtForm = () => {
+      const show = (id, v) => { const el2 = view.querySelector(id); if (el2) el2.hidden = !v; };
+      show('#mtPage', mtMode === 'page' || mtMode === 'half');
+      show('#mtSurah', mtMode === 'ayat' || mtMode === 'range');
+      show('#mtFrom', mtMode === 'ayat' || mtMode === 'range');
+      show('#mtCount', mtMode === 'ayat');
+      show('#mtTo', mtMode === 'range');
+      view.querySelectorAll('[data-mt-target]').forEach((b) => b.classList.toggle('btn-primary', b.dataset.mtTarget === mtMode));
+    };
+    view.querySelectorAll('[data-mt-target]').forEach((b) => b.addEventListener('click', () => { mtMode = b.dataset.mtTarget; syncMtForm(); }));
+    syncMtForm();
+    view.querySelector('[data-mt-start]')?.addEventListener('click', async () => {
+      const group = Number(view.querySelector('#mtGroup')?.value) || 4;
+      const repeat = Number(view.querySelector('#mtRepeat')?.value) || 20;
+      const m = {
+        mode: mtMode,
+        page: Number(view.querySelector('#mtPage')?.value) || 1,
+        surah: Number(view.querySelector('#mtSurah')?.value) || 1,
+        from: Number(view.querySelector('#mtFrom')?.value) || 1,
+        count: Number(view.querySelector('#mtCount')?.value) || 5,
+        to: Number(view.querySelector('#mtTo')?.value) || 5,
+        group, repeat, step: 0, listens: 0, listening: false,
+      };
+      const segs = await methodTargetSegments(m);
+      if (!segs.length) { flash('Target tidak valid'); return; }
+      m.segments = segs;
+      m.steps = buildMethodSteps(segs, group, repeat);
+      methodsState().newMem = m;
+      save();
+      render();
+      flash(`Metode dimulai: ${segmentsLabel(segs)} · ${m.steps.length} langkah`);
+    });
+    view.querySelector('[data-mt-play]')?.addEventListener('click', methodPlay);
+    view.querySelector('[data-mt-next]')?.addEventListener('click', () => {
+      const m = methodsState().newMem;
+      if (!m) return;
+      m.listening = false;
+      m.step += 1;
+      m.listens = 0;
+      save();
+      render();
+    });
+    view.querySelector('[data-mt-finish]')?.addEventListener('click', methodFinish);
+    view.querySelector('[data-mt-cancel]')?.addEventListener('click', () => {
+      stopMethodPlay();
+      methodsState().newMem = null;
+      save();
+      render();
+    });
+    view.querySelector('[data-mj-play]')?.addEventListener('click', async () => {
+      const plan = await murajaahPlan();
+      if (!plan || !plan.pages.length) return;
+      await window.AlKalam.openPage(plan.pages[0]);
+      try { await window.AlKalam.playPageOnce(plan.pages[0]); } catch { /* abaikan */ }
+    });
+    view.querySelector('[data-mj-done]')?.addEventListener('click', async () => {
+      const plan = await murajaahPlan();
+      if (!plan) return;
+      const rec = dayRec();
+      for (const pg of plan.pages) {
+        if (!rec.pages.includes(pg)) rec.pages.push(pg);
+        S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
+      }
+      methodsState().murajaah.cursor = (plan.cursor + plan.pages.length) % Math.max(1, (await computeScope()).pages.length);
+      save();
+      render();
+      flash('Ulangan metode dicatat');
     });
     const saveDraft = () => {
       const nh = nhState();
