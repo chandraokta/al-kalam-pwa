@@ -1595,8 +1595,43 @@
       render();
     } catch { flash('Gagal meminta izin notifikasi'); }
   }
+  /** Notifikasi untuk 3 sesi: Sabaq / Sabqi / Manzil pada jamnya masing-masing. */
+  function sessionNotifyCheck() {
+    const sess = dailySessions();
+    if (!sess) return false;
+    const now = nowHM();
+    const [nh, nm] = now.split(':').map(Number);
+    const nowMin = nh * 60 + nm;
+    let sent = false;
+    for (const key of ['sabaq', 'sabqi', 'manzil']) {
+      const pages = sess[key] || [];
+      if (!pages.length) continue;
+      if (sess.done && sess.done[key]) continue;
+      const t = sessionTime(key);
+      const [th, tm] = t.split(':').map(Number);
+      const diff = nowMin - (th * 60 + tm);
+      if (diff < 0 || diff > 90) continue;      // hanya 90 menit setelah jam sesi
+      const id = `${todayKey()}:${key}`;
+      S._notifiedSessions = S._notifiedSessions || {};
+      if (S._notifiedSessions[id]) continue;
+      S._notifiedSessions[id] = true;
+      save();
+      sent = true;
+      try {
+        new Notification(`Al-Kalam — ${SESSION_LABEL[key].name}`, {
+          body: `${pages.length} halaman · hal. ${pages[0]}${pages.length > 1 ? `–${pages[pages.length - 1]}` : ''}. Waktunya ${SESSION_LABEL[key].name}.`,
+          icon: 'assets/icons/icon-192.png',
+          tag: `alkalam-${key}`,
+        });
+      } catch { /* abaikan */ }
+    }
+    return sent;
+  }
+
   function maybeNotify() {
     if (!S.settings.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+    // 1) pengingat per sesi (Subuh/Asar/Isya)
+    if (sessionNotifyCheck()) return;
     const now = new Date();
     if (now.getHours() < Number(S.settings.remindHour || 20)) return;
     const d = S.days[todayKey()] || {};
@@ -3058,7 +3093,7 @@
     }
   }
 
-  window.AlKalamHifz = { showTab, isMethodActive,
+  window.AlKalamHifz = { showTab, isMethodActive, maybeNotify, sessionNotifyCheck,
     get state() { return S; },
     save, markPageDone, markPageStatus, flagWord, unflagWord, isFlagged,
     srsRate, dueVerses, render, mount, todayKey,
