@@ -2367,3 +2367,8 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .sub-tab { flex: 1; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--border-color);
   background: var(--bg-card); color: var(--text-secondary); font: inherit; font-size: .82rem; cursor: pointer; }
 .sub-tab.active { background: var(--accent-primary); color: #fff; border-color: transparent; font-weight: 600; }
+
+/* lipatan di dalam kartu cakupan */
+.hifz-fold-card { border: none; background: transparent; padding: 0; margin: 0; }
+.hifz-fold-card summary { font-weight: 600; color: var(--text-secondary); }
+.hifz-fold-card[open] summary { margin-bottom: 8px; }

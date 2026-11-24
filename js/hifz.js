@@ -37,6 +37,7 @@
       tilawaMinConf: 0.6,      // ambang keyakinan
       quizScope: 'page',       // page | surah | juz
       maxPages: 0,             // maks halaman per sesi (0 = tanpa batas)
+      uiMode: 'pemula',        // pemula | lanjutan
     },
     days: {},                 // 'YYYY-MM-DD' -> { pages:[], ayahs:n, reviewed:n, flags:n }
     pages: {},                // '42' -> { status:'lancar'|'sedang'|'lemah', perfect:n, mistakes:n, last:ts }
@@ -1006,6 +1007,8 @@
     </div>`;
   }
 
+  function isPemula() { return (S.settings.uiMode || 'pemula') !== 'lanjutan'; }
+
   function isMethodActive() {
     const m = methodsState();
     return !!(m.newMem || (m.rapor && Object.keys(m.rapor).length));
@@ -1034,7 +1037,7 @@
         <span class="hifz-k">Metode 20× per Ayat</span>
         <span class="hifz-muted">Hafal tiap ayat 20×, gabungkan per kelompok, lalu ulangi semuanya.</span>
         <div class="hifz-actions" style="margin:8px 0">
-          ${METHOD_TARGETS.map(([v, t]) => `<button class="btn btn-sm${v === 'page' ? ' btn-primary' : ''}" data-mt-target="${v}">${t}</button>`).join('')}
+          ${METHOD_TARGETS.filter(([v]) => !isPemula() || v !== 'range').map(([v, t]) => `<button class="btn btn-sm${v === 'page' ? ' btn-primary' : ''}" data-mt-target="${v}">${t}</button>`).join('')}
         </div>
         <div class="range-form" id="mtForm">
           <input id="mtPage" type="number" min="1" max="604" value="${page}" aria-label="Halaman" style="width:90px">
@@ -1067,8 +1070,8 @@
       ${done ? '' : `<strong class="hifz-v">Langkah ${m.step + 1}/${m.steps.length} · ${stepLabel(st)} · ${m.listens || 0}/${st.repeat} putaran</strong>`}
       ${done ? '<strong class="hifz-v">Semua langkah selesai ✓</strong>' : ''}
       <div class="mt-list">${list}</div>
-      <span class="hifz-muted">Aturan: maks 1/8 juz/hari (±2,5 halaman) · urut An-Nas → Al-Baqarah · satu mushaf · setoran ke guru.</span>
-      ${await similarHtml(m.segments)}
+      ${isPemula() ? '' : `<span class="hifz-muted">Aturan: maks 1/8 juz/hari (±2,5 halaman) · urut An-Nas → Al-Baqarah · satu mushaf · setoran ke guru.</span>`}
+      ${isPemula() ? '' : await similarHtml(m.segments)}
       <div class="hifz-actions">
         ${done
           ? '<button class="btn btn-sm btn-primary" data-mt-finish>Masukkan ke cakupan</button>'
@@ -1259,7 +1262,7 @@
     const plan = await murajaahPlan();
     if (!plan) return '';
     const st = mjState();
-    const modes = [['beriringan', 'Beriringan'], ['wirid', 'Wirid 7 Hari'], ['pascakhatam', 'Pasca-Khatam']];
+    const modes = isPemula() ? [['beriringan', 'Beriringan']] : [['beriringan', 'Beriringan'], ['wirid', 'Wirid 7 Hari'], ['pascakhatam', 'Pasca-Khatam']];
     const chips = plan.pages.slice(0, 12).map((pg) => `<button class="prog-chip" data-gopage="${pg}">hal. ${pg}</button>`).join('');
     const more = plan.pages.length > 12 ? `<span class="hifz-muted">+${plan.pages.length - 12} lagi</span>` : '';
     return `<div class="hifz-card method-card">
@@ -1293,8 +1296,7 @@
     let body = '';
     if (hafalTab === 'target') {
       body = `${await methodCardHtml()}
-        <h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>
-        ${await newHafzCardHtml()}`;
+        ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}`;
     } else if (hafalTab === 'setoran') {
       body = setoranHtml();
     } else {
@@ -1363,8 +1365,8 @@
     ).join('');
 
     return `
-      <h3 class="hifz-h">Hafalan yang sudah dikuasai</h3>
-      <p class="hifz-muted">Pilih juz dan/atau surat yang sudah Anda hafal. Aplikasi akan menyusun program murajaah 1 pekan: seluruh hafalan dibagi rata ke 7 hari.</p>
+      <h3 class="hifz-h">Daftar hafalan</h3>
+      <p class="hifz-muted">Pilih juz dan/atau surat yang sudah Anda hafal. Aplikasi menyusun program murajaah 1 pekan dari daftar ini.</p>
 
       <div class="hifz-card">
         <span class="hifz-k">Juz</span>
@@ -1374,10 +1376,12 @@
       </div>
 
       <div class="hifz-card">
-        <span class="hifz-k">Surat</span>
-        <input type="search" id="scopeSearch" class="hifz-input" placeholder="Cari surat…" aria-label="Cari surat">
-        <div class="scope-grid scope-grid-surah" id="scopeSurahGrid">${surahChips}</div>
-        <div class="hifz-actions"><button class="btn btn-sm" data-scope="none-surah">Kosongkan surat</button></div>
+        <details class="hifz-fold hifz-fold-card">
+          <summary>Pilih surat (114 surat)</summary>
+          <input type="search" id="scopeSearch" class="hifz-input" placeholder="Cari surat…" aria-label="Cari surat">
+          <div class="scope-grid scope-grid-surah" id="scopeSurahGrid">${surahChips}</div>
+          <div class="hifz-actions"><button class="btn btn-sm" data-scope="none-surah">Kosongkan surat</button></div>
+        </details>
       </div>
 
       <div class="hifz-card">
@@ -1837,6 +1841,8 @@
         ${sel('hifzTarget', String(s.pageTarget), [['1', '1 halaman'], ['2', '2 halaman'], ['3', '3 halaman'], ['5', '5 halaman'], ['10', '10 halaman'], ['20', '20 halaman']])}</label>
       <label class="setting-row"><span>Mode sembunyikan</span>
         ${sel('hifzHide', s.hideMode, [['off', 'Mati'], ['kata', 'Sembunyikan kata'], ['ayat', 'Sembunyikan ayat']])}</label>
+      <label class="setting-row"><span>Mode tampilan</span>
+        ${sel('hifzUiMode', s.uiMode || 'pemula', [['pemula', 'Pemula (sederhana)'], ['lanjutan', 'Lanjutan (semua fitur)']])}</label>
       <label class="setting-row"><span>Maks halaman per sesi</span>
         ${sel('hifzMaxPages', String(s.maxPages || 0), [['0', 'Tanpa batas'], ['2', '2 halaman'], ['4', '4 halaman'], ['8', '8 halaman'], ['12', '12 halaman']])}</label>
       <label class="setting-row"><span>Ulangan A-B (kali)</span>
@@ -2311,6 +2317,7 @@
       const input = view.querySelector(`#${id}`);
       if (input) input.addEventListener('change', () => { S.settings[key] = fn(input.value); save(); render(); });
     };
+    bindNum('hifzUiMode', 'uiMode', (v) => (v === 'lanjutan' ? 'lanjutan' : 'pemula'));
     bindNum('hifzMaxPages', 'maxPages', (v) => { const n = Number(v) || 0; return [0,2,4,8,12].includes(n) ? n : 0; });
     bindNum('hifzTarget', 'pageTarget', (v) => { const n = Number(v) || 1; return [1,2,3,5,10,20].includes(n) ? n : 1; });
     bindNum('hifzRepeat', 'repeatCount', (v) => { const n = Number(v) || 3; return [3,5,10,20].includes(n) ? n : 3; });
