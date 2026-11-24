@@ -36,6 +36,7 @@
       tilawaTier: 'auto',      // auto | full | lite
       tilawaMinConf: 0.6,      // ambang keyakinan
       quizScope: 'page',       // page | surah | juz
+      maxPages: 0,             // maks halaman per sesi (0 = tanpa batas)
     },
     days: {},                 // 'YYYY-MM-DD' -> { pages:[], ayahs:n, reviewed:n, flags:n }
     pages: {},                // '42' -> { status:'lancar'|'sedang'|'lemah', perfect:n, mistakes:n, last:ts }
@@ -51,7 +52,7 @@
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
     newHafz: { active: null, log: [], target: 5, repeats: 10, translit: false },  // mode hafalan baru
-    methods: { newMem: null, murajaah: { mode: 'beriringan', cursor: 0, breakUntil: null, breakSet: {}, khatamAt: null }, setoran: { teacher: '', date: '', note: '' } },  // metode Al-Qasim
+    methods: { newMem: null, murajaah: { mode: 'beriringan', cursor: 0, breakUntil: null, breakSet: {}, khatamAt: null }, setoran: { teacher: '', date: '', note: '' }, rapor: {} },  // metode Al-Qasim
   });
 
   let S = emptyState();
@@ -974,6 +975,40 @@
     </div>`;
   }
 
+  function raporBump(kind, n = 1) {
+    const m = methodsState();
+    m.rapor = m.rapor || {};
+    const k = todayKey();
+    m.rapor[k] = m.rapor[k] || { steps: 0, pages: 0 };
+    m.rapor[k][kind] = (m.rapor[k][kind] || 0) + n;
+    save();
+  }
+
+  function raporHtml() {
+    const r = methodsState().rapor || {};
+    let steps = 0, pages = 0, days = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(Date.now() - i * DAY);
+      const k = todayKey(d);
+      const x = r[k];
+      if (!x) continue;
+      days += 1;
+      steps += x.steps || 0;
+      pages += x.pages || 0;
+    }
+    if (!steps && !pages) return '';
+    return `<div class="hifz-card">
+      <span class="hifz-k">Rapor metode · 7 hari</span>
+      <strong class="hifz-v">${steps} langkah · ${pages} halaman</strong>
+      <span class="hifz-muted">Aktif ${days} hari · rata-rata ${days ? Math.round(steps / days) : 0} langkah/hari</span>
+    </div>`;
+  }
+
+  function isMethodActive() {
+    const m = methodsState();
+    return !!(m.newMem || (m.rapor && Object.keys(m.rapor).length));
+  }
+
   async function similarHtml(segs) {
     const pairs = await similarPairsFor(segs);
     if (!pairs.length) return '';
@@ -1095,6 +1130,7 @@
             m2.listening = false;
             save();
             render();
+            raporBump('steps');
             flash('Langkah selesai — tekan "Langkah berikutnya"');
           } else {
             m2.timer = setTimeout(() => {
@@ -1126,6 +1162,7 @@
       if (!rec.pages.includes(pg)) rec.pages.push(pg);
       S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
     }
+    raporBump('pages', pages.length);
     methodsState().newMem = null;
     save();
     await buildProgram();
@@ -1183,7 +1220,9 @@
     const key = juzDone <= 10 ? '1-10' : juzDone <= 20 ? '11-20' : '21-30';
     const inBreak = !!(st.breakUntil && st.breakUntil > Date.now());
     const breakDays = inBreak ? Math.ceil((st.breakUntil - Date.now()) / DAY) : 0;
-    const quota = (key === '1-10' && !inBreak) ? 4 : 8;
+    const cap = Number(S.settings.maxPages) || 0;
+    let quota = (key === '1-10' && !inBreak) ? 4 : 8;
+    if (cap) quota = Math.min(quota, cap);
     const mode = st.mode || 'beriringan';
 
     let picked = [];
@@ -1251,6 +1290,7 @@
     return `
       <h3 class="hifz-h">Hafalan baru hari ini</h3>
       ${await methodCardHtml()}
+      ${raporHtml()}
       ${setoranHtml()}
       <p class="hifz-muted" style="margin-top:-6px">Hari ini: ${today}/${target} ayat. Setelah selesai, hafalan otomatis masuk jadwal murajaah.</p>
       ${await newHafzCardHtml()}
@@ -1778,6 +1818,8 @@
         ${sel('hifzTarget', String(s.pageTarget), [['1', '1 halaman'], ['2', '2 halaman'], ['3', '3 halaman'], ['5', '5 halaman'], ['10', '10 halaman'], ['20', '20 halaman']])}</label>
       <label class="setting-row"><span>Mode sembunyikan</span>
         ${sel('hifzHide', s.hideMode, [['off', 'Mati'], ['kata', 'Sembunyikan kata'], ['ayat', 'Sembunyikan ayat']])}</label>
+      <label class="setting-row"><span>Maks halaman per sesi</span>
+        ${sel('hifzMaxPages', String(s.maxPages || 0), [['0', 'Tanpa batas'], ['2', '2 halaman'], ['4', '4 halaman'], ['8', '8 halaman'], ['12', '12 halaman']])}</label>
       <label class="setting-row"><span>Ulangan A-B (kali)</span>
         ${sel('hifzRepeat', String(s.repeatCount), [['3', '3×'], ['5', '5×'], ['10', '10×'], ['20', '20×']])}</label>
       <label class="setting-row"><span>Jeda antar ulangan</span>
@@ -1923,6 +1965,8 @@
       m.segments = segs;
       const np = [...new Set(segs.flatMap((x) => rangePages(x.surah, x.from, x.to)))].length;
       if (np > 2.5 && !confirm(`Target ${np} halaman melebihi 1/8 juz (±2,5 halaman). Lanjutkan?`)) return;
+      const capM = Number(S.settings.maxPages) || 0;
+      if (capM && np > capM && !confirm(`Target ${np} halaman melebihi batas sesi (${capM} halaman). Lanjutkan?`)) return;
       m.steps = buildMethodSteps(segs, group, repeat);
       methodsState().newMem = m;
       save();
@@ -1995,6 +2039,7 @@
         if (!rec.pages.includes(pg)) rec.pages.push(pg);
         S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
       }
+      raporBump('pages', plan.pages.length);
       methodsState().murajaah.cursor = (plan.cursor + plan.pages.length) % Math.max(1, (await computeScope()).pages.length);
       save();
       render();
@@ -2239,6 +2284,7 @@
       const input = view.querySelector(`#${id}`);
       if (input) input.addEventListener('change', () => { S.settings[key] = fn(input.value); save(); render(); });
     };
+    bindNum('hifzMaxPages', 'maxPages', (v) => { const n = Number(v) || 0; return [0,2,4,8,12].includes(n) ? n : 0; });
     bindNum('hifzTarget', 'pageTarget', (v) => { const n = Number(v) || 1; return [1,2,3,5,10,20].includes(n) ? n : 1; });
     bindNum('hifzRepeat', 'repeatCount', (v) => { const n = Number(v) || 3; return [3,5,10,20].includes(n) ? n : 3; });
     bindNum('hifzPause', 'repeatPause', (v) => { const n = Number(v) || 1500; return [500,1000,1500,2000,3000,5000].includes(n) ? n : 1500; });
@@ -2921,7 +2967,7 @@
     }
   }
 
-  window.AlKalamHifz = { showTab,
+  window.AlKalamHifz = { showTab, isMethodActive,
     get state() { return S; },
     save, markPageDone, markPageStatus, flagWord, unflagWord, isFlagged,
     srsRate, dueVerses, render, mount, todayKey,

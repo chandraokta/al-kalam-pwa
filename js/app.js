@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-tahap4';
+  const BUILD = '2026-11-24-tahap5';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3808,7 +3808,14 @@
     // Mushaf toolbar
     els.btnPrevPage.addEventListener('click', () => renderPage(state.currentPage - (state._pageStep || 1)));
     els.btnNextPage.addEventListener('click', () => renderPage(state.currentPage + (state._pageStep || 1)));
-    els.mushafSelect.addEventListener('change', (e) => setMushaf(e.target.value));
+    els.mushafSelect.addEventListener('change', (e) => {
+      const prev = state.mushaf;
+      const next = e.target.value;
+      if (prev !== next && window.AlKalamHifz?.isMethodActive?.()) {
+        showToast('Metode hafalan aktif — sebaiknya gunakan satu jenis mushaf agar letak ayat konsisten');
+      }
+      setMushaf(next);
+    });
     els.mushafSelectSetting.addEventListener('change', (e) => setMushaf(e.target.value));
     if (els.pageFontScale) {
       els.pageFontScale.addEventListener('input', (e) => {
