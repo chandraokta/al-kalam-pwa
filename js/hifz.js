@@ -51,7 +51,7 @@
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
     newHafz: { active: null, log: [], target: 5, repeats: 10, translit: false },  // mode hafalan baru
-    methods: { newMem: null, murajaah: { mode: 'beriringan', cursor: 0, breakUntil: null, breakSet: {}, khatamAt: null } },  // metode Al-Qasim
+    methods: { newMem: null, murajaah: { mode: 'beriringan', cursor: 0, breakUntil: null, breakSet: {}, khatamAt: null }, setoran: { teacher: '', date: '', note: '' } },  // metode Al-Qasim
   });
 
   let S = emptyState();
@@ -937,6 +937,56 @@
     return `Seluruh ${st.from}–${st.to}`;
   }
 
+  /** Pasangan ayat mirip untuk rentang target. */
+  async function similarPairsFor(segs, max = 3) {
+    let sim = {};
+    try { sim = await window.AlKalam.DataManager.load('similar'); } catch { sim = {}; }
+    const out = [];
+    const seen = new Set();
+    for (const seg of segs) {
+      for (let a = seg.from; a <= seg.to; a++) {
+        const vk = `${seg.surah}:${a}`;
+        const pairs = sim[vk];
+        if (!pairs || !pairs.length) continue;
+        const other = pairs[0][0];
+        const key = [vk, other].sort().join('|');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push([vk, other]);
+        if (out.length >= max) return out;
+      }
+    }
+    return out;
+  }
+
+  function setoranHtml() {
+    const st = methodsState().setoran || { teacher: '', date: '', note: '' };
+    return `<div class="hifz-card">
+      <span class="hifz-k">Setoran ke guru</span>
+      <span class="hifz-muted">Catatan bahwa hafalan sudah disetorkan (tidak diverifikasi sistem).</span>
+      <div class="range-form" style="margin-top:8px">
+        <input id="stTeacher" type="text" placeholder="Nama guru" value="${esc(st.teacher || '')}" aria-label="Nama guru" style="flex:1;min-width:140px">
+        <input id="stDate" type="date" value="${esc(st.date || '')}" aria-label="Tanggal setoran">
+        <input id="stNote" type="text" placeholder="Catatan (opsional)" value="${esc(st.note || '')}" aria-label="Catatan" style="flex:1;min-width:140px">
+        <button class="btn btn-sm btn-primary" data-setoran-save>Simpan setoran</button>
+      </div>
+      <span class="hifz-muted">${st.date ? `Terakhir: ${esc(st.date)} · ${esc(st.teacher || 'guru')}` : 'Belum ada setoran dicatat.'}</span>
+    </div>`;
+  }
+
+  async function similarHtml(segs) {
+    const pairs = await similarPairsFor(segs);
+    if (!pairs.length) return '';
+    return `<div class="sim-box">
+      <span class="hifz-muted">Ayat mirip (mutasyabihat) di rentang ini:</span>
+      ${pairs.map(([a, b]) => `<div class="sim-row"><span>${a} ↔ ${b}</span>
+        <span class="wp-actions">
+          <button class="btn btn-sm" data-sim-open="${a}|${b}">Buka</button>
+          <button class="btn btn-sm" data-sim-mark="${a}|${b}">Tandai beda</button>
+        </span></div>`).join('')}
+    </div>`;
+  }
+
   async function methodCardHtml() {
     await ensureVerseMeta();
     const m = methodsState().newMem;
@@ -980,6 +1030,8 @@
       ${done ? '' : `<strong class="hifz-v">Langkah ${m.step + 1}/${m.steps.length} · ${stepLabel(st)} · ${m.listens || 0}/${st.repeat} putaran</strong>`}
       ${done ? '<strong class="hifz-v">Semua langkah selesai ✓</strong>' : ''}
       <div class="mt-list">${list}</div>
+      <span class="hifz-muted">Aturan: maks 1/8 juz/hari (±2,5 halaman) · urut An-Nas → Al-Baqarah · satu mushaf · setoran ke guru.</span>
+      ${await similarHtml(m.segments)}
       <div class="hifz-actions">
         ${done
           ? '<button class="btn btn-sm btn-primary" data-mt-finish>Masukkan ke cakupan</button>'
@@ -1199,6 +1251,7 @@
     return `
       <h3 class="hifz-h">Hafalan baru hari ini</h3>
       ${await methodCardHtml()}
+      ${setoranHtml()}
       <p class="hifz-muted" style="margin-top:-6px">Hari ini: ${today}/${target} ayat. Setelah selesai, hafalan otomatis masuk jadwal murajaah.</p>
       ${await newHafzCardHtml()}
       <h3 class="hifz-h">Riwayat hafalan baru</h3>
@@ -1868,11 +1921,41 @@
       const segs = await methodTargetSegments(m);
       if (!segs.length) { flash('Target tidak valid'); return; }
       m.segments = segs;
+      const np = [...new Set(segs.flatMap((x) => rangePages(x.surah, x.from, x.to)))].length;
+      if (np > 2.5 && !confirm(`Target ${np} halaman melebihi 1/8 juz (±2,5 halaman). Lanjutkan?`)) return;
       m.steps = buildMethodSteps(segs, group, repeat);
       methodsState().newMem = m;
       save();
       render();
       flash(`Metode dimulai: ${segmentsLabel(segs)} · ${m.steps.length} langkah`);
+    });
+    view.querySelectorAll('[data-sim-open]').forEach((b) => b.addEventListener('click', async () => {
+      const [a, b2] = b.dataset.simOpen.split('|');
+      const pg = pageByVerseHifz.get(a);
+      if (pg) await window.AlKalam.openPage(Number(pg));
+      setTimeout(() => {
+        for (const vk of [a, b2]) document.querySelectorAll(`.mw[data-v="${vk}"]`).forEach((el) => el.classList.add('flash'));
+      }, 600);
+    }));
+    view.querySelectorAll('[data-sim-mark]').forEach((b) => b.addEventListener('click', async () => {
+      const [a, b2] = b.dataset.simMark.split('|');
+      const pg = pageByVerseHifz.get(a);
+      if (pg) await window.AlKalam.openPage(Number(pg));
+      setTimeout(() => {
+        for (const vk of [a, b2]) document.querySelectorAll(`.mw[data-v="${vk}"]`).forEach((el) => el.classList.add('flash'));
+        const mk = document.getElementById('btnMark');
+        if (mk && !mk.classList.contains('active')) mk.click();
+        flash('Ketuk kata pembeda untuk menandainya');
+      }, 600);
+    }));
+    view.querySelector('[data-setoran-save]')?.addEventListener('click', () => {
+      const st = methodsState().setoran || (methodsState().setoran = {});
+      st.teacher = view.querySelector('#stTeacher')?.value || '';
+      st.date = view.querySelector('#stDate')?.value || '';
+      st.note = view.querySelector('#stNote')?.value || '';
+      save();
+      render();
+      flash('Setoran dicatat');
     });
     view.querySelector('[data-mt-play]')?.addEventListener('click', methodPlay);
     view.querySelector('[data-mt-next]')?.addEventListener('click', () => {

@@ -2355,3 +2355,9 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .mt-step.done { opacity: .65; }
 .mt-step.done .mt-no { background: var(--accent-primary); color: #fff; }
 .mt-step.now { border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--accent-primary) inset; }
+
+/* mutasyabihat & setoran */
+.sim-box { margin: 8px 0; padding: 8px 10px; border: 1px dashed var(--border-color); border-radius: 10px; }
+.sim-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
+.sim-row span:first-child { font-size: .84rem; }
+.mw.flash { background: rgba(201, 162, 39, .35) !important; border-radius: 4px; }
