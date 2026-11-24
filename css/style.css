@@ -2382,3 +2382,9 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .rp-lab { font-size: .68rem; color: var(--text-muted); }
 .due-badge { font-size: .66rem; padding: 1px 6px; border-radius: 999px;
   background: rgba(224, 179, 65, .2); color: #e0b341; border: 1px solid rgba(224,179,65,.4); }
+
+/* profil: penanda aktif yang jelas */
+.pf-row-active { border: 1px solid #2f7a5c !important; background: rgba(47, 122, 92, .14) !important; }
+.pf-badge { display: inline-block; margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px;
+  background: #2f7a5c; color: #fff; font-size: .66rem; font-weight: 700; vertical-align: middle; }
+.pf-del { color: #d35454; border-color: rgba(211, 84, 84, .45) !important; }

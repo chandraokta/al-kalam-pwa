@@ -73,7 +73,16 @@
 
   function remove(id) {
     const arr = list().filter((p) => p.id !== id);
-    if (!arr.length) return false;
+    if (!arr.length) {
+      // profil terakhir: hapus datanya lalu buat profil baru yang kosong
+      for (const k of KEYS) localStorage.removeItem(pfx(id, k));
+      clearCurrent();
+      const fresh = [{ id: 'u1', name: 'Saya', emoji: '🙂' }];
+      write(LIST_KEY, fresh);
+      localStorage.setItem(ACTIVE_KEY, 'u1');
+      doReload();
+      return true;
+    }
     for (const k of KEYS) localStorage.removeItem(pfx(id, k));
     write(LIST_KEY, arr);
     if (id === activeId()) {
@@ -159,17 +168,18 @@
         ? 'Pilih nama Anda. Setiap anggota punya hafalan, setelan, dan penanda sendiri.'
         : 'Hafalan, setelan, penanda, dan posisi baca disimpan terpisah untuk tiap anggota.'}</p>
       <div class="hifz-list">
-        ${arr.map((p) => `<div class="hifz-due wp-row">
+        ${arr.map((p) => `<div class="hifz-due wp-row${p.id === act ? ' pf-row-active' : ''}">
           <span><button class="pf-emoji pf-emoji-btn" data-pf-pick="${p.id}" title="Ganti emoji">${p.emoji || '🙂'}</button> ${p.name}
+            ${p.id === act ? '<span class="pf-badge">Aktif</span>' : ''}
             <span class="wp-sub">${p.id === act ? 'sedang dipakai' : 'ketuk untuk ganti'}</span>
             <div class="pf-emoji-picker" data-pf-picker="${p.id}" hidden>
               ${EMOJIS.map((e) => `<button class="pf-emoji" data-pf-emoji="${p.id}:${e}">${e}</button>`).join('')}
             </div></span>
           <span class="wp-actions">
-            ${p.id === act ? '<span class="wp-ok">✓</span>' : `<button class="btn btn-sm btn-primary" data-pf-switch="${p.id}">Pakai</button>`}
+            ${p.id === act ? '' : `<button class="btn btn-sm btn-primary" data-pf-switch="${p.id}">Pakai</button>`}
             <button class="btn btn-sm" data-pf-rename="${p.id}">Nama</button>
             <button class="btn btn-sm" data-pf-export="${p.id}">Ekspor</button>
-            ${arr.length > 1 ? `<button class="btn btn-sm" data-pf-del="${p.id}">Hapus</button>` : ''}
+            <button class="btn btn-sm pf-del" data-pf-del="${p.id}">Hapus</button>
           </span></div>`).join('')}
       </div>
       <div class="hifz-actions" style="margin-top:12px">
@@ -192,7 +202,10 @@
     ov.querySelectorAll('[data-pf-del]').forEach((b) => b.addEventListener('click', () => {
       const id = b.dataset.pfDel;
       const cur = arr.find((x) => x.id === id);
-      if (!confirm(`Hapus profil "${cur ? cur.name : id}" beserta datanya?`)) return;
+      const msg = arr.length <= 1
+        ? `Hapus profil terakhir "${cur ? cur.name : id}" beserta seluruh datanya? Profil baru kosong akan dibuat.`
+        : `Hapus profil "${cur ? cur.name : id}" beserta seluruh datanya (hafalan, penanda, setelan)?`;
+      if (!confirm(msg)) return;
       remove(id);
       close();
     }));
