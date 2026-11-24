@@ -38,6 +38,7 @@
       quizScope: 'page',       // page | surah | juz
       maxPages: 0,             // maks halaman per sesi (0 = tanpa batas)
       uiMode: 'pemula',        // pemula | lanjutan
+      sessionTimes: { sabaq: '05:00', sabqi: '16:00', manzil: '19:30' },
     },
     days: {},                 // 'YYYY-MM-DD' -> { pages:[], ayahs:n, reviewed:n, flags:n }
     pages: {},                // '42' -> { status:'lancar'|'sedang'|'lemah', perfect:n, mistakes:n, last:ts }
@@ -476,7 +477,8 @@
       const chips = pages.map((pg) => `<button class="prog-chip${done.has(pg) ? ' done' : ''}" data-gopage="${pg}">${done.has(pg) ? '✓ ' : ''}hal. ${pg}</button>`).join('');
       return `<div class="session-row${marked ? ' done' : ''}">
         <div class="sr-head"><strong>${SESSION_LABEL[key].name}</strong>
-          <span class="hifz-muted">${SESSION_LABEL[key].sub} · ${pages.length} halaman</span></div>
+          <span class="hifz-muted">${SESSION_LABEL[key].sub} · ${sessionTime(key)} · ${pages.length} halaman</span>
+          ${!marked && nowHM() >= sessionTime(key) ? '<span class="due-badge">waktunya</span>' : ''}</div>
         <div class="prog-chips">${chips || '<span class="hifz-muted">—</span>'}</div>
         ${pages.length ? `<div class="hifz-actions">
           <button class="btn btn-sm" data-session-start="${key}">Mulai</button>
@@ -987,6 +989,34 @@
     save();
   }
 
+  function raporChartHtml() {
+    const r = methodsState().rapor || {};
+    const weeks = [];
+    for (let w = 3; w >= 0; w--) {
+      let steps = 0, pages = 0;
+      for (let d = 0; d < 7; d++) {
+        const k = todayKey(new Date(Date.now() - (w * 7 + d) * DAY));
+        const x = r[k];
+        if (x) { steps += x.steps || 0; pages += x.pages || 0; }
+      }
+      weeks.push({ steps, pages });
+    }
+    const max = Math.max(1, ...weeks.map((x) => x.steps));
+    const totalS = weeks.reduce((a, b) => a + b.steps, 0);
+    const totalP = weeks.reduce((a, b) => a + b.pages, 0);
+    return `<div class="hifz-card">
+      <span class="hifz-k">Rapor 4 pekan</span>
+      <div class="rp-chart">
+        ${weeks.map((w, i) => `<div class="rp-col" title="${w.steps} langkah · ${w.pages} halaman">
+          <div class="rp-bar" style="height:${Math.round((w.steps / max) * 100)}%"></div>
+          <span class="rp-val">${w.steps}</span>
+          <span class="rp-lab">P${i + 1}</span>
+        </div>`).join('')}
+      </div>
+      <span class="hifz-muted">Total ${totalS} langkah · ${totalP} halaman dalam 4 pekan</span>
+    </div>`;
+  }
+
   function raporHtml() {
     const r = methodsState().rapor || {};
     let steps = 0, pages = 0, days = 0;
@@ -1005,6 +1035,15 @@
       <strong class="hifz-v">${steps} langkah · ${pages} halaman</strong>
       <span class="hifz-muted">Aktif ${days} hari · rata-rata ${days ? Math.round(steps / days) : 0} langkah/hari</span>
     </div>`;
+  }
+
+  function nowHM() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function sessionTime(key) {
+    return (S.settings.sessionTimes && S.settings.sessionTimes[key]) || { sabaq: '05:00', sabqi: '16:00', manzil: '19:30' }[key];
   }
 
   function isPemula() { return (S.settings.uiMode || 'pemula') !== 'lanjutan'; }
@@ -1300,7 +1339,7 @@
     } else if (hafalTab === 'setoran') {
       body = setoranHtml();
     } else {
-      body = `${raporHtml()}
+      body = `${raporChartHtml()}${raporHtml()}
         <h3 class="hifz-h">Riwayat hafalan baru</h3>
         ${newHafzLogHtml()}`;
     }
@@ -1841,6 +1880,12 @@
         ${sel('hifzTarget', String(s.pageTarget), [['1', '1 halaman'], ['2', '2 halaman'], ['3', '3 halaman'], ['5', '5 halaman'], ['10', '10 halaman'], ['20', '20 halaman']])}</label>
       <label class="setting-row"><span>Mode sembunyikan</span>
         ${sel('hifzHide', s.hideMode, [['off', 'Mati'], ['kata', 'Sembunyikan kata'], ['ayat', 'Sembunyikan ayat']])}</label>
+      <label class="setting-row"><span>Jam Sabaq</span>
+        <input id="hifzTSabaq" type="time" value="${(s.sessionTimes || {}).sabaq || '05:00'}"></label>
+      <label class="setting-row"><span>Jam Sabqi</span>
+        <input id="hifzTSabqi" type="time" value="${(s.sessionTimes || {}).sabqi || '16:00'}"></label>
+      <label class="setting-row"><span>Jam Manzil</span>
+        <input id="hifzTManzil" type="time" value="${(s.sessionTimes || {}).manzil || '19:30'}"></label>
       <label class="setting-row"><span>Mode tampilan</span>
         ${sel('hifzUiMode', s.uiMode || 'pemula', [['pemula', 'Pemula (sederhana)'], ['lanjutan', 'Lanjutan (semua fitur)']])}</label>
       <label class="setting-row"><span>Maks halaman per sesi</span>
@@ -2317,6 +2362,18 @@
       const input = view.querySelector(`#${id}`);
       if (input) input.addEventListener('change', () => { S.settings[key] = fn(input.value); save(); render(); });
     };
+    const bindTime = (id, key) => {
+      const el2 = view.querySelector(`#${id}`);
+      if (el2) el2.addEventListener('change', () => {
+        S.settings.sessionTimes = S.settings.sessionTimes || {};
+        S.settings.sessionTimes[key] = el2.value || '05:00';
+        save();
+        render();
+      });
+    };
+    bindTime('hifzTSabaq', 'sabaq');
+    bindTime('hifzTSabqi', 'sabqi');
+    bindTime('hifzTManzil', 'manzil');
     bindNum('hifzUiMode', 'uiMode', (v) => (v === 'lanjutan' ? 'lanjutan' : 'pemula'));
     bindNum('hifzMaxPages', 'maxPages', (v) => { const n = Number(v) || 0; return [0,2,4,8,12].includes(n) ? n : 0; });
     bindNum('hifzTarget', 'pageTarget', (v) => { const n = Number(v) || 1; return [1,2,3,5,10,20].includes(n) ? n : 1; });

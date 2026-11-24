@@ -2372,3 +2372,13 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .hifz-fold-card { border: none; background: transparent; padding: 0; margin: 0; }
 .hifz-fold-card summary { font-weight: 600; color: var(--text-secondary); }
 .hifz-fold-card[open] summary { margin-bottom: 8px; }
+
+/* rapor 4 pekan */
+.rp-chart { display: flex; align-items: flex-end; gap: 10px; height: 120px; margin: 12px 0 6px; }
+.rp-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.rp-bar { width: 60%; min-height: 2px; border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, var(--accent-primary), var(--accent-tertiary)); }
+.rp-val { font-size: .72rem; color: var(--text-secondary); }
+.rp-lab { font-size: .68rem; color: var(--text-muted); }
+.due-badge { font-size: .66rem; padding: 1px 6px; border-radius: 999px;
+  background: rgba(224, 179, 65, .2); color: #e0b341; border: 1px solid rgba(224,179,65,.4); }
