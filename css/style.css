@@ -2388,3 +2388,7 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .pf-badge { display: inline-block; margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px;
   background: #2f7a5c; color: #fff; font-size: .66rem; font-weight: 700; vertical-align: middle; }
 .pf-del { color: #d35454; border-color: rgba(211, 84, 84, .45) !important; }
+
+/* program hifdh */
+.hd-done { color: var(--accent-primary); }
+.hd-now { font-weight: 700; color: #c9a227; }

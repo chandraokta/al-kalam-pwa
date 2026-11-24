@@ -54,6 +54,7 @@
     weeklyDone: {},           // 'YYYY-MM-DD' -> [juz…]
     log: [],                  // riwayat singkat (maks 500)
     newHafz: { active: null, log: [], target: 5, repeats: 10, translit: false },  // mode hafalan baru
+    programs: { hifdh: null },  // Program Hifdh (panduan video)
     methods: { newMem: null, murajaah: { mode: 'beriringan', cursor: 0, breakUntil: null, breakSet: {}, khatamAt: null }, setoran: { teacher: '', date: '', note: '' }, rapor: {} },  // metode Al-Qasim
   });
 
@@ -861,6 +862,132 @@
     flash(`Hafalan ${a.from}–${a.to} masuk cakupan & jadwal murajaah`);
   }
 
+  // ══ Program Hifdh (STEP-BY-STEP Hifdh Guide) ═════════════════════════
+  const HIFDH_ORDER = [30, 29, ...Array.from({ length: 28 }, (_, i) => i + 1)];
+
+  function hifdhProg() {
+    S.programs = S.programs || { hifdh: null };
+    return S.programs.hifdh;
+  }
+
+  function hifdhStart() {
+    S.programs = S.programs || {};
+    S.programs.hifdh = {
+      order: HIFDH_ORDER.slice(),
+      juzIndex: 0,
+      setoranPerWeek: 5,
+      cursor: 0,
+      daurCursor: 0,
+      startedAt: Date.now(),
+    };
+    save();
+    render();
+    flash('Program Hifdh dimulai — Juz 30');
+  }
+
+  function hifdhCurrentJuz() {
+    const p2 = hifdhProg();
+    return p2 ? p2.order[p2.juzIndex] : null;
+  }
+
+  async function hifdhStartJuz() {
+    const juz = hifdhCurrentJuz();
+    if (!juz) return;
+    S.scope.juz = [juz];
+    save();
+    await buildProgram();
+    render();
+    flash(`Cakupan diatur ke Juz ${juz} — mulai Sabaq`);
+  }
+
+  function hifdhNextJuz() {
+    const p2 = hifdhProg();
+    if (!p2) return;
+    if (p2.juzIndex >= p2.order.length - 1) { flash('Program Hifdh selesai — 30 juz'); return; }
+    p2.juzIndex += 1;
+    save();
+    render();
+    flash(`Lanjut ke Juz ${hifdhCurrentJuz()}`);
+  }
+
+  function hifdhEstimate(perWeek) {
+    // 30 juz, rata-rata ~20 halaman/juz, ~1 halaman baru per setoran
+    const totalPages = 604;
+    const weeks = Math.ceil(totalPages / Math.max(1, perWeek));
+    const years = (weeks / 52) * 1.4;   // + waktu ujian, jeda 5 juz, dan pengulangan
+    return `${years.toFixed(1)} tahun`;
+  }
+
+  function programHifdhHtml() {
+    const p2 = hifdhProg();
+    if (!p2) {
+      return `<div class="hifz-card">
+        <span class="hifz-k">Program Hifdh</span>
+        <span class="hifz-muted">Urut dari belakang: Juz 30 → 29 → 1 → 2 … · 4–5 setoran/pekan · ±3–4 tahun (santai 7–8 tahun).</span>
+        <div class="hifz-actions" style="margin-top:8px">
+          <button class="btn btn-sm btn-primary" data-hd-start>Mulai Program Hifdh</button>
+        </div>
+      </div>`;
+    }
+    const juz = hifdhCurrentJuz();
+    const pct = Math.round((p2.juzIndex / p2.order.length) * 100);
+    return `<div class="hifz-card method-card">
+      <span class="hifz-k">Program Hifdh</span>
+      <strong class="hifz-v">Juz ${juz} · juz ke-${p2.juzIndex + 1} dari 30</strong>
+      <span class="hifz-muted">${p2.setoranPerWeek} setoran/pekan · perkiraan ${hifdhEstimate(p2.setoranPerWeek)} · progres ${pct}%</span>
+      <div class="hifz-bar"><i style="width:${pct}%"></i></div>
+      <div class="hifz-actions" style="margin-top:8px">
+        <button class="btn btn-sm btn-primary" data-hd-startjuz>Mulai Juz ${juz}</button>
+        <button class="btn btn-sm" data-hd-next>Juz berikutnya</button>
+        <button class="btn btn-sm" data-hd-order>Lihat urutan</button>
+      </div>
+      <details class="hifz-fold"><summary>Urutan ${p2.order.slice(0, 10).map((j) => 'J' + j).join(' → ')} …</summary>
+        <div class="hifz-muted" style="line-height:1.8">${p2.order.map((j, i) => `<span class="${i < p2.juzIndex ? 'hd-done' : i === p2.juzIndex ? 'hd-now' : ''}">J${j}</span>`).join(' · ')}</div>
+      </details>
+    </div>`;
+  }
+
+  /** Rutinitas Program Hifdh: Sabqi (3 sabaq terakhir + 1/4 rub') & Daur. */
+  async function hifdhDailyHtml() {
+    const p2 = hifdhProg();
+    if (!p2) return '';
+    const juz = hifdhCurrentJuz();
+    const { pages, juzDone } = await scopeJuzDone();
+    if (!pages.length) return `<div class="hifz-card"><span class="hifz-k">Program Hifdh · Juz ${juz}</span>
+      <span class="hifz-muted">Cakupan masih kosong.</span>
+      <div class="hifz-actions"><button class="btn btn-sm btn-primary" data-hd-startjuz>Mulai Juz ${juz}</button></div></div>`;
+
+    // Sabqi: halaman juz aktif, seperempat rub' bergilir
+    const juzPg = await juzPages();
+    const active = juzPg[String(juz)] || [];
+    const quarter = Math.max(1, Math.ceil(active.length / 4));
+    const dayIdx = Math.floor(Date.now() / DAY) % 4;
+    const rub = active.slice(dayIdx * quarter, dayIdx * quarter + quarter);
+
+    // Daur: <10 juz -> 1/2 juz (10 hlm); >=10 -> 1 juz (20 hlm)
+    const daurQuota = juzDone < 10 ? 10 : 20;
+    const cur = p2.daurCursor || 0;
+    const daur = [];
+    for (let i = 0; i < daurQuota && i < pages.length; i++) daur.push(pages[(cur + i) % pages.length]);
+
+    const chips = (arr) => arr.map((pg) => `<button class="prog-chip" data-gopage="${pg}">hal. ${pg}</button>`).join('');
+    return `<div class="hifz-card">
+      <span class="hifz-k">Program Hifdh · Juz ${juz}</span>
+      <span class="hifz-muted">Sabqi: 3 sabaq terakhir + ¼ rub' Juz ${juz} · Daur: ${juzDone < 10 ? '½' : '1'} juz/hari</span>
+      <div class="sr-head" style="margin-top:8px"><strong>Sabqi</strong><span class="hifz-muted">${rub.length} halaman (¼ rub')</span></div>
+      <div class="prog-chips">${chips(rub)}</div>
+      <div class="hifz-actions">
+        <button class="btn btn-sm" data-hd-play="${rub[0] || ''}">Putar Sabqi</button>
+        <button class="btn btn-sm" data-hd-done="sabqi">Tandai Sabqi</button>
+      </div>
+      <div class="sr-head" style="margin-top:10px"><strong>Daur</strong><span class="hifz-muted">${daur.length} halaman · ${juzDone} juz dalam daftar</span></div>
+      <div class="prog-chips">${chips(daur.slice(0, 12))}</div>
+      <div class="hifz-actions">
+        <button class="btn btn-sm" data-hd-done="daur">Tandai Daur</button>
+      </div>
+    </div>`;
+  }
+
   // ══ Metode 20× per ayat (Dr. Abdul Muhsin Al-Qasim) ══════════════════
   const METHOD_TARGETS = [
     ['page', '1 Halaman'], ['half', '½ Halaman'], ['ayat', 'Jumlah Ayat'], ['range', 'Rentang'],
@@ -1334,7 +1461,8 @@
     const sub = (id, label) => `<button class="sub-tab${hafalTab === id ? ' active' : ''}" data-hafal-sub="${id}">${label}</button>`;
     let body = '';
     if (hafalTab === 'target') {
-      body = `${await methodCardHtml()}
+      body = `${programHifdhHtml()}
+        ${await methodCardHtml()}
         ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}`;
     } else if (hafalTab === 'setoran') {
       body = setoranHtml();
@@ -1359,6 +1487,7 @@
     let body = '';
     if (murajaahTab === 'hariini') {
       body = `${await programCardHtml()}
+        ${await hifdhDailyHtml()}
         <details class="hifz-fold">
           <summary>Program murajaah 1 pekan</summary>
           ${await weekPlanHtml()}
@@ -2104,6 +2233,44 @@
         if (mk && !mk.classList.contains('active')) mk.click();
         flash('Ketuk kata pembeda untuk menandainya');
       }, 600);
+    }));
+    view.querySelector('[data-hd-start]')?.addEventListener('click', hifdhStart);
+    view.querySelector('[data-hd-startjuz]')?.addEventListener('click', hifdhStartJuz);
+    view.querySelector('[data-hd-next]')?.addEventListener('click', hifdhNextJuz);
+    view.querySelector('[data-hd-order]')?.addEventListener('click', () => {
+      const p2 = hifdhProg();
+      if (!p2) return;
+      const html = p2.order.map((j, i) => `<div class="hifz-due wp-row"><span>Juz ${j}
+        <span class="wp-sub">${i < p2.juzIndex ? 'selesai' : i === p2.juzIndex ? 'sedang berjalan' : 'berikutnya'}</span></span></div>`).join('');
+      const ov = window.AlKalam.openModal(`<div class="mi-head"><span class="mi-name">Urutan Program Hifdh</span></div>
+        <div class="hifz-list" style="max-height:60vh;overflow:auto">${html}</div>`);
+      ov.querySelector('.modal-close')?.addEventListener('click', () => ov.remove());
+    });
+    view.querySelectorAll('[data-hd-play]').forEach((b) => b.addEventListener('click', async () => {
+      const pg = Number(b.dataset.hdPlay);
+      if (!pg) return;
+      await window.AlKalam.openPage(pg);
+      try { await window.AlKalam.playPageOnce(pg); } catch { /* abaikan */ }
+    }));
+    view.querySelectorAll('[data-hd-done]').forEach((b) => b.addEventListener('click', async () => {
+      const p2 = hifdhProg();
+      if (!p2) return;
+      const kind = b.dataset.hdDone;
+      const { pages } = await scopeJuzDone();
+      const rec = dayRec();
+      if (kind === 'daur') {
+        const quota = (await scopeJuzDone()).juzDone < 10 ? 10 : 20;
+        const cur = p2.daurCursor || 0;
+        for (let i = 0; i < quota && i < pages.length; i++) {
+          const pg = pages[(cur + i) % pages.length];
+          if (!rec.pages.includes(pg)) rec.pages.push(pg);
+          S.pages[pg] = Object.assign({ status: 'lancar', perfect: 0, mistakes: 0 }, S.pages[pg], { last: Date.now() });
+        }
+        p2.daurCursor = (cur + quota) % Math.max(1, pages.length);
+      }
+      save();
+      render();
+      flash(kind === 'daur' ? 'Daur dicatat' : 'Sabqi dicatat');
     }));
     view.querySelector('[data-setoran-save]')?.addEventListener('click', () => {
       const st = methodsState().setoran || (methodsState().setoran = {});
