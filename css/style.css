@@ -2392,3 +2392,39 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 /* program hifdh */
 .hd-done { color: var(--accent-primary); }
 .hd-now { font-weight: 700; color: #c9a227; }
+
+/* ═══ Mobile: header ringkas & toolbar tidak terpotong ═══ */
+@media (max-width: 640px) {
+  :root { --header-h: 52px; }
+  .app-header { padding: 0 8px; }
+  .app-title { display: none; }
+  .header-right { gap: 2px; }
+  .header-right .icon-btn { width: 34px; height: 34px; }
+  .mushaf-toolbar { padding: 8px; gap: 6px; margin-bottom: 10px; }
+  .mushaf-toolbar .toolbar-group { flex-wrap: wrap; gap: 6px; width: 100%; justify-content: flex-start; }
+  .mushaf-toolbar .btn,
+  .mushaf-toolbar .mushaf-select,
+  .mode-switch .btn { font-size: .76rem; padding: 6px 8px; height: auto; }
+  .mushaf-select { max-width: 108px; }
+  .page-indicator { font-size: .8rem; }
+  #btnTools { margin-left: auto; }
+  .mushaf-container { padding: 6px; }
+  /* audio bar di HP: ringkas & tidak menutupi navigasi */
+  .audio-bar { padding: 8px 10px; gap: 8px; }
+  .audio-extra { gap: 6px; }
+  .audio-bar .audio-select { font-size: .72rem; max-width: 92px; }
+  .hifz-tabs { flex-wrap: wrap; }
+  .mode-switch, #toggleArabic { display: none; }
+}
+
+/* Mobile: bilah audio ringkas & tombol stop tidak menutupi navigasi */
+@media (max-width: 640px) {
+  .audio-extra label:has(#audioRate),
+  .audio-extra label:has(#audioMute),
+  .audio-volume { display: none; }
+  .audio-bar { padding: 6px 10px; gap: 6px; }
+  .audio-info { font-size: .82rem; }
+  .audio-controls .icon-btn { width: 34px; height: 34px; }
+  .mini-stop { bottom: calc(var(--audio-bar-h) + var(--nav-h) + 10px); padding: 8px 12px; font-size: .76rem; }
+  body:not(.has-audio) .mini-stop { display: none; }
+}

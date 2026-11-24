@@ -200,7 +200,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-hifdh';
+  const BUILD = '2026-11-24-mobile';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2994,6 +2994,9 @@
     const [surah, ayah] = verseKey.split(':').map(Number);
     els.audioBar.hidden = false;
     document.body.classList.add('has-audio');
+    requestAnimationFrame(() => {
+      try { document.documentElement.style.setProperty('--audio-bar-h', `${els.audioBar.offsetHeight}px`); } catch { /* abaikan */ }
+    });
     document.querySelectorAll('.scan-sheet').forEach(applyPageScale);
     els.audioPlay.hidden = false;
     els.audioPause.hidden = true;
