@@ -16,6 +16,7 @@
     pageMode: 'scan',      // 'scan' = halaman mushaf (layout), 'text' = teks Uthmani
     spreadMode: 'auto',    // 'auto' | 'one' | 'two' — dua halaman seperti buku
     pageFontScale: 100,    // 80–120%: pengali ukuran huruf halaman mushaf
+    pageZoom: 1,           // zoom halaman (pinch / ketuk dua kali)
     indopakLines: '15',     // '15' = Qudratullah 15 garis | '16' = Taj 16 garis
     indopakFont: 'qul',    // 'qul' | 'light' | 'compact'
     pageBorder: 'simple',
@@ -200,7 +201,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-24-trans';
+  const BUILD = '2026-11-25-gesture';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2421,7 +2422,7 @@
     const bar = document.getElementById('audioBar');
     const barH = (bar && !bar.hidden) ? bar.offsetHeight + 8 : 0;
     const availH = Math.max(280, window.innerHeight - topY - barH - 14);
-    const scale = Math.min(1, boxW / DESIGN_W) || 1;
+    const scale = (Math.min(1, boxW / DESIGN_W) || 1) * (state.pageZoom || 1);
     sheet.style.setProperty('--page-scale', String(scale));
     if (stage) {
       stage.classList.add('page-viewport');
@@ -3775,6 +3776,69 @@
       }, true);
     });
     els.btnMenu.addEventListener('click', openDrawer);
+
+    // ── Gestur halaman: geser untuk pindah, cubit untuk zoom, ketuk 2x ──
+    const zoomSheets = () => document.querySelectorAll('.scan-sheet:not(.trans-sheet)').forEach((s2) => applyPageScale(s2));
+    const dist2 = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    let pinch = null;
+    let swipe = null;
+    let lastTap = 0;
+    const mushafBox = els.mushafContainer;
+    mushafBox.addEventListener('touchstart', (e) => {
+      if (e.target.closest('button, select, a, input')) return;
+      if (e.touches.length === 2) { pinch = { d: dist2(e.touches), z: state.pageZoom || 1 }; swipe = null; return; }
+      if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          state.pageZoom = (state.pageZoom || 1) > 1.2 ? 1 : 1.8;
+          zoomSheets();
+          showToast(state.pageZoom > 1 ? 'Zoom halaman' : 'Zoom normal');
+          lastTap = 0;
+          return;
+        }
+        lastTap = now;
+        swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    }, { passive: true });
+    mushafBox.addEventListener('touchmove', (e) => {
+      if (pinch && e.touches.length === 2) {
+        e.preventDefault();
+        const z = Math.max(1, Math.min(2.5, pinch.z * (dist2(e.touches) / pinch.d)));
+        if (Math.abs(z - (state.pageZoom || 1)) > 0.02) { state.pageZoom = z; zoomSheets(); }
+      }
+    }, { passive: false });
+    mushafBox.addEventListener('touchend', (e) => {
+      if (pinch && e.touches.length < 2) { pinch = null; return; }
+      if (!swipe || !e.changedTouches.length) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - swipe.x;
+      const dy = t.clientY - swipe.y;
+      swipe = null;
+      if ((state.pageZoom || 1) > 1.05) return;          // sedang zoom: jangan pindah
+      if (Math.abs(dx) > 60 && Math.abs(dy) < 50) {
+        if (dx < 0) els.btnNextPage?.click(); else els.btnPrevPage?.click();
+      }
+    });
+
+    // ── Di HP: Mushaf/Teks & Arab dipindah ke panel Alat agar tetap terjangkau ──
+    const layoutToolbar = () => {
+      const group = document.querySelectorAll('.mushaf-toolbar .toolbar-group')[1];
+      const tools = document.getElementById('mushafTools');
+      const mode = document.querySelector('.mode-switch');
+      const arab = document.getElementById('toggleArabic');
+      if (!group || !tools || !mode || !arab) return;
+      const mobile = window.matchMedia('(max-width: 640px)').matches;
+      if (mobile) {
+        if (mode.parentElement !== tools) tools.appendChild(mode);
+        if (arab.parentElement !== tools) tools.appendChild(arab);
+      } else {
+        const before = group.querySelector('#toggleTranslation');
+        if (mode.parentElement !== group) group.insertBefore(mode, before);
+        if (arab.parentElement !== group) group.insertBefore(arab, before);
+      }
+    };
+    layoutToolbar();
+    window.addEventListener('resize', layoutToolbar);
 
     // Panel "Alat" pada toolbar mushaf
     const btnTools = $('btnTools');

@@ -2021,7 +2021,7 @@ body.is-fullscreen .app-main { margin-top: 0; }
 /* ═══ Halaman penuh: tiap lembar punya gulir sendiri ═══ */
 .scan-sheet-box.page-viewport {
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   padding-bottom: 24px;
@@ -2414,7 +2414,7 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   .audio-extra { gap: 6px; }
   .audio-bar .audio-select { font-size: .72rem; max-width: 92px; }
   .hifz-tabs { flex-wrap: wrap; }
-  .mode-switch, #toggleArabic { display: none; }
+
 }
 
 /* Mobile: bilah audio ringkas & tombol stop tidak menutupi navigasi */
@@ -2428,3 +2428,6 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   .mini-stop { bottom: calc(var(--audio-bar-h) + var(--nav-h) + 10px); padding: 8px 12px; font-size: .76rem; }
   body:not(.has-audio) .mini-stop { display: none; }
 }
+
+/* saat zoom: halaman boleh lebih lebar dari kotak */
+.scan-sheet-box.page-viewport { touch-action: pan-x pan-y; }
