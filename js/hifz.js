@@ -1517,6 +1517,25 @@
     return !!(st.breakUntil && st.breakUntil > Date.now());
   }
 
+  /** Kartu ringkas "Daftar hafalan saya" + tombol ubah. */
+  async function scopeCardHtml() {
+    const { pages, ayahs } = await computeScope();
+    const juz = (S.scope.juz || []).length;
+    const sur = (S.scope.surah || []).length;
+    const rng = (S.scope.ranges || []).length;
+    const empty = !pages.length;
+    return `<div class="hifz-card">
+      <span class="hifz-k">Daftar hafalan saya</span>
+      <strong class="hifz-v">${empty ? 'Belum ada hafalan' : `${pages.length} halaman · ${ayahs} ayat`}</strong>
+      <span class="hifz-muted">${empty
+        ? 'Tambahkan juz/surat/rentang ayat yang sudah dihafal.'
+        : [juz ? `${juz} juz` : '', sur ? `${sur} surat` : '', rng ? `${rng} rentang` : ''].filter(Boolean).join(' · ')}</span>
+      <div class="hifz-actions" style="margin-top:8px">
+        <button class="btn btn-sm btn-primary" data-goto-tab="scope">${empty ? 'Masukkan hafalan' : 'Ubah daftar hafalan'}</button>
+      </div>
+    </div>`;
+  }
+
   // ── Layar 1: Hafal Baru ────────────────────────────────────────────────
   async function renderHafal() {
     await ensureVerseMeta();
@@ -1526,7 +1545,8 @@
     const sub = (id, label) => `<button class="sub-tab${hafalTab === id ? ' active' : ''}" data-hafal-sub="${id}">${label}</button>`;
     let body = '';
     if (hafalTab === 'target') {
-      body = `${programHifdhHtml()}
+      body = `${await scopeCardHtml()}
+        ${programHifdhHtml()}
         ${await methodCardHtml()}
         ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}`;
     } else if (hafalTab === 'setoran') {
@@ -1551,7 +1571,8 @@
     const sub = (id, label) => `<button class="sub-tab${murajaahTab === id ? ' active' : ''}" data-mj-sub="${id}">${label}</button>`;
     let body = '';
     if (murajaahTab === 'hariini') {
-      body = `${await programCardHtml()}
+      body = `${await scopeCardHtml()}
+        ${await programCardHtml()}
         ${await hifdhDailyHtml()}
         <details class="hifz-fold">
           <summary>Program murajaah 1 pekan</summary>
