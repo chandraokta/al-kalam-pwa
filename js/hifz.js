@@ -1326,7 +1326,7 @@
           <select id="mtRepeat" aria-label="Ulangan">
             ${[3, 5, 10, 20].map((n) => `<option value="${n}"${n === 20 ? ' selected' : ''}>${n}×</option>`).join('')}
           </select>
-          <button class="btn btn-sm btn-primary" data-mt-start>Mulai metode</button>
+          <button class="btn btn-sm btn-primary" data-mt-start>Mulai menghafal</button>
         </div>
         <span class="hifz-muted" id="mtPreview">Default: target hari ini · ulangan 20× (bisa diubah).</span>
       </div>`;
@@ -1349,7 +1349,7 @@
       <div class="hifz-actions">
         ${done
           ? '<button class="btn btn-sm btn-primary" data-mt-finish>✓ Sudah hafal — masukkan ke daftar</button>'
-          : `<button class="btn btn-sm btn-primary" data-mt-play>${m.listening ? 'Hentikan' : `Putar ${st.repeat}×`}</button>
+          : `<button class="btn btn-sm btn-primary" data-mt-play>${m.listening ? 'Hentikan' : (m.listens ? `Lanjut ${st.repeat}×` : 'Mulai menghafal')}</button>
              <button class="btn btn-sm" data-mt-next ${(m.listens || 0) < st.repeat ? 'disabled' : ''}>Langkah berikutnya</button>`}
         <button class="btn btn-sm" data-mt-cancel>Batal</button>
       </div>
@@ -1374,6 +1374,14 @@
     const st = m.steps[m.step];
     if (!st) return;
     const vk = `${st.surah}:${st.from}`;
+    // pastikan data timing QUL sudah dimuat (tanpa ini ayahTimes null)
+    try {
+      const stt = window.AlKalam.state;
+      if (stt && !stt.qul) {
+        const q = await window.AlKalam.DataManager.getQul(stt.qari || 'alafasy');
+        if (q) stt.qul = q;
+      }
+    } catch {}
     await openVersePage(vk);
     // jangan menunggu playAyah selesai (kadang lambat memuat audio);
     // mulai pemutaran lalu tunggu timing tersedia
@@ -1406,11 +1414,27 @@
           save();
           render();
           if (m2.listens >= st.repeat) {
-            m2.listening = false;
-            save();
-            render();
             raporBump('steps');
-            flash('Langkah selesai — tekan "Langkah berikutnya"');
+            if (m2.step < m2.steps.length - 1) {
+              // lanjut otomatis ke langkah berikutnya sesuai urutan metode
+              const doneStep = m2.step + 1;
+              const nextStep = m2.step + 1;
+              m2.step = nextStep;
+              m2.listens = 0;
+              save();
+              render();
+              flash(`Langkah ${doneStep}/${m2.steps.length} selesai — lanjut otomatis`);
+              setTimeout(() => {
+                const m3 = methodsState().newMem;
+                if (!m3 || m3.step !== nextStep || m3.listening) return;
+                methodPlay();
+              }, 900);
+            } else {
+              m2.listening = false;
+              save();
+              render();
+              flash('Semua langkah selesai — tekan "Sudah hafal"');
+            }
           } else {
             m2.timer = setTimeout(() => {
               const m3 = methodsState().newMem;
@@ -2388,7 +2412,9 @@
       methodsState().newMem = m;
       save();
       render();
-      flash(`Metode dimulai: ${segmentsLabel(segs)} · ${m.steps.length} langkah`);
+      flash(`Mulai menghafal: ${segmentsLabel(segs)} · ${m.steps.length} langkah · ${repeat}×`);
+      // langsung jalankan urutan metode (ulangan & langkah berurutan)
+      setTimeout(() => { methodPlay(); }, 350);
     });
     view.querySelectorAll('[data-sim-open]').forEach((b) => b.addEventListener('click', async () => {
       const [a, b2] = b.dataset.simOpen.split('|');
