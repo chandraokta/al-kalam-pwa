@@ -2555,3 +2555,48 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
       linear-gradient(180deg, var(--cover-bg1) 0%, var(--cover-bg2) 100%);
   }
 }
+
+/* ═══ Sampul responsif: semua ukuran layar ═══ */
+#viewHome { justify-content: safe center; }
+
+/* ponsel kecil */
+@media (max-width: 480px) {
+  .home-cover { padding: 22px 14px 18px; border-radius: 18px; margin: 6px auto 16px; }
+  .home-title { font-size: clamp(1.7rem, 8vw, 2.3rem); }
+  .home-sub { font-size: .84rem; }
+  .cover-bismillah { font-size: clamp(1.2rem, 5.5vw, 1.5rem); margin: 12px 0 4px; }
+  .cover-greeting { font-size: .72rem; letter-spacing: .1em; }
+  .cover-arch { width: 94%; }
+  .cover-glow { width: 300px; height: 300px; }
+  .home-resume { padding: 12px 14px; border-radius: 14px; }
+  .home-card-lg { padding: 12px; gap: 10px; }
+  .home-actions-3 { gap: 8px; }
+  .home-links { gap: 6px; }
+}
+
+/* layar pendek (HP miring / jendela pendek) */
+@media (max-height: 700px) {
+  #viewHome { justify-content: flex-start; }
+  .home-cover { padding: 22px 18px 18px; margin-top: 4px; }
+  .cover-mark { display: none; }
+  .cover-bismillah { font-size: clamp(1.15rem, 3.6vw, 1.5rem); margin: 10px 0 4px; }
+  .cover-date { margin-bottom: 12px; }
+  .home-resume { margin-bottom: 14px; padding: 12px 14px; }
+  .cover-footer { margin-top: 14px; }
+  .home-actions { gap: 8px; }
+}
+
+/* sangat pendek & lebar (landscape HP) */
+@media (max-height: 520px) and (orientation: landscape) {
+  .home-cover { padding: 16px 20px 14px; margin: 4px auto; }
+  .cover-inner { text-align: center; }
+  .home-title { font-size: clamp(1.5rem, 4vw, 2rem); }
+  .cover-date { margin-bottom: 8px; }
+  .home-resume { margin-bottom: 10px; padding: 10px 12px; }
+  .home-actions-3 { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .home-card-lg { flex-direction: row; align-items: center; gap: 8px; padding: 10px; }
+  .home-card-lg .home-card-label { margin-top: 0; font-size: .86rem; }
+  .home-card-lg .home-card-hint { display: none; }
+  .cover-footer { display: none; }
+  .home-links { margin-top: 8px; }
+}
