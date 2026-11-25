@@ -1621,7 +1621,7 @@
         </select>
         <input id="todayFrom" type="number" min="1" value="${t && t.kind === 'ayat' ? t.from : 1}" aria-label="Dari ayat" style="width:80px" ${kind === 'page' ? 'hidden' : ''}>
         <input id="todayTo" type="number" min="1" value="${t && t.kind === 'ayat' ? t.to : 5}" aria-label="Sampai ayat" style="width:80px" ${kind === 'page' ? 'hidden' : ''}>
-        <button class="btn btn-sm btn-primary" data-today-save>Simpan &amp; buka</button>
+        <button class="btn btn-sm btn-primary" data-today-save>Simpan</button>
       </div>
     </div>`;
   }
@@ -2431,8 +2431,6 @@
         S.hafalHariIni = { date: todayStr(), kind: 'page', page };
         save();
         window.AlKalam.state.activePage = page;
-        await window.AlKalam.openPage(page);
-        flash(`Target hari ini: halaman ${page}`);
       } else {
         const surah = Number(view.querySelector('#todaySurah')?.value) || 1;
         const from = Number(view.querySelector('#todayFrom')?.value) || 1;
@@ -2440,12 +2438,10 @@
         if (to < from) return flash('Ayat akhir harus ≥ ayat awal');
         S.hafalHariIni = { date: todayStr(), kind: 'ayat', surah, from, to };
         save();
-        const page = versePageOf(surah, from);
-        window.AlKalam.state.activePage = page || 1;
-        await window.AlKalam.openPage(page || 1);
-        flash(`Target hari ini: ${(chaptersCache || []).find((c) => c.id === surah)?.name_simple || 'Surah ' + surah} ${from}–${to}`);
+        window.AlKalam.state.activePage = versePageOf(surah, from) || 1;
       }
-      render();
+      await render();
+      flash('Target disimpan — Metode 20× sudah terisi. Tekan Mulai metode di kartu bawah.');
     });
     view.querySelector('[data-today-open]')?.addEventListener('click', async () => {
       const t = S.hafalHariIni;
@@ -2459,9 +2455,19 @@
       render();
       flash('Target hari ini dihapus');
     });
-    // samakan mode form metode dengan target hari ini (setelah render)
+    // samakan form metode dengan target hari ini (setelah render)
     if (S.hafalHariIni && view.querySelector('#mtForm')) {
-      view.querySelector(`[data-mt-target="${S.hafalHariIni.kind === 'ayat' ? 'ayat' : 'page'}"]`)?.click();
+      const t = S.hafalHariIni;
+      view.querySelector(`[data-mt-target="${t.kind === 'ayat' ? 'ayat' : 'page'}"]`)?.click();
+      const setVal = (id, val) => { const el = view.querySelector('#' + id); if (el && val != null) el.value = val; };
+      if (t.kind === 'page') setVal('mtPage', t.page);
+      else {
+        setVal('mtSurah', t.surah);
+        setVal('mtFrom', t.from);
+        setVal('mtCount', Math.max(1, t.to - t.from + 1));
+        setVal('mtTo', t.to);
+      }
+      setVal('mtRepeat', 20);
     }
     view.querySelector('[data-hd-memorize]')?.addEventListener('click', hifdhStartMemorize);
     view.querySelector('[data-hd-startjuz]')?.addEventListener('click', hifdhStartJuz);

@@ -2,10 +2,10 @@
  * Al-Kalam Digital — Service Worker
  * Offline-first untuk halaman mushaf & data JSON
  */
-const CACHE_NAME = 'alkalam-v136';
-const DATA_CACHE = 'alkalam-data-v136';
-const PAGE_CACHE = 'alkalam-pages-v136';
-const IMG_CACHE = 'alkalam-img-v136';
+const CACHE_NAME = 'alkalam-v137';
+const DATA_CACHE = 'alkalam-data-v137';
+const PAGE_CACHE = 'alkalam-pages-v137';
+const IMG_CACHE = 'alkalam-img-v137';
 
 // File yang di-cache saat install (app shell)
 const APP_SHELL = [
