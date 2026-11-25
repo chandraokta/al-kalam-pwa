@@ -2743,3 +2743,9 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .mt-progress .hifz-bar { margin-bottom: 6px; }
 .mt-count { font-size: .82rem; color: rgba(255,255,255,.75); }
 .mt-count b { color: var(--accent, #7fd1a5); font-size: 1rem; }
+
+/* setoran tersembunyi (Tilawa) */
+.scan-sheet.set-hidden .mw { color: transparent !important; background: rgba(255,255,255,.10);
+  border-radius: 4px; text-shadow: none !important; cursor: pointer; }
+.scan-sheet.set-hidden .mw.st-on { color: inherit !important; background: transparent !important; }
+.scan-sheet.set-hidden .mw.st-bad { color: #e57373 !important; background: rgba(229,115,115,.12) !important; }
