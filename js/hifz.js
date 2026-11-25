@@ -1555,17 +1555,26 @@
   /** Kartu ringkas "Daftar hafalan saya" + tombol ubah. */
   async function scopeCardHtml() {
     const { pages, ayahs } = await computeScope();
-    const juz = (S.scope.juz || []).length;
-    const sur = (S.scope.surah || []).length;
-    const rng = (S.scope.ranges || []).length;
+    const juzList = (S.scope.juz || []).slice().sort((a, b) => a - b);
+    const surList = (S.scope.surah || []).slice().sort((a, b) => a - b);
+    const rngList = S.scope.ranges || [];
     const empty = !pages.length;
-    return `<div class="hifz-card">
+    const chName = (id) => ((chaptersCache || []).find((c) => c.id === Number(id)) || {}).name_simple || `Surah ${id}`;
+    const readOnlyChips = [
+      ...juzList.map((j) => `<span class="scope-chip ro">Juz ${j}</span>`),
+      ...surList.slice(0, 6).map((c) => `<span class="scope-chip ro">${esc(chName(c))}</span>`),
+      ...(surList.length > 6 ? [`<span class="scope-chip ro">+${surList.length - 6} surat</span>`] : []),
+      ...rngList.slice(0, 4).map((r) => `<span class="scope-chip ro">${esc(chName(r.surah))} ${r.from}–${r.to}</span>`),
+      ...(rngList.length > 4 ? [`<span class="scope-chip ro">+${rngList.length - 4} rentang</span>`] : []),
+    ].join('');
+    return `<div class="hifz-card scope-summary">
       <span class="hifz-k">Daftar hafalan saya</span>
       <strong class="hifz-v">${empty ? 'Belum ada hafalan' : `${pages.length} halaman · ${ayahs} ayat`}</strong>
       <span class="hifz-muted">Masukkan surat atau ayat yang sudah Anda hafal di sini untuk memudahkan kami membuat program murajaah harian.</span>
-      <span class="hifz-muted">${empty ? '' : [juz ? `${juz} juz` : '', sur ? `${sur} surat` : '', rng ? `${rng} rentang` : ''].filter(Boolean).join(' · ')}</span>
+      ${empty ? '' : `<div class="scope-grid scope-grid-ro">${readOnlyChips}</div>`}
+      <span class="hifz-muted">Ringkasan saja — data hanya bisa diubah lewat tombol di bawah (mencegah salah klik).</span>
       <div class="hifz-actions" style="margin-top:8px">
-        <button class="btn btn-sm btn-primary" data-goto-tab="scope">${empty ? 'Masukkan hafalan' : 'Ubah daftar hafalan'}</button>
+        <button class="btn btn-sm btn-primary" data-goto-tab="scope">${empty ? 'Masukkan ayat yang sudah dihafal di sini' : 'Ubah daftar hafalan'}</button>
       </div>
     </div>`;
   }
@@ -1579,10 +1588,10 @@
     const sub = (id, label) => `<button class="sub-tab${hafalTab === id ? ' active' : ''}" data-hafal-sub="${id}">${label}</button>`;
     let body = '';
     if (hafalTab === 'hafalan') {
-      body = `${programHifdhHtml()}
+      body = `${await scopeCardHtml()}
+        ${programHifdhHtml()}
         ${await methodCardHtml()}
-        ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}
-        ${await renderScope()}`;
+        ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}`;
     } else if (hafalTab === 'setoran') {
       body = setoranHtml();
     } else {

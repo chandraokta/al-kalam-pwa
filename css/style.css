@@ -2729,3 +2729,8 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 /* animasi masuk sampul dimatikan agar isi tidak tertahan pada state opacity:0 */
 #viewHome .cover-inner > * { animation: none !important; opacity: 1 !important; transform: none !important; }
 #viewHome .cover-mark, #viewHome .cover-greeting { opacity: 1 !important; }
+
+/* ringkasan daftar hafalan: chip read-only */
+.scope-grid-ro { margin-top: 8px; }
+.scope-chip.ro { cursor: default; opacity: .85; }
+.scope-chip.ro:hover { background: transparent; }
