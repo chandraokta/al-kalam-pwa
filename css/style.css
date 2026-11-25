@@ -2737,3 +2737,9 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 
 /* judul kartu hifz (mis. Metode 20x per Ayat) */
 .hifz-title { display:block; font-size:1.02rem; font-weight:800; letter-spacing:-.01em; color:var(--fg); margin-bottom:3px; }
+
+/* indikator putaran metode 20x */
+.mt-progress { margin: 6px 0 10px; }
+.mt-progress .hifz-bar { margin-bottom: 6px; }
+.mt-count { font-size: .82rem; color: rgba(255,255,255,.75); }
+.mt-count b { color: var(--accent, #7fd1a5); font-size: 1rem; }

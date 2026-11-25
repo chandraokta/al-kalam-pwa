@@ -1340,7 +1340,11 @@
     return `<div class="hifz-card method-card">
       <strong class="hifz-title">Metode 20× per Ayat</strong>
       <span class="hifz-muted">${segmentsLabel(m.segments)} · ${m.steps.length} langkah · kelompok ${m.group}</span>
-      ${done ? '' : `<strong class="hifz-v">Langkah ${m.step + 1}/${m.steps.length} · ${stepLabel(st)} · ${m.listens || 0}/${st.repeat} putaran</strong>`}
+      ${done ? '' : `<strong class="hifz-v">Langkah ${m.step + 1}/${m.steps.length} · ${stepLabel(st)}</strong>
+      <div class="mt-progress">
+        <div class="hifz-bar"><i id="mtBar" style="width:${Math.round(((m.listens || 0) / st.repeat) * 100)}%"></i></div>
+        <span class="mt-count"><b id="mtCounter">${m.listens || 0}/${st.repeat}</b> putaran · <span id="mtRemain">—</span></span>
+      </div>`}
       ${done ? '<strong class="hifz-v">Semua langkah selesai ✓</strong>' : ''}
       <div class="mt-list">${list}</div>
       ${isPemula() ? '' : `<span class="hifz-muted">Aturan: maks 1/8 juz/hari (±2,5 halaman) · urut An-Nas → Al-Baqarah · satu mushaf · setoran ke guru.</span>`}
@@ -1407,6 +1411,12 @@
         const m2 = methodsState().newMem;
         const au = window.AlKalam.audio && window.AlKalam.audio();
         if (!m2 || !m2.listening || !au) { if (m2 && m2.timer) clearInterval(m2.timer); return; }
+        const cnt = document.getElementById('mtCounter');
+        if (cnt) cnt.textContent = `${m2.listens || 0}/${st.repeat}`;
+        const bar = document.getElementById('mtBar');
+        if (bar) bar.style.width = `${Math.round(((m2.listens || 0) / st.repeat) * 100)}%`;
+        const remain = document.getElementById('mtRemain');
+        if (remain) remain.textContent = `${Math.max(0, Math.ceil((t2.to - au.currentTime * 1000) / 1000))} dtk`;
         if (au.currentTime * 1000 >= t2.to - 80) {
           au.pause();
           if (m2.timer) { clearInterval(m2.timer); m2.timer = null; }
@@ -1421,6 +1431,7 @@
               const nextStep = m2.step + 1;
               m2.step = nextStep;
               m2.listens = 0;
+              m2.listening = false;      // agar methodPlay tidak dianggap "sedang jalan"
               save();
               render();
               flash(`Langkah ${doneStep}/${m2.steps.length} selesai — lanjut otomatis`);
