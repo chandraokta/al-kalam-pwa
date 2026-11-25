@@ -1629,7 +1629,6 @@
     if (hafalTab === 'hafalan') {
       body = `${await scopeCardHtml()}
         ${await todayTargetHtml()}
-        ${programHifdhHtml()}
         ${await methodCardHtml()}
         ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}`;
     } else if (hafalTab === 'setoran') {
@@ -1656,7 +1655,6 @@
     if (murajaahTab === 'hariini') {
       body = `${await scopeCardHtml()}
         ${await programCardHtml()}
-        ${await hifdhDailyHtml()}
         <details class="hifz-fold">
           <summary>Program murajaah 1 pekan</summary>
           ${await weekPlanHtml()}
