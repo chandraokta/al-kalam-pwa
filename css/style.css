@@ -2725,3 +2725,7 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   #viewHome .home-cover { padding: 8px 10px; }
   #viewHome .home-links .btn { font-size: .72rem; padding: 5px 8px; }
 }
+
+/* animasi masuk sampul dimatikan agar isi tidak tertahan pada state opacity:0 */
+#viewHome .cover-inner > * { animation: none !important; opacity: 1 !important; transform: none !important; }
+#viewHome .cover-mark, #viewHome .cover-greeting { opacity: 1 !important; }
