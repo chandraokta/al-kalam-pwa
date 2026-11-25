@@ -949,12 +949,18 @@
       <strong class="hifz-v">Juz ${juz} · juz ke-${p2.juzIndex + 1} dari 30</strong>
       <span class="hifz-muted">${p2.setoranPerWeek} setoran/pekan · perkiraan ${hifdhEstimate(p2.setoranPerWeek)} · progres ${pct}%</span>
       <span class="hifz-muted">Sudah dilalui: ${hifdhScopeJuz().length} juz (${hifdhScopeJuz().map((j) => 'J' + j).join(', ')}) ·
-        juz lain di daftar hafalan tetap dipertahankan.</span>
+        juz lain di daftar hafalan tetap dipertahankan. Salah pencet? Gunakan tombol
+        "Kembali" atau "Keluarkan Juz" di bawah.</span>
       <div class="hifz-bar"><i style="width:${pct}%"></i></div>
       <div class="hifz-actions" style="margin-top:8px">
         <button class="btn btn-sm btn-primary" data-hd-startjuz>Mulai Juz ${juz}</button>
         <button class="btn btn-sm" data-hd-next>Selesai &amp; lanjut</button>
         <button class="btn btn-sm" data-hd-order>Lihat urutan</button>
+      </div>
+      <div class="hifz-actions" style="margin-top:6px">
+        ${p2.juzIndex > 0 ? `<button class="btn btn-sm" data-hd-prev>← Kembali ke Juz ${p2.order[p2.juzIndex - 1]}</button>` : ''}
+        <button class="btn btn-sm" data-hd-remove>Keluarkan Juz ${juz} dari hafalan</button>
+        <button class="btn btn-sm" data-hd-reset>Atur ulang program</button>
       </div>
       <details class="hifz-fold"><summary>Urutan ${p2.order.slice(0, 10).map((j) => 'J' + j).join(' → ')} …</summary>
         <div class="hifz-muted" style="line-height:1.8">${p2.order.map((j, i) => `<span class="${i < p2.juzIndex ? 'hd-done' : i === p2.juzIndex ? 'hd-now' : ''}">J${j}</span>`).join(' · ')}</div>
@@ -2252,6 +2258,33 @@
     view.querySelector('[data-hd-start]')?.addEventListener('click', hifdhStart);
     view.querySelector('[data-hd-startjuz]')?.addEventListener('click', hifdhStartJuz);
     view.querySelector('[data-hd-next]')?.addEventListener('click', hifdhNextJuz);
+    view.querySelector('[data-hd-prev]')?.addEventListener('click', () => {
+      const p2 = hifdhProg();
+      if (!p2 || p2.juzIndex <= 0) return;
+      p2.juzIndex -= 1;
+      save();
+      render();
+      flash(`Kembali ke Juz ${hifdhCurrentJuz()} — juz yang sudah ditandai tetap tercatat`);
+    });
+    view.querySelector('[data-hd-remove]')?.addEventListener('click', async () => {
+      const p2 = hifdhProg();
+      const juz = hifdhCurrentJuz();
+      if (!p2 || !juz) return;
+      if (!confirm(`Keluarkan Juz ${juz} dari daftar hafalan? Program tetap di Juz ${juz}; Anda bisa menambahkannya lagi kapan saja.`)) return;
+      S.scope.juz = (S.scope.juz || []).filter((j) => Number(j) !== Number(juz));
+      save();
+      await buildProgram();
+      render();
+      flash(`Juz ${juz} dikeluarkan dari daftar hafalan`);
+    });
+    view.querySelector('[data-hd-reset]')?.addEventListener('click', () => {
+      if (!confirm('Atur ulang Program Hifdh ke Juz 30? Daftar hafalan tidak dihapus.')) return;
+      S.programs = S.programs || {};
+      S.programs.hifdh = null;
+      save();
+      render();
+      flash('Program Hifdh diatur ulang');
+    });
     view.querySelector('[data-hd-order]')?.addEventListener('click', () => {
       const p2 = hifdhProg();
       if (!p2) return;
