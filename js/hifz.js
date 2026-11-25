@@ -1298,20 +1298,28 @@
     const chapters = chaptersCache || [];
     if (!m) {
       const page = window.AlKalam.state.activePage || window.AlKalam.state.currentPage || 1;
+      const t = S.hafalHariIni || null;
+      const tKind = t ? t.kind : 'page';
+      const tPage = t && t.kind === 'page' ? t.page : page;
+      const tSurah = t && t.kind === 'ayat' ? t.surah : (chapters[chapters.length - 1]?.id || 1);
+      const tFrom = t && t.kind === 'ayat' ? t.from : 1;
+      const tCount = t && t.kind === 'ayat' ? Math.max(1, t.to - t.from + 1) : 5;
+      const hidePage = tKind === 'ayat';
       return `<div class="hifz-card method-card">
         <strong class="hifz-title">Metode 20× per Ayat</strong>
         <span class="hifz-muted">Hafal tiap ayat 20×, gabungkan per kelompok, lalu ulangi semuanya.</span>
+        ${t ? `<span class="hifz-muted">Default mengikuti target hari ini: <b>${t.kind === 'page' ? 'halaman ' + t.page : (chapters.find((c) => c.id === Number(t.surah))?.name_simple || 'Surah ' + t.surah) + ' ' + t.from + '–' + t.to}</b> — bisa diubah di bawah.</span>` : ''}
         <div class="hifz-actions" style="margin:8px 0">
-          ${METHOD_TARGETS.filter(([v]) => !isPemula() || v !== 'range').map(([v, t]) => `<button class="btn btn-sm${v === 'page' ? ' btn-primary' : ''}" data-mt-target="${v}">${t}</button>`).join('')}
+          ${METHOD_TARGETS.filter(([v]) => !isPemula() || v !== 'range').map(([v, tt]) => `<button class="btn btn-sm${v === tKind ? ' btn-primary' : ''}" data-mt-target="${v}">${tt}</button>`).join('')}
         </div>
         <div class="range-form" id="mtForm">
-          <input id="mtPage" type="number" min="1" max="604" value="${page}" aria-label="Halaman" style="width:90px">
-          <select id="mtSurah" aria-label="Surah" hidden>
-            ${chapters.slice().sort((a, b) => b.id - a.id).map((c) => `<option value="${c.id}">${c.id}. ${esc(c.name_simple || '')}</option>`).join('')}
+          <input id="mtPage" type="number" min="1" max="604" value="${tPage}" aria-label="Halaman" style="width:90px" ${hidePage ? 'hidden' : ''}>
+          <select id="mtSurah" aria-label="Surah" ${hidePage ? '' : 'hidden'}>
+            ${chapters.slice().sort((a, b) => b.id - a.id).map((c) => `<option value="${c.id}"${Number(c.id) === Number(tSurah) ? ' selected' : ''}>${c.id}. ${esc(c.name_simple || '')}</option>`).join('')}
           </select>
-          <input id="mtFrom" type="number" min="1" value="1" aria-label="Dari ayat" hidden style="width:90px">
-          <input id="mtCount" type="number" min="1" value="5" aria-label="Jumlah ayat" hidden style="width:90px">
-          <input id="mtTo" type="number" min="1" value="5" aria-label="Sampai ayat" hidden style="width:90px">
+          <input id="mtFrom" type="number" min="1" value="${tFrom}" aria-label="Dari ayat" ${hidePage ? '' : 'hidden'} style="width:90px">
+          <input id="mtCount" type="number" min="1" value="${tCount}" aria-label="Jumlah ayat" ${hidePage ? '' : 'hidden'} style="width:90px">
+          <input id="mtTo" type="number" min="1" value="${t && t.kind === 'ayat' ? t.to : 5}" aria-label="Sampai ayat" ${hidePage ? '' : 'hidden'} style="width:90px">
           <select id="mtGroup" aria-label="Kelompok ayat">
             ${[2, 4, 6, 8].map((n) => `<option value="${n}"${n === 4 ? ' selected' : ''}>Kelompok ${n} ayat</option>`).join('')}
           </select>
@@ -1320,7 +1328,7 @@
           </select>
           <button class="btn btn-sm btn-primary" data-mt-start>Mulai metode</button>
         </div>
-        <span class="hifz-muted" id="mtPreview">Pilih target lalu tekan Mulai.</span>
+        <span class="hifz-muted" id="mtPreview">Default: target hari ini · ulangan 20× (bisa diubah).</span>
       </div>`;
     }
 
@@ -2445,6 +2453,10 @@
       render();
       flash('Target hari ini dihapus');
     });
+    // samakan mode form metode dengan target hari ini (setelah render)
+    if (S.hafalHariIni && view.querySelector('#mtForm')) {
+      view.querySelector(`[data-mt-target="${S.hafalHariIni.kind === 'ayat' ? 'ayat' : 'page'}"]`)?.click();
+    }
     view.querySelector('[data-hd-memorize]')?.addEventListener('click', hifdhStartMemorize);
     view.querySelector('[data-hd-startjuz]')?.addEventListener('click', hifdhStartJuz);
     view.querySelector('[data-hd-pick]')?.addEventListener('click', () => {
