@@ -2419,6 +2419,12 @@
       ['todaySurah', 'todayFrom', 'todayTo'].forEach((id) => { const el = view.querySelector('#' + id); if (el) el.hidden = showPage; });
     }));
     view.querySelector('[data-today-save]')?.addEventListener('click', async () => {
+      // target baru: hentikan metode lama agar tidak tertahan pada segmen lama
+      if (S.methods.newMem) {
+        try { stopMethodPlay(); } catch {}
+        S.methods.newMem = null;
+        flash('Metode sebelumnya dihentikan — target baru disiapkan');
+      }
       if (todayMode === 'page') {
         const page = Number(view.querySelector('#todayPage')?.value);
         if (!page || page < 1 || page > 604) return flash('Nomor halaman 1–604');
