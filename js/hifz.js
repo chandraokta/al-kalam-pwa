@@ -875,6 +875,7 @@
     S.programs.hifdh = {
       order: HIFDH_ORDER.slice(),
       juzIndex: 0,
+      done: [],
       setoranPerWeek: 5,
       cursor: 0,
       daurCursor: 0,
@@ -890,11 +891,17 @@
     return p2 ? p2.order[p2.juzIndex] : null;
   }
 
-  /** Juz yang sudah dilalui program + juz yang sedang berjalan. */
+  /** Juz yang benar-benar sudah ditandai selesai + juz yang sedang berjalan. */
   function hifdhScopeJuz() {
     const p2 = hifdhProg();
     if (!p2) return [];
-    return [...new Set(p2.order.slice(0, p2.juzIndex + 1))];
+    const cur = p2.order[p2.juzIndex];
+    return [...new Set([...(p2.done || []), cur].filter((x) => x != null))];
+  }
+
+  function hifdhDoneCount() {
+    const p2 = hifdhProg();
+    return p2 ? [...new Set(p2.done || [])].length : 0;
   }
 
   /** Tambahkan juz program ke cakupan TANPA menghapus juz lain milik pengguna. */
@@ -902,6 +909,36 @@
     S.scope.juz = [...new Set([...(S.scope.juz || []), ...hifdhScopeJuz()])].sort((a, b) => a - b);
     save();
     await buildProgram();
+  }
+
+  /** Mulai menghafal juz yang sedang berjalan: buka halaman pertamanya. */
+  async function hifdhStartMemorize() {
+    const juz = hifdhCurrentJuz();
+    if (!juz) return;
+    await hifdhApplyScope();
+    const jp = await juzPages();
+    const pages = jp[String(juz)] || [];
+    const first = pages[0];
+    if (first) {
+      window.AlKalam.state.activePage = Number(first);
+      await window.AlKalam.openPage(Number(first));
+      flash(`Mulai menghafal Juz ${juz} — halaman ${first}. Tekan “Putar 20×” di Metode.`);
+    } else {
+      flash(`Juz ${juz} tidak ditemukan`);
+    }
+  }
+
+  /** Pilih juz tertentu sebagai posisi program (mis. user ingin lompat). */
+  async function hifdhPickJuz(n) {
+    const p2 = hifdhProg();
+    if (!p2) return;
+    const idx = p2.order.indexOf(Number(n));
+    if (idx < 0) return;
+    p2.juzIndex = idx;
+    save();
+    await hifdhApplyScope();
+    render();
+    flash(`Posisi program di Juz ${n}`);
   }
 
   async function hifdhStartJuz() {
@@ -917,6 +954,7 @@
     if (!p2) return;
     if (p2.juzIndex >= p2.order.length - 1) { flash('Program Hifdh selesai — 30 juz'); return; }
     const done = hifdhCurrentJuz();
+    p2.done = [...new Set([...(p2.done || []), done])];
     p2.juzIndex += 1;
     await hifdhApplyScope();
     render();
@@ -943,18 +981,24 @@
       </div>`;
     }
     const juz = hifdhCurrentJuz();
-    const pct = Math.round((p2.juzIndex / p2.order.length) * 100);
+    const pct = Math.round((hifdhDoneCount() / p2.order.length) * 100);
     return `<div class="hifz-card method-card">
       <span class="hifz-k">Program Hifdh</span>
-      <strong class="hifz-v">Juz ${juz} · juz ke-${p2.juzIndex + 1} dari 30</strong>
+      <strong class="hifz-v">Juz ${juz} · posisi ${p2.juzIndex + 1} dari 30 dalam urutan</strong>
+      <span class="hifz-muted">Program Hifdh = <b>rencana besar urutan juz</b> (bukan mulai hafal otomatis).
+        Tekan “Mulai menghafal” untuk membuka halaman pertama juz ini.</span>
       <span class="hifz-muted">${p2.setoranPerWeek} setoran/pekan · perkiraan ${hifdhEstimate(p2.setoranPerWeek)} · progres ${pct}%</span>
-      <span class="hifz-muted">Sudah dilalui: ${hifdhScopeJuz().length} juz (${hifdhScopeJuz().map((j) => 'J' + j).join(', ')}) ·
+      <span class="hifz-muted">Sudah ditandai selesai: ${hifdhDoneCount()} juz (${(p2.done || []).map((j) => 'J' + j).join(', ') || '—'}) ·
         juz lain di daftar hafalan tetap dipertahankan. Salah pencet? Gunakan tombol
         "Kembali" atau "Keluarkan Juz" di bawah.</span>
       <div class="hifz-bar"><i style="width:${pct}%"></i></div>
       <div class="hifz-actions" style="margin-top:8px">
-        <button class="btn btn-sm btn-primary" data-hd-startjuz>Mulai Juz ${juz}</button>
+        <button class="btn btn-sm btn-primary" data-hd-memorize>Mulai menghafal Juz ${juz}</button>
+        <button class="btn btn-sm" data-hd-startjuz>Tambahkan ke cakupan</button>
         <button class="btn btn-sm" data-hd-next>Selesai &amp; lanjut</button>
+      </div>
+      <div class="hifz-actions" style="margin-top:6px">
+        <button class="btn btn-sm" data-hd-pick>Pilih juz…</button>
         <button class="btn btn-sm" data-hd-order>Lihat urutan</button>
       </div>
       <div class="hifz-actions" style="margin-top:6px">
@@ -963,7 +1007,7 @@
         <button class="btn btn-sm" data-hd-reset>Atur ulang program</button>
       </div>
       <details class="hifz-fold"><summary>Urutan ${p2.order.slice(0, 10).map((j) => 'J' + j).join(' → ')} …</summary>
-        <div class="hifz-muted" style="line-height:1.8">${p2.order.map((j, i) => `<span class="${i < p2.juzIndex ? 'hd-done' : i === p2.juzIndex ? 'hd-now' : ''}">J${j}</span>`).join(' · ')}</div>
+        <div class="hifz-muted" style="line-height:1.8">${p2.order.map((j, i) => `<span class="${(p2.done || []).includes(j) ? 'hd-done' : i === p2.juzIndex ? 'hd-now' : ''}">J${j}</span>`).join(' · ')}</div>
       </details>
     </div>`;
   }
@@ -2256,7 +2300,20 @@
       }, 600);
     }));
     view.querySelector('[data-hd-start]')?.addEventListener('click', hifdhStart);
+    view.querySelector('[data-hd-memorize]')?.addEventListener('click', hifdhStartMemorize);
     view.querySelector('[data-hd-startjuz]')?.addEventListener('click', hifdhStartJuz);
+    view.querySelector('[data-hd-pick]')?.addEventListener('click', () => {
+      const p2 = hifdhProg();
+      if (!p2) return;
+      const grid = p2.order.map((j, i) => `<button class="btn btn-sm${i === p2.juzIndex ? ' btn-primary' : ''}" data-hd-juz="${j}">Juz ${j}</button>`).join('');
+      const ov = window.AlKalam.openModal(`<div class="mi-head"><span class="mi-name">Pilih Juz</span></div>
+        <p class="mi-sub">Urutan program: 30 → 29 → 1 → 2 → …</p>
+        <div class="hifz-actions" style="flex-wrap:wrap">${grid}</div>`);
+      ov.querySelectorAll('[data-hd-juz]').forEach((b) => b.addEventListener('click', async () => {
+        ov.remove();
+        await hifdhPickJuz(Number(b.dataset.hdJuz));
+      }));
+    });
     view.querySelector('[data-hd-next]')?.addEventListener('click', hifdhNextJuz);
     view.querySelector('[data-hd-prev]')?.addEventListener('click', () => {
       const p2 = hifdhProg();
@@ -2289,10 +2346,15 @@
       const p2 = hifdhProg();
       if (!p2) return;
       const html = p2.order.map((j, i) => `<div class="hifz-due wp-row"><span>Juz ${j}
-        <span class="wp-sub">${i < p2.juzIndex ? 'selesai' : i === p2.juzIndex ? 'sedang berjalan' : 'berikutnya'}</span></span></div>`).join('');
+        <span class="wp-sub">${(p2.done || []).includes(j) ? 'selesai' : i === p2.juzIndex ? 'sedang berjalan' : 'berikutnya'}</span></span>
+        <span class="wp-actions"><button class="btn btn-sm" data-hd-juz="${j}">Pilih</button></span></div>`).join('');
       const ov = window.AlKalam.openModal(`<div class="mi-head"><span class="mi-name">Urutan Program Hifdh</span></div>
         <div class="hifz-list" style="max-height:60vh;overflow:auto">${html}</div>`);
       ov.querySelector('.modal-close')?.addEventListener('click', () => ov.remove());
+      ov.querySelectorAll('[data-hd-juz]').forEach((b) => b.addEventListener('click', async () => {
+        ov.remove();
+        await hifdhPickJuz(Number(b.dataset.hdJuz));
+      }));
     });
     view.querySelectorAll('[data-hd-play]').forEach((b) => b.addEventListener('click', async () => {
       const pg = Number(b.dataset.hdPlay);
