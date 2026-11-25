@@ -2675,6 +2675,11 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 
 /* tinggi sedang: rapatkan */
 @media (max-height: 920px) {
+  /* agar bintang & isi tidak terpotong oleh overflow sampul */
+  #viewHome .cover-footer { display: none; }
+  #viewHome .cover-mark svg { width: 56px; height: 56px; }
+  #viewHome .cover-mark { margin-bottom: 0; }
+  #viewHome .cover-greeting { margin-bottom: 4px; }
   #viewHome .home-title { font-size: clamp(1.6rem, 4.6vh, 2.4rem); }
   #viewHome .home-sub { font-size: .84rem; }
   #viewHome .cover-bismillah { font-size: clamp(1.05rem, 2.6vh, 1.5rem); margin: 8px 0 2px; }
