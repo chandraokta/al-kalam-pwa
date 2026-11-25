@@ -2734,3 +2734,6 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .scope-grid-ro { margin-top: 8px; }
 .scope-chip.ro { cursor: default; opacity: .85; }
 .scope-chip.ro:hover { background: transparent; }
+
+/* judul kartu hifz (mis. Metode 20x per Ayat) */
+.hifz-title { display:block; font-size:1.02rem; font-weight:800; letter-spacing:-.01em; color:var(--fg); margin-bottom:3px; }
