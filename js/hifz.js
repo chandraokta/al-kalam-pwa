@@ -1360,108 +1360,156 @@
     </div>`;
   }
 
+  // ══ Pemutar khusus metode 20× (modul sendiri) ═══════════════════════
+  // Tidak memakai elemen audio mode baca agar tidak bentrok dengan
+  // playAyah/stopAudio/auto-scroll halaman mushaf.
+  const HP = { el: null, timer: null, surah: 0, token: 0 };
+
+  function hpAudio() {
+    if (!HP.el) {
+      HP.el = new Audio();
+      HP.el.preload = 'auto';
+    }
+    return HP.el;
+  }
+
+  function hpClearTimer() {
+    if (HP.timer) { clearInterval(HP.timer); HP.timer = null; }
+  }
+
   function stopMethodPlay() {
+    HP.token += 1;
+    hpClearTimer();
+    if (HP.el) { try { HP.el.pause(); } catch { /* abaikan */ } }
     const m = methodsState().newMem;
-    if (!m) return;
-    m.listening = false;
-    if (m.timer) { clearInterval(m.timer); m.timer = null; }
-    const au = window.AlKalam.audio && window.AlKalam.audio();
-    if (au) au.pause();
+    if (m) {
+      m.listening = false;
+      m.timer = null;
+      save();
+      render();
+    }
+  }
+
+  async function hpLoadSurah(surah) {
+    const a = hpAudio();
+    const qari = (window.AlKalam.state && window.AlKalam.state.qari) || 'alafasy';
+    const url = window.AlKalam.DataManager.getSurahAudioUrl(surah, qari);
+    if (!url) throw new Error('url audio tidak ada');
+    if (HP.surah !== surah || !a.src) {
+      HP.surah = surah;
+      a.src = url;
+      a.load();
+    }
+    await new Promise((resolve, reject) => {
+      if (a.readyState >= 1) return resolve();
+      const ok = () => { cleanup(); resolve(); };
+      const bad = () => { cleanup(); reject(new Error('audio gagal dimuat')); };
+      const cleanup = () => {
+        a.removeEventListener('loadedmetadata', ok);
+        a.removeEventListener('error', bad);
+      };
+      a.addEventListener('loadedmetadata', ok, { once: true });
+      a.addEventListener('error', bad, { once: true });
+      setTimeout(ok, 15000);
+    });
+  }
+
+  async function hpPlayStep(m) {
+    const token = ++HP.token;
+    hpClearTimer();
+    const st = m.steps[m.step];
+    if (!st) return;
+    const t1 = window.AlKalam.ayahTimes && window.AlKalam.ayahTimes(`${st.surah}:${st.from}`);
+    const t2 = window.AlKalam.ayahTimes && window.AlKalam.ayahTimes(`${st.surah}:${st.to}`);
+    if (!t1 || !t2) { flash('Data timing ayat belum siap'); m.listening = false; save(); render(); return; }
+    try { await hpLoadSurah(st.surah); } catch { flash('Audio surah gagal dimuat'); m.listening = false; save(); render(); return; }
+    if (token !== HP.token) return;
+    const a = hpAudio();
+    a.playbackRate = 1;
+    const repeat = Math.max(1, Number(st.repeat) || 20);
+    const seek = () => { try { a.currentTime = Math.max(0, t1.from / 1000 + 0.01); } catch { /* abaikan */ } };
+    seek();
+    try { await a.play(); } catch { flash('Ketuk sekali lagi untuk mengizinkan audio'); m.listening = false; save(); render(); return; }
+    m.listening = true;
+    m.timer = 1;
     save();
     render();
+    const paint = () => {
+      const mm = methodsState().newMem;
+      if (!mm) return;
+      const cnt = document.getElementById('mtCounter');
+      if (cnt) cnt.textContent = `${mm.listens || 0}/${repeat}`;
+      const bar = document.getElementById('mtBar');
+      if (bar) bar.style.width = `${Math.round(((mm.listens || 0) / repeat) * 100)}%`;
+      const remain = document.getElementById('mtRemain');
+      if (remain) remain.textContent = `${Math.max(0, Math.ceil((t2.to - a.currentTime * 1000) / 1000))} dtk`;
+    };
+    paint();
+    const tick = () => {
+      if (token !== HP.token) { hpClearTimer(); return; }
+      const mm = methodsState().newMem;
+      if (!mm || !mm.listening) { hpClearTimer(); return; }
+      paint();
+      if (a.currentTime * 1000 >= t2.to - 60) {
+        try { a.pause(); } catch { /* abaikan */ }
+        hpClearTimer();           // cegah hitungan ganda sebelum audio di-seek ulang
+        mm.listens = (mm.listens || 0) + 1;
+        save();
+        if (mm.listens >= repeat) {
+          raporBump('steps');
+          if (mm.step < mm.steps.length - 1) {
+            const next = mm.step + 1;
+            mm.step = next;
+            mm.listens = 0;
+            mm.listening = false;
+            save();
+            render();
+            flash(`Langkah ${next}/${mm.steps.length} selesai — lanjut otomatis`);
+            setTimeout(() => {
+              const m3 = methodsState().newMem;
+              if (!m3 || m3.step !== next || m3.listening) return;
+              hpPlayStep(m3);
+            }, 800);
+          } else {
+            mm.listening = false;
+            save();
+            render();
+            hpClearTimer();
+            flash('Semua langkah selesai — tekan "Sudah hafal"');
+          }
+        } else {
+          render();
+          setTimeout(() => {
+            if (token !== HP.token) return;
+            const m3 = methodsState().newMem;
+            if (!m3 || !m3.listening) return;
+            seek();
+            a.play().catch(() => {});
+            HP.timer = setInterval(tick, 250);
+          }, 650);
+        }
+      }
+    };
+    HP.timer = setInterval(tick, 250);
   }
 
   async function methodPlay() {
     const m = methodsState().newMem;
-    if (!m) { flash('Mulai metode dulu'); return; }
+    if (!m) { flash('Simpan target & susun langkah dulu'); return; }
     if (m.listening) { stopMethodPlay(); return; }
-    const st = m.steps[m.step];
-    if (!st) return;
-    const vk = `${st.surah}:${st.from}`;
-    // pastikan data timing QUL sudah dimuat (tanpa ini ayahTimes null)
+    // hentikan audio mode baca agar tidak dobel
+    try { window.AlKalam.stopAudio && window.AlKalam.stopAudio(); } catch { /* abaikan */ }
     try {
       const stt = window.AlKalam.state;
       if (stt && !stt.qul) {
         const q = await window.AlKalam.DataManager.getQul(stt.qari || 'alafasy');
         if (q) stt.qul = q;
       }
-    } catch {}
-    await openVersePage(vk);
-    // jangan menunggu playAyah selesai (kadang lambat memuat audio);
-    // mulai pemutaran lalu tunggu timing tersedia
-    window.AlKalam.playAyah(vk).catch(() => { /* audio menyusul */ });
-    let t1 = null, t2 = null;
-    for (let i = 0; i < 40 && (!t1 || !t2); i++) {
-      t1 = window.AlKalam.ayahTimes ? window.AlKalam.ayahTimes(`${st.surah}:${st.from}`) : null;
-      t2 = window.AlKalam.ayahTimes ? window.AlKalam.ayahTimes(`${st.surah}:${st.to}`) : null;
-      if (!t1 || !t2) await new Promise((r) => setTimeout(r, 150));
-    }
-    if (!t1 || !t2) { flash('Timing audio belum tersedia'); return; }
-
-    m.listening = true;
-    m.total = st.repeat;
-    save();
-    render();
-
-    const startTick = () => {
-      const mm = methodsState().newMem;
-      if (!mm) return;
-      if (mm.timer) clearInterval(mm.timer);
-      mm.timer = setInterval(() => {
-        const m2 = methodsState().newMem;
-        const au = window.AlKalam.audio && window.AlKalam.audio();
-        if (!m2 || !m2.listening || !au) { if (m2 && m2.timer) clearInterval(m2.timer); return; }
-        const cnt = document.getElementById('mtCounter');
-        if (cnt) cnt.textContent = `${m2.listens || 0}/${st.repeat}`;
-        const bar = document.getElementById('mtBar');
-        if (bar) bar.style.width = `${Math.round(((m2.listens || 0) / st.repeat) * 100)}%`;
-        const remain = document.getElementById('mtRemain');
-        if (remain) remain.textContent = `${Math.max(0, Math.ceil((t2.to - au.currentTime * 1000) / 1000))} dtk`;
-        if (au.currentTime * 1000 >= t2.to - 80) {
-          au.pause();
-          if (m2.timer) { clearInterval(m2.timer); m2.timer = null; }
-          m2.listens = Math.min(st.repeat, (m2.listens || 0) + 1);
-          save();
-          render();
-          if (m2.listens >= st.repeat) {
-            raporBump('steps');
-            if (m2.step < m2.steps.length - 1) {
-              // lanjut otomatis ke langkah berikutnya sesuai urutan metode
-              const doneStep = m2.step + 1;
-              const nextStep = m2.step + 1;
-              m2.step = nextStep;
-              m2.listens = 0;
-              m2.listening = false;      // agar methodPlay tidak dianggap "sedang jalan"
-              save();
-              render();
-              flash(`Langkah ${doneStep}/${m2.steps.length} selesai — lanjut otomatis`);
-              setTimeout(() => {
-                const m3 = methodsState().newMem;
-                if (!m3 || m3.step !== nextStep || m3.listening) return;
-                methodPlay();
-              }, 900);
-            } else {
-              m2.listening = false;
-              save();
-              render();
-              flash('Semua langkah selesai — tekan "Sudah hafal"');
-            }
-          } else {
-            m2.timer = setTimeout(() => {
-              const m3 = methodsState().newMem;
-              if (!m3 || !m3.listening) return;
-              const au2 = window.AlKalam.audio && window.AlKalam.audio();
-              if (au2) {
-                try { au2.currentTime = Math.max(0, (t1.from || 0) / 1000); } catch { /* abaikan */ }
-                au2.play().catch(() => {});
-              }
-              startTick();
-            }, 700);
-          }
-        }
-      }, 250);
-    };
-    startTick();
+    } catch { /* abaikan */ }
+    const st = m.steps[m.step];
+    if (!st) return;
+    try { await openVersePage(`${st.surah}:${st.from}`); } catch { /* abaikan */ }
+    await hpPlayStep(m);
   }
 
   async function methodFinish() {
