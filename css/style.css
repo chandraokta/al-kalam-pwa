@@ -2435,3 +2435,123 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 /* 4 sub-tab */
 .sub-tabs { gap: 4px; }
 .sub-tabs .sub-tab { font-size: .76rem; padding: 8px 4px; }
+
+/* ═══ Sampul dinamis mengikuti tema (tidak lagi hijau vs silver kontras) ═══ */
+.home-cover {
+  --cover-bg1: #122a21;
+  --cover-bg2: #0a1713;
+  --cover-glow: rgba(120, 170, 140, .18);
+  --cover-border: rgba(201, 162, 39, .26);
+  --cover-gold: #d8b25a;
+  --cover-title-a: #ffffff;
+  --cover-title-b: #d8b25a;
+  --cover-text: #f1ece0;
+  --cover-muted: rgba(241, 236, 224, .66);
+  --cover-card-bg: rgba(255, 255, 255, .055);
+  --cover-card-border: rgba(255, 255, 255, .12);
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--cover-glow), transparent 60%),
+    linear-gradient(180deg, var(--cover-bg1) 0%, var(--cover-bg2) 100%);
+  border: 1px solid var(--cover-border);
+  box-shadow: 0 26px 70px -44px rgba(0, 0, 0, .85), inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+.home-cover .home-title {
+  background: linear-gradient(180deg, var(--cover-title-a), var(--cover-title-b));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.home-cover .home-sub,
+.home-cover .cover-greeting,
+.home-cover .cover-footer,
+.home-cover .home-card-hint,
+.home-cover .resume-juz { color: var(--cover-muted); }
+.home-cover .cover-bismillah { color: var(--cover-text); text-shadow: 0 2px 18px var(--cover-border); }
+.home-cover .cover-date,
+.home-cover .cover-credit { color: var(--cover-gold); opacity: .8; }
+.home-cover .home-resume { background: var(--cover-card-bg); border-color: var(--cover-card-border); }
+.home-cover .home-resume strong { color: var(--cover-text); }
+.home-cover .home-card {
+  background: var(--cover-card-bg);
+  border-color: var(--cover-card-border);
+  color: var(--cover-text);
+}
+.home-cover .home-card:hover,
+.home-cover .home-card:focus-visible { background: var(--cover-border); color: var(--cover-text); }
+.home-cover .cover-mark, .home-cover .home-card-icon { color: var(--cover-gold); }
+.home-cover .cover-arch { border-color: var(--cover-border); }
+.home-cover .cover-glow { background: radial-gradient(circle, var(--cover-glow), transparent 62%); }
+
+/* Tema terang: sampul jadi hijau-krem lembut, bukan hijau gelap di atas silver */
+[data-theme="light"] .home-cover {
+  --cover-bg1: #eef4ea;
+  --cover-bg2: #dfe9df;
+  --cover-glow: rgba(90, 154, 95, .18);
+  --cover-border: rgba(47, 92, 66, .22);
+  --cover-gold: #9a7526;
+  --cover-title-a: #1f4d38;
+  --cover-title-b: #8a6a1f;
+  --cover-text: #24382e;
+  --cover-muted: rgba(36, 56, 46, .62);
+  --cover-card-bg: rgba(255, 255, 255, .55);
+  --cover-card-border: rgba(47, 92, 66, .16);
+}
+/* Sepia: hangat pasir */
+[data-theme="sepia"] .home-cover {
+  --cover-bg1: #f7ecd5;
+  --cover-bg2: #ecdcbb;
+  --cover-glow: rgba(169, 138, 78, .18);
+  --cover-border: rgba(120, 92, 42, .24);
+  --cover-gold: #9a7424;
+  --cover-title-a: #4a3a1d;
+  --cover-title-b: #8a6a1f;
+  --cover-text: #4a3c22;
+  --cover-muted: rgba(74, 60, 34, .62);
+  --cover-card-bg: rgba(255, 255, 255, .45);
+  --cover-card-border: rgba(120, 92, 42, .18);
+}
+/* Elegan: arang hangat dengan emas */
+[data-theme="elegant"] .home-cover {
+  --cover-bg1: #1a1a1d;
+  --cover-bg2: #101012;
+  --cover-glow: rgba(201, 162, 39, .12);
+  --cover-border: rgba(201, 162, 39, .24);
+  --cover-gold: #c9a227;
+  --cover-title-a: #f3ead3;
+  --cover-title-b: #c9a227;
+  --cover-text: #ece4d2;
+  --cover-muted: rgba(236, 228, 210, .62);
+  --cover-card-bg: rgba(255, 255, 255, .06);
+  --cover-card-border: rgba(201, 162, 39, .18);
+}
+/* Tema auto mengikuti preferensi sistem */
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] .home-cover {
+    --cover-bg1: #eef4ea;
+    --cover-bg2: #dfe9df;
+    --cover-glow: rgba(90, 154, 95, .18);
+    --cover-border: rgba(47, 92, 66, .22);
+    --cover-gold: #9a7526;
+    --cover-title-a: #1f4d38;
+    --cover-title-b: #8a6a1f;
+    --cover-text: #24382e;
+    --cover-muted: rgba(36, 56, 46, .62);
+    --cover-card-bg: rgba(255, 255, 255, .55);
+    --cover-card-border: rgba(47, 92, 66, .16);
+  }
+}
+/* terapkan gradient dari variabel tema (mengalahkan aturan lama) */
+[data-theme="light"] .home-cover,
+[data-theme="sepia"] .home-cover,
+[data-theme="elegant"] .home-cover,
+[data-theme="dark"] .home-cover {
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--cover-glow), transparent 60%),
+    linear-gradient(180deg, var(--cover-bg1) 0%, var(--cover-bg2) 100%);
+}
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] .home-cover {
+    background:
+      radial-gradient(120% 90% at 50% -10%, var(--cover-glow), transparent 60%),
+      linear-gradient(180deg, var(--cover-bg1) 0%, var(--cover-bg2) 100%);
+  }
+}
