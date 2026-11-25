@@ -890,24 +890,37 @@
     return p2 ? p2.order[p2.juzIndex] : null;
   }
 
+  /** Juz yang sudah dilalui program + juz yang sedang berjalan. */
+  function hifdhScopeJuz() {
+    const p2 = hifdhProg();
+    if (!p2) return [];
+    return [...new Set(p2.order.slice(0, p2.juzIndex + 1))];
+  }
+
+  /** Tambahkan juz program ke cakupan TANPA menghapus juz lain milik pengguna. */
+  async function hifdhApplyScope() {
+    S.scope.juz = [...new Set([...(S.scope.juz || []), ...hifdhScopeJuz()])].sort((a, b) => a - b);
+    save();
+    await buildProgram();
+  }
+
   async function hifdhStartJuz() {
     const juz = hifdhCurrentJuz();
     if (!juz) return;
-    S.scope.juz = [juz];
-    save();
-    await buildProgram();
+    await hifdhApplyScope();
     render();
-    flash(`Cakupan diatur ke Juz ${juz} — mulai Sabaq`);
+    flash(`Juz ${juz} masuk cakupan — ${S.scope.juz.length} juz dalam daftar hafalan`);
   }
 
-  function hifdhNextJuz() {
+  async function hifdhNextJuz() {
     const p2 = hifdhProg();
     if (!p2) return;
     if (p2.juzIndex >= p2.order.length - 1) { flash('Program Hifdh selesai — 30 juz'); return; }
+    const done = hifdhCurrentJuz();
     p2.juzIndex += 1;
-    save();
+    await hifdhApplyScope();
     render();
-    flash(`Lanjut ke Juz ${hifdhCurrentJuz()}`);
+    flash(`Juz ${done} selesai. Lanjut Juz ${hifdhCurrentJuz()} — cakupan ${S.scope.juz.length} juz`);
   }
 
   function hifdhEstimate(perWeek) {
@@ -935,10 +948,12 @@
       <span class="hifz-k">Program Hifdh</span>
       <strong class="hifz-v">Juz ${juz} · juz ke-${p2.juzIndex + 1} dari 30</strong>
       <span class="hifz-muted">${p2.setoranPerWeek} setoran/pekan · perkiraan ${hifdhEstimate(p2.setoranPerWeek)} · progres ${pct}%</span>
+      <span class="hifz-muted">Sudah dilalui: ${hifdhScopeJuz().length} juz (${hifdhScopeJuz().map((j) => 'J' + j).join(', ')}) ·
+        juz lain di daftar hafalan tetap dipertahankan.</span>
       <div class="hifz-bar"><i style="width:${pct}%"></i></div>
       <div class="hifz-actions" style="margin-top:8px">
         <button class="btn btn-sm btn-primary" data-hd-startjuz>Mulai Juz ${juz}</button>
-        <button class="btn btn-sm" data-hd-next>Juz berikutnya</button>
+        <button class="btn btn-sm" data-hd-next>Selesai &amp; lanjut</button>
         <button class="btn btn-sm" data-hd-order>Lihat urutan</button>
       </div>
       <details class="hifz-fold"><summary>Urutan ${p2.order.slice(0, 10).map((j) => 'J' + j).join(' → ')} …</summary>
