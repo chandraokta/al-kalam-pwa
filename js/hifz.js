@@ -221,7 +221,7 @@
   // ── UI ──────────────────────────────────────────────────────────────────
   const el = (id) => document.getElementById(id);
   let tab = 'hafal';
-  let hafalTab = 'target';
+  let hafalTab = 'hafalan';
   let murajaahTab = 'hariini';
 
   function pageStatusClass(st) {
@@ -1258,6 +1258,40 @@
     </div>`;
   }
 
+  function fmtDuration(ms) {
+    const total = Math.max(0, Math.round(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    return `${h} jam ${String(m).padStart(2, '0')} menit ${String(sec).padStart(2, '0')} detik`;
+  }
+
+  /** Perkiraan total waktu metode = Σ (durasi ayat × jumlah ulangan). */
+  async function methodTotalMs(m) {
+    try {
+      const dm = window.AlKalam.DataManager;
+      const qul = await dm.getQul((window.AlKalam.state && window.AlKalam.state.qari) || 'alafasy');
+      if (!qul || !qul.verses) return null;
+      let total = 0;
+      for (const st of m.steps || []) {
+        let dur = 0;
+        for (let a = st.from; a <= st.to; a++) {
+          const v = qul.verses[`${st.surah}:${a}`];
+          if (v) dur += Math.max(0, Number(v.t) - Number(v.f));
+        }
+        total += dur * (Number(st.repeat) || 1);
+      }
+      return total;
+    } catch { return null; }
+  }
+
+  async function methodTimeHtml(m) {
+    const ms = await methodTotalMs(m);
+    if (ms == null) return '';
+    return `<span class="hifz-muted">Perkiraan waktu metode: <b>${fmtDuration(ms)}</b>
+      (durasi ayat × ${(m.steps || []).length} langkah ulangan)</span>`;
+  }
+
   async function methodCardHtml() {
     await ensureVerseMeta();
     const m = methodsState().newMem;
@@ -1302,6 +1336,7 @@
       ${done ? '<strong class="hifz-v">Semua langkah selesai ✓</strong>' : ''}
       <div class="mt-list">${list}</div>
       ${isPemula() ? '' : `<span class="hifz-muted">Aturan: maks 1/8 juz/hari (±2,5 halaman) · urut An-Nas → Al-Baqarah · satu mushaf · setoran ke guru.</span>`}
+      ${await methodTimeHtml(m)}
       ${isPemula() ? '' : await similarHtml(m.segments)}
       <div class="hifz-actions">
         ${done
@@ -1544,12 +1579,10 @@
     const sub = (id, label) => `<button class="sub-tab${hafalTab === id ? ' active' : ''}" data-hafal-sub="${id}">${label}</button>`;
     let body = '';
     if (hafalTab === 'hafalan') {
-      body = await renderScope();
-    } else if (hafalTab === 'target') {
-      body = `${await scopeCardHtml()}
-        ${programHifdhHtml()}
+      body = `${programHifdhHtml()}
         ${await methodCardHtml()}
-        ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}`;
+        ${isPemula() ? '' : `<h3 class="hifz-h">Hafalan bebas (tanpa metode)</h3>${await newHafzCardHtml()}`}
+        ${await renderScope()}`;
     } else if (hafalTab === 'setoran') {
       body = setoranHtml();
     } else {
@@ -1558,7 +1591,7 @@
         ${newHafzLogHtml()}`;
     }
     return `
-      <div class="sub-tabs">${sub('target', 'Target')}${sub('hafalan', 'Hafalan')}${sub('setoran', 'Setoran')}${sub('riwayat', 'Riwayat')}</div>
+      <div class="sub-tabs">${sub('hafalan', 'Hafalan')}${sub('setoran', 'Setoran')}${sub('riwayat', 'Riwayat')}</div>
       ${body}
       <div class="hifz-actions">
         <button class="btn btn-sm" data-goto-tab="scope">Kelola cakupan hafalan</button>
@@ -1597,7 +1630,7 @@
 
   function showTab(t) {
     tab = t || 'hafal';
-    if (tab === 'hafal') hafalTab = 'target';
+    if (tab === 'hafal') hafalTab = 'hafalan';
     if (tab === 'murajaah') murajaahTab = 'hariini';
     const view = el('viewHifz');
     view?.querySelectorAll('[data-hifz-tab]').forEach((x) => x.classList.toggle('active', x.dataset.hifzTab === tab));
