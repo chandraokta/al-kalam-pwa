@@ -2431,3 +2431,7 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 
 /* saat zoom: halaman boleh lebih lebar dari kotak */
 .scan-sheet-box.page-viewport { touch-action: pan-x pan-y; }
+
+/* 4 sub-tab */
+.sub-tabs { gap: 4px; }
+.sub-tabs .sub-tab { font-size: .76rem; padding: 8px 4px; }

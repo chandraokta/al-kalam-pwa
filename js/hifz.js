@@ -710,7 +710,7 @@
       </div>` : ''}
       <div class="hifz-actions">
         ${a.step >= 4
-          ? '<button class="btn btn-sm btn-primary" data-nh-finish>Masukkan ke cakupan & selesai</button>'
+          ? '<button class="btn btn-sm btn-primary" data-nh-finish>✓ Sudah hafal — masukkan ke daftar</button>'
           : `<button class="btn btn-sm btn-primary" data-nh-next ${a.step === 1 && (a.listens || 0) < (nh.repeats || 3) ? 'disabled' : ''}>Lanjut langkah berikutnya</button>`}
         <button class="btn btn-sm" data-nh-cancel>Batal</button>
       </div>
@@ -1305,7 +1305,7 @@
       ${isPemula() ? '' : await similarHtml(m.segments)}
       <div class="hifz-actions">
         ${done
-          ? '<button class="btn btn-sm btn-primary" data-mt-finish>Masukkan ke cakupan</button>'
+          ? '<button class="btn btn-sm btn-primary" data-mt-finish>✓ Sudah hafal — masukkan ke daftar</button>'
           : `<button class="btn btn-sm btn-primary" data-mt-play>${m.listening ? 'Hentikan' : `Putar ${st.repeat}×`}</button>
              <button class="btn btn-sm" data-mt-next ${(m.listens || 0) < st.repeat ? 'disabled' : ''}>Langkah berikutnya</button>`}
         <button class="btn btn-sm" data-mt-cancel>Batal</button>
@@ -1527,9 +1527,8 @@
     return `<div class="hifz-card">
       <span class="hifz-k">Daftar hafalan saya</span>
       <strong class="hifz-v">${empty ? 'Belum ada hafalan' : `${pages.length} halaman · ${ayahs} ayat`}</strong>
-      <span class="hifz-muted">${empty
-        ? 'Tambahkan juz/surat/rentang ayat yang sudah dihafal.'
-        : [juz ? `${juz} juz` : '', sur ? `${sur} surat` : '', rng ? `${rng} rentang` : ''].filter(Boolean).join(' · ')}</span>
+      <span class="hifz-muted">Masukkan surat atau ayat yang sudah Anda hafal di sini untuk memudahkan kami membuat program murajaah harian.</span>
+      <span class="hifz-muted">${empty ? '' : [juz ? `${juz} juz` : '', sur ? `${sur} surat` : '', rng ? `${rng} rentang` : ''].filter(Boolean).join(' · ')}</span>
       <div class="hifz-actions" style="margin-top:8px">
         <button class="btn btn-sm btn-primary" data-goto-tab="scope">${empty ? 'Masukkan hafalan' : 'Ubah daftar hafalan'}</button>
       </div>
@@ -1544,7 +1543,9 @@
     const target = Math.max(1, Number(nh.target) || 5);
     const sub = (id, label) => `<button class="sub-tab${hafalTab === id ? ' active' : ''}" data-hafal-sub="${id}">${label}</button>`;
     let body = '';
-    if (hafalTab === 'target') {
+    if (hafalTab === 'hafalan') {
+      body = await renderScope();
+    } else if (hafalTab === 'target') {
       body = `${await scopeCardHtml()}
         ${programHifdhHtml()}
         ${await methodCardHtml()}
@@ -1557,7 +1558,7 @@
         ${newHafzLogHtml()}`;
     }
     return `
-      <div class="sub-tabs">${sub('target', 'Target')}${sub('setoran', 'Setoran')}${sub('riwayat', 'Riwayat')}</div>
+      <div class="sub-tabs">${sub('target', 'Target')}${sub('hafalan', 'Hafalan')}${sub('setoran', 'Setoran')}${sub('riwayat', 'Riwayat')}</div>
       ${body}
       <div class="hifz-actions">
         <button class="btn btn-sm" data-goto-tab="scope">Kelola cakupan hafalan</button>
@@ -1620,7 +1621,7 @@
 
     return `
       <h3 class="hifz-h">Daftar hafalan</h3>
-      <p class="hifz-muted">Pilih juz dan/atau surat yang sudah Anda hafal. Aplikasi menyusun program murajaah 1 pekan dari daftar ini.</p>
+      <p class="hifz-muted">Masukkan surat atau ayat yang sudah Anda hafal di sini untuk memudahkan kami membuat program murajaah harian.</p>
 
       <div class="hifz-card">
         <span class="hifz-k">Juz</span>
@@ -2630,8 +2631,8 @@
         }
         else if (act === 'build' || act === 'rebuild') {
           const prog = await buildProgram();
-          flash(prog ? `Program dibuat: ${prog.total} halaman` : 'Pilih cakupan dulu');
-          if (prog) { tab = 'today'; }
+          flash(prog ? `Program dibuat: ${prog.total} halaman — lihat Murajaah → Hari Ini` : 'Pilih cakupan dulu');
+          if (prog) { tab = 'hafal'; hafalTab = 'hafalan'; }
         }
         save();
         await (act === 'build' || act === 'rebuild' ? Promise.resolve() : buildProgram());
