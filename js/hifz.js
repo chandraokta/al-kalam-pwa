@@ -2455,12 +2455,37 @@
       render();
       flash('Target hari ini dihapus');
     });
+    // saran kelompok ayat untuk target halaman (ayat sedikit/panjang -> 2)
+    async function suggestGroupForPage(pg) {
+      const list = await versesOnPage(pg);
+      let maxDur = 0;
+      try {
+        const qul = await window.AlKalam.DataManager.getQul((window.AlKalam.state && window.AlKalam.state.qari) || 'alafasy');
+        for (const v of list) {
+          const t = qul && qul.verses && qul.verses[`${v.surah}:${v.ayah}`];
+          if (t) maxDur = Math.max(maxDur, Number(t.t) - Number(t.f));
+        }
+      } catch {}
+      // ayat panjang (>25 dtk) atau halaman berisi sedikit ayat -> kelompok 2
+      const g = (maxDur >= 20000 || list.length <= 5) ? 2 : 4;
+      const sel = view.querySelector('#mtGroup');
+      if (sel) sel.value = String(g);
+      const prev = view.querySelector('#mtPreview');
+      if (prev) {
+        if (g === 2 && maxDur >= 20000) prev.textContent = `Disarankan kelompok 2 ayat: ada ayat panjang (${Math.round(maxDur / 1000)} dtk) di halaman ini. Bisa diubah.`;
+        else if (g === 2) prev.textContent = `Disarankan kelompok 2 ayat: halaman ini hanya ${list.length} ayat. Bisa diubah.`;
+        else prev.textContent = `Disarankan kelompok ${g} ayat untuk halaman ini. Bisa diubah.`;
+      }
+      return g;
+    }
+    view.querySelector('#mtPage')?.addEventListener('change', (e) => { suggestGroupForPage(Number(e.target.value) || 1); });
+
     // samakan form metode dengan target hari ini (setelah render)
     if (S.hafalHariIni && view.querySelector('#mtForm')) {
       const t = S.hafalHariIni;
       view.querySelector(`[data-mt-target="${t.kind === 'ayat' ? 'ayat' : 'page'}"]`)?.click();
       const setVal = (id, val) => { const el = view.querySelector('#' + id); if (el && val != null) el.value = val; };
-      if (t.kind === 'page') setVal('mtPage', t.page);
+      if (t.kind === 'page') { setVal('mtPage', t.page); suggestGroupForPage(t.page); }
       else {
         setVal('mtSurah', t.surah);
         setVal('mtFrom', t.from);
