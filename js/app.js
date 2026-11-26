@@ -201,7 +201,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-26-tilawa2';
+  const BUILD = '2026-11-26-modul1';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');

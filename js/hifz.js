@@ -1479,158 +1479,6 @@
     </div>`;
   }
 
-  // ══ Pemutar khusus metode 20× (modul sendiri) ═══════════════════════
-  // Tidak memakai elemen audio mode baca agar tidak bentrok dengan
-  // playAyah/stopAudio/auto-scroll halaman mushaf.
-  const HP = { el: null, timer: null, surah: 0, token: 0 };
-
-  function hpAudio() {
-    if (!HP.el) {
-      HP.el = new Audio();
-      HP.el.preload = 'auto';
-    }
-    return HP.el;
-  }
-
-  function hpClearTimer() {
-    if (HP.timer) { clearInterval(HP.timer); HP.timer = null; }
-  }
-
-  function stopMethodPlay() {
-    HP.token += 1;
-    hpClearTimer();
-    if (HP.el) { try { HP.el.pause(); } catch { /* abaikan */ } }
-    const m = methodsState().newMem;
-    if (m) {
-      m.listening = false;
-      m.timer = null;
-      save();
-      render();
-    }
-  }
-
-  async function hpLoadSurah(surah) {
-    const a = hpAudio();
-    const qari = (window.AlKalam.state && window.AlKalam.state.qari) || 'alafasy';
-    const url = window.AlKalam.DataManager.getSurahAudioUrl(surah, qari);
-    if (!url) throw new Error('url audio tidak ada');
-    if (HP.surah !== surah || !a.src) {
-      HP.surah = surah;
-      a.src = url;
-      a.load();
-    }
-    await new Promise((resolve, reject) => {
-      if (a.readyState >= 1) return resolve();
-      const ok = () => { cleanup(); resolve(); };
-      const bad = () => { cleanup(); reject(new Error('audio gagal dimuat')); };
-      const cleanup = () => {
-        a.removeEventListener('loadedmetadata', ok);
-        a.removeEventListener('error', bad);
-      };
-      a.addEventListener('loadedmetadata', ok, { once: true });
-      a.addEventListener('error', bad, { once: true });
-      setTimeout(ok, 15000);
-    });
-  }
-
-  async function hpPlayStep(m) {
-    const token = ++HP.token;
-    hpClearTimer();
-    const st = m.steps[m.step];
-    if (!st) return;
-    const t1 = window.AlKalam.ayahTimes && window.AlKalam.ayahTimes(`${st.surah}:${st.from}`);
-    const t2 = window.AlKalam.ayahTimes && window.AlKalam.ayahTimes(`${st.surah}:${st.to}`);
-    if (!t1 || !t2) { flash('Data timing ayat belum siap'); m.listening = false; save(); render(); return; }
-    try { await hpLoadSurah(st.surah); } catch { flash('Audio surah gagal dimuat'); m.listening = false; save(); render(); return; }
-    if (token !== HP.token) return;
-    const a = hpAudio();
-    a.playbackRate = 1;
-    const repeat = Math.max(1, Number(st.repeat) || 20);
-    const seek = () => { try { a.currentTime = Math.max(0, t1.from / 1000 + 0.01); } catch { /* abaikan */ } };
-    seek();
-    try { await a.play(); } catch { flash('Ketuk sekali lagi untuk mengizinkan audio'); m.listening = false; save(); render(); return; }
-    m.listening = true;
-    m.timer = 1;
-    save();
-    render();
-    const paint = () => {
-      const mm = methodsState().newMem;
-      if (!mm) return;
-      const cnt = document.getElementById('mtCounter');
-      if (cnt) cnt.textContent = `${mm.listens || 0}/${repeat}`;
-      const bar = document.getElementById('mtBar');
-      if (bar) bar.style.width = `${Math.round(((mm.listens || 0) / repeat) * 100)}%`;
-      const remain = document.getElementById('mtRemain');
-      if (remain) remain.textContent = `${Math.max(0, Math.ceil((t2.to - a.currentTime * 1000) / 1000))} dtk`;
-    };
-    paint();
-    const tick = () => {
-      if (token !== HP.token) { hpClearTimer(); return; }
-      const mm = methodsState().newMem;
-      if (!mm || !mm.listening) { hpClearTimer(); return; }
-      paint();
-      if (a.currentTime * 1000 >= t2.to - 60) {
-        try { a.pause(); } catch { /* abaikan */ }
-        hpClearTimer();           // cegah hitungan ganda sebelum audio di-seek ulang
-        mm.listens = (mm.listens || 0) + 1;
-        save();
-        if (mm.listens >= repeat) {
-          raporBump('steps');
-          if (mm.step < mm.steps.length - 1) {
-            const next = mm.step + 1;
-            mm.step = next;
-            mm.listens = 0;
-            mm.listening = false;
-            save();
-            render();
-            flash(`Langkah ${next}/${mm.steps.length} selesai — lanjut otomatis`);
-            setTimeout(() => {
-              const m3 = methodsState().newMem;
-              if (!m3 || m3.step !== next || m3.listening) return;
-              hpPlayStep(m3);
-            }, 800);
-          } else {
-            mm.listening = false;
-            save();
-            render();
-            hpClearTimer();
-            flash('Semua langkah selesai — tekan "Sudah hafal"');
-          }
-        } else {
-          render();
-          setTimeout(() => {
-            if (token !== HP.token) return;
-            const m3 = methodsState().newMem;
-            if (!m3 || !m3.listening) return;
-            seek();
-            a.play().catch(() => {});
-            HP.timer = setInterval(tick, 250);
-          }, 650);
-        }
-      }
-    };
-    HP.timer = setInterval(tick, 250);
-  }
-
-  async function methodPlay() {
-    const m = methodsState().newMem;
-    if (!m) { flash('Simpan target & susun langkah dulu'); return; }
-    if (m.listening) { stopMethodPlay(); return; }
-    // hentikan audio mode baca agar tidak dobel
-    try { window.AlKalam.stopAudio && window.AlKalam.stopAudio(); } catch { /* abaikan */ }
-    try {
-      const stt = window.AlKalam.state;
-      if (stt && !stt.qul) {
-        const q = await window.AlKalam.DataManager.getQul(stt.qari || 'alafasy');
-        if (q) stt.qul = q;
-      }
-    } catch { /* abaikan */ }
-    const st = m.steps[m.step];
-    if (!st) return;
-    try { await openVersePage(`${st.surah}:${st.from}`); } catch { /* abaikan */ }
-    await hpPlayStep(m);
-  }
-
   async function methodFinish() {
     const m = methodsState().newMem;
     if (!m) return;
@@ -2592,7 +2440,7 @@
       render();
       flash(`Mulai menghafal: ${segmentsLabel(segs)} · ${m.steps.length} langkah · ${repeat}×`);
       // langsung jalankan urutan metode (ulangan & langkah berurutan)
-      setTimeout(() => { methodPlay(); }, 350);
+      setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 350);
     });
     view.querySelectorAll('[data-sim-open]').forEach((b) => b.addEventListener('click', async () => {
       const [a, b2] = b.dataset.simOpen.split('|');
@@ -2625,7 +2473,7 @@
     view.querySelector('[data-today-save]')?.addEventListener('click', async () => {
       // target baru: hentikan metode lama agar tidak tertahan pada segmen lama
       if (S.methods.newMem) {
-        try { stopMethodPlay(); } catch {}
+        try { window.AlKalamMethodPlayer.stop(); } catch {}
         S.methods.newMem = null;
         flash('Metode sebelumnya dihentikan — target baru disiapkan');
       }
@@ -2789,7 +2637,7 @@
       render();
       flash('Setoran dicatat');
     });
-    view.querySelector('[data-mt-play]')?.addEventListener('click', methodPlay);
+    view.querySelector('[data-mt-play]')?.addEventListener('click', () => window.AlKalamMethodPlayer.play());
     view.querySelector('[data-mt-next]')?.addEventListener('click', () => {
       const m = methodsState().newMem;
       if (!m) return;
@@ -2801,7 +2649,7 @@
     });
     view.querySelector('[data-mt-finish]')?.addEventListener('click', methodFinish);
     view.querySelector('[data-mt-cancel]')?.addEventListener('click', () => {
-      stopMethodPlay();
+      window.AlKalamMethodPlayer.stop();
       methodsState().newMem = null;
       save();
       render();
@@ -3768,6 +3616,10 @@
         .observe(view, { attributes: true, attributeFilter: ['hidden'] });
       document.querySelector('.drawer-item[data-view="hifz"]')?.addEventListener('click', () => setTimeout(render, 60));
     }
+  }
+
+  if (window.AlKalamMethodPlayer) {
+    window.AlKalamMethodPlayer.setHooks({ methodsState, save, render, flash, raporBump, openVersePage });
   }
 
   window.AlKalamHifz = { showTab, isMethodActive, maybeNotify, sessionNotifyCheck,
