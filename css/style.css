@@ -2796,3 +2796,9 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .sp-word-lg .sp-ar { font-size: 1.55rem; line-height: 1.9; }
 .sp-word-lg .sp-tl { font-size: .78rem; }
 .sp-word-lg .sp-tr { font-size: .74rem; }
+
+/* sorotan panel sama dengan mushaf: rentang ungu, kata aktif teal */
+.sp-word.sp-range { background: rgba(139, 92, 246, .30); border-color: rgba(139,92,246,.5); }
+[data-theme="dark"] .sp-word.sp-range { background: rgba(167, 139, 250, .32); }
+.sp-word.sp-on { background: #22d3ee !important; border-color: #22d3ee; }
+.sp-word.sp-on .sp-ar, .sp-word.sp-on .sp-tl, .sp-word.sp-on .sp-tr { color: #062a33 !important; }

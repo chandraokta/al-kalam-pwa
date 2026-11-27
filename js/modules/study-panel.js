@@ -11,6 +11,8 @@
   let timer = null;
   let lastKey = '';
   let currentAyah = null;
+  let currentWord = 0;
+  let range = null;
 
   async function data() {
     if (!wordsCache) {
@@ -56,7 +58,7 @@
       if (!vk) { if (existing) existing.remove(); continue; }
       const list = words[vk] || [];
       if (!list.length) { if (existing) existing.remove(); continue; }
-      const chips = list.map((w) => `<div class="sp-word sp-word-lg">
+      const chips = list.map((w, i) => `<div class="sp-word sp-word-lg" data-w="${i + 1}">
           <span class="sp-ar" dir="rtl">${w.ar || ''}</span>
           <span class="sp-tl">${w.tl || ''}</span>
           <span class="sp-tr">${w.tr || ''}</span>
@@ -68,6 +70,23 @@
       if (existing) existing.outerHTML = html;
       else if (sheet) box.appendChild(new DOMParser().parseFromString(html, 'text/html').body.firstElementChild);
       box.classList.add('study-on');
+    }
+    paintPanel();
+  }
+
+  function paintPanel() {
+    const panel = document.querySelector('.study-panel');
+    if (!panel) return;
+    panel.querySelectorAll('.sp-word').forEach((el) => el.classList.remove('sp-range', 'sp-on'));
+    if (range && currentAyah && Number(range.surah) === Number(String(currentAyah).split(':')[0])) {
+      const ayah = Number(String(currentAyah).split(':')[1]);
+      if (ayah >= range.from && ayah <= range.to) {
+        panel.querySelectorAll('.sp-word').forEach((el) => el.classList.add('sp-range'));
+      }
+    }
+    if (currentWord) {
+      const el = panel.querySelector(`.sp-word[data-w="${currentWord}"]`);
+      if (el) el.classList.add('sp-on');
     }
   }
 
@@ -91,9 +110,21 @@
     schedule();
   }
 
-  window.AlKalamMode && window.AlKalamMode.on((m) => { if (m !== 'hafal') currentAyah = null; });
+  window.AlKalamMode && window.AlKalamMode.on((m) => { if (m !== 'hafal') { currentAyah = null; currentWord = 0; range = null; } });
 
-  window.AlKalamStudy = { apply, refresh: schedule, setAyah, currentAyah: () => currentAyah };
+  function setWord(vk, w) {
+    if (vk && vk !== currentAyah) currentAyah = vk;
+    currentWord = Number(w) || 0;
+    paintPanel();
+  }
+
+  function setRange(surah, from, to) {
+    range = surah ? { surah: Number(surah), from: Number(from), to: Number(to) } : null;
+    paintPanel();
+  }
+
+  window.AlKalamStudy = { apply, refresh: schedule, setAyah, setWord, setRange,
+    currentAyah: () => currentAyah, currentWord: () => currentWord };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 })();
