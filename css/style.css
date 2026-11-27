@@ -2752,3 +2752,14 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 
 /* highlight kata oleh controller (baca/hafal/setoran) */
 .mushaf-hl { background: rgba(127, 209, 165, .22); border-radius: 4px; }
+
+/* label mode aktif */
+.mode-badge { margin-left: auto; font-size: .68rem; letter-spacing: .04em;
+  padding: 3px 8px; border-radius: 999px; color: #7fd1a5;
+  border: 1px solid rgba(127,209,165,.4); background: rgba(127,209,165,.08); }
+
+/* mode setoran: kontrol bacaan yang tidak perlu disembunyikan */
+[data-mode="setoran"] .mushaf-toolbar #toggleTranslation,
+[data-mode="setoran"] .mushaf-toolbar #toggleTajwid,
+[data-mode="setoran"] .mushaf-toolbar .mode-switch,
+[data-mode="setoran"] .mushaf-toolbar #btnTools { display: none !important; }

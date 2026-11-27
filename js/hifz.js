@@ -1423,7 +1423,7 @@
     const chapters = chaptersCache || [];
     if (!m) {
       const page = window.AlKalam.state.activePage || window.AlKalam.state.currentPage || 1;
-      const t = S.hafalHariIni || null;
+      const t = todayTarget();
       const tKind = t ? t.kind : 'page';
       const tPage = t && t.kind === 'page' ? t.page : page;
       const tSurah = t && t.kind === 'ayat' ? t.surah : (chapters[chapters.length - 1]?.id || 1);
@@ -1643,6 +1643,18 @@
     </div>`;
   }
 
+  function todayTarget() {
+    const m = (S.modules && S.modules.today) || null;
+    if (m && m.date) return m;
+    return S.hafalHariIni || null;
+  }
+
+  function setTodayTarget(t) {
+    S.hafalHariIni = t;                          // kompatibilitas
+    S.modules = S.modules || {};
+    S.modules.today = Object.assign({}, t);       // pemilik: modul today
+  }
+
   function todayStr() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1652,7 +1664,7 @@
   async function todayTargetHtml() {
     await ensureVerseMeta();
     const chapters = chaptersCache || [];
-    const t = (S.hafalHariIni && S.hafalHariIni.date === todayStr()) ? S.hafalHariIni : null;
+    const t = (todayTarget() && todayTarget().date === todayStr()) ? todayTarget() : null;
     const kind = t ? t.kind : 'ayat';
     const chName = (id) => (chapters.find((c) => c.id === Number(id)) || {}).name_simple || `Surah ${id}`;
     const label = t ? (t.kind === 'page'
@@ -2488,7 +2500,7 @@
       if (todayMode === 'page') {
         const page = Number(view.querySelector('#todayPage')?.value);
         if (!page || page < 1 || page > 604) return flash('Nomor halaman 1–604');
-        S.hafalHariIni = { date: todayStr(), kind: 'page', page };
+        setTodayTarget({ date: todayStr(), kind: 'page', page });
         save();
         window.AlKalam.state.activePage = page;
       } else {
@@ -2496,7 +2508,7 @@
         const from = Number(view.querySelector('#todayFrom')?.value) || 1;
         const to = Number(view.querySelector('#todayTo')?.value) || from;
         if (to < from) return flash('Ayat akhir harus ≥ ayat awal');
-        S.hafalHariIni = { date: todayStr(), kind: 'ayat', surah, from, to };
+        setTodayTarget({ date: todayStr(), kind: 'ayat', surah, from, to });
         save();
         window.AlKalam.state.activePage = versePageOf(surah, from) || 1;
       }

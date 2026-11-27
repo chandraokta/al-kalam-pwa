@@ -201,7 +201,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul4';
+  const BUILD = '2026-11-27-modul5';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3751,6 +3751,24 @@
   // Event Listeners
   // ═══════════════════════════════════════════════════════════════
   function bindEvents() {
+    // label mode aktif (baca/hafal/setoran/murajaah)
+    try {
+      const bar = document.querySelector('.mushaf-toolbar');
+      const badge = document.createElement('span');
+      badge.id = 'modeBadge';
+      badge.className = 'mode-badge';
+      badge.hidden = true;
+      if (bar) bar.appendChild(badge);
+      const labels = { baca: '', hafal: 'Mode Hafal', setoran: 'Mode Setoran', murajaah: 'Mode Murajaah' };
+      const sync = (m) => {
+        if (!badge) return;
+        const txt = labels[m] || '';
+        badge.textContent = txt;
+        badge.hidden = !txt;
+      };
+      if (window.AlKalamMode) { sync(window.AlKalamMode.get()); window.AlKalamMode.on(sync); }
+    } catch { /* abaikan */ }
+
     // Drawer
     // Navigasi bawah: Baca / Hafal / Murajaah / Lainnya
     document.querySelectorAll('[data-nav]').forEach((b) => {
