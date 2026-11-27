@@ -325,7 +325,8 @@
       bar = document.createElement('div');
       bar.id = 'sessionBar';
       bar.className = 'session-bar';
-      document.body.appendChild(bar);
+      const host = document.querySelector('.mushaf-toolbar') || document.body;
+      host.appendChild(bar);
       bar.addEventListener('click', (e) => {
         const b = e.target.closest('[data-sb]');
         if (!b) return;

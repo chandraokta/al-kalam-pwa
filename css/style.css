@@ -2803,27 +2803,6 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .sp-word.sp-on { background: #22d3ee !important; border-color: #22d3ee; }
 .sp-word.sp-on .sp-ar, .sp-word.sp-on .sp-tl, .sp-word.sp-on .sp-tr { color: #062a33 !important; }
 
-/* bilah sesi hafalan (page khusus) */
-.session-bar { position: fixed; left: 50%; bottom: calc(var(--nav-h, 58px) + 10px);
-  transform: translateX(-50%); z-index: 60; display: flex; gap: 14px; align-items: center;
-  padding: 8px 14px; border-radius: 14px; background: rgba(18,42,33,.96);
-  border: 1px solid rgba(127,209,165,.35); color: #eef6f0;
-  box-shadow: 0 18px 40px -24px rgba(0,0,0,.9); max-width: calc(100vw - 24px); flex-wrap: wrap; }
-.sb-info b { display: block; font-size: .9rem; }
-.sb-info span { font-size: .74rem; opacity: .75; }
-.sb-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-@media (max-height: 520px) { .session-bar { bottom: 8px; padding: 6px 10px; } }
-
-/* langkah metode bisa diklik (ulang dari ayat mana pun) */
-.mt-step[data-step] { cursor: pointer; }
-.mt-step[data-step]:hover, .mt-step[data-step]:focus-visible { background: rgba(127,209,165,.10); }
-.mt-step.done[data-step] { opacity: .8; }
-
-/* menu per mode: hafal & murajaah fokus ke mushaf */
-[data-mode="hafal"] .mushaf-toolbar #toggleTajwid,
-[data-mode="murajaah"] .mushaf-toolbar #toggleTajwid { display: none !important; }
-[data-mode="hafal"] .mushaf-toolbar #toggleTranslation { display: none !important; }
-
 /* tombol kembali ke sesi hafalan dari mode lain */
 .resume-session { position: fixed; right: 14px; bottom: calc(var(--nav-h, 58px) + 12px);
   z-index: 70; padding: 8px 12px; border-radius: 999px; cursor: pointer;
@@ -2834,3 +2813,13 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .mode-back { position: fixed; left: 12px; top: calc(var(--header-h, 52px) + 10px); z-index: 70;
   padding: 6px 12px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: .76rem;
   background: rgba(18,42,33,.92); color: #d8f5e4; border: 1px solid rgba(127,209,165,.4); }
+
+/* bilah sesi menyatu di dalam toolbar mushaf */
+.mushaf-toolbar .session-bar { position: static; transform: none; display: flex;
+  align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  width: 100%; margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(127,209,165,.22); background: transparent;
+  box-shadow: none; border-radius: 0; color: inherit; }
+.mushaf-toolbar .session-bar .sb-info b { font-size: .82rem; }
+.mushaf-toolbar .session-bar .sb-info span { font-size: .72rem; opacity: .7; }
+.mushaf-toolbar .session-bar .sb-actions { display: flex; gap: 6px; flex-wrap: wrap; }
