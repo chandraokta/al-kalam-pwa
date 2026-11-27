@@ -118,12 +118,21 @@
     paintPanel();
   }
 
+  function followMushaf() {
+    const el = document.querySelector('.mw.mt-word') || document.querySelector('.mw.mt-hl');
+    if (!el || !el.dataset.v) return;
+    if (el.dataset.v !== currentAyah) { currentAyah = el.dataset.v; schedule(); }
+  }
+
   function setRange(surah, from, to) {
     range = surah ? { surah: Number(surah), from: Number(from), to: Number(to) } : null;
+    followMushaf();
     paintPanel();
   }
 
-  window.AlKalamStudy = { apply, refresh: schedule, setAyah, setWord, setRange,
+  setInterval(() => { if (window.AlKalamMode && window.AlKalamMode.get() === 'hafal') followMushaf(); }, 400);
+
+  window.AlKalamStudy = { apply, refresh: schedule, setAyah, setWord, setRange, followMushaf,
     currentAyah: () => currentAyah, currentWord: () => currentWord };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();

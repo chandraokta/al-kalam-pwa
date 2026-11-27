@@ -3561,6 +3561,30 @@ view.querySelector('[data-mt-back]')?.addEventListener('click', () => {
   }
 
   if (window.AlKalamMode) window.AlKalamMode.on(() => { updateSessionBar(); updateResumePill(); updateModeBack(); });
+
+  document.addEventListener('dblclick', (e) => {
+    if (!window.AlKalamMode || window.AlKalamMode.get() !== 'hafal') return;
+    const w = e.target.closest('.scan-sheet .mw[data-v]');
+    if (!w) return;
+    const vk = w.dataset.v;
+    const [s0, a0] = vk.split(':').map(Number);
+    const repeat = Number(AlKalamSettings.get(S, 'method.repeat')) || 20;
+    let m = methodsState().newMem;
+    if (!m) {
+      m = { mode: 'ayat', surah: s0, from: a0, count: 1, to: a0, group: 2, repeat, step: 0, listens: 0, listening: false };
+      m.segments = [{ surah: s0, from: a0, to: a0 }];
+      m.steps = buildMethodSteps(m.segments, m.group, repeat);
+      methodsState().newMem = m;
+    } else {
+      let idx = m.steps.findIndex((st) => st.surah === s0 && st.from === a0 && st.to === a0);
+      if (idx < 0) { m.steps.splice(m.step, 0, { kind: 'ayah', surah: s0, from: a0, to: a0, repeat }); idx = m.step; }
+      m.step = idx; m.listens = 0; m.listening = false;
+    }
+    save(); render();
+    flash(`Mulai ayat ${vk} · ${repeat}×`);
+    setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 250);
+  });
+
   setInterval(() => { if (window.AlKalamMode) { updateResumePill(); updateModeBack(); } }, 900);
 
   if (window.AlKalamScopeModel) {

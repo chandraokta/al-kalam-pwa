@@ -206,7 +206,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul34';
+  const BUILD = '2026-11-27-modul37';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -576,6 +576,7 @@
   }
 
   // ── Terjemahan & tafsir terpilih (dengan cadangan) ──
+  let qulManifestCache = null;
   const DEFAULT_OF_LANG = { id: 'indo', en: 'kfh', ur: 'urdu', tr: 'turkish', latin: 'translit' };
   const LANG_OF_TRANSLATION = Object.fromEntries(
     Object.entries(DEFAULT_OF_LANG).map(([lang, slug]) => [slug, lang]));
@@ -1788,6 +1789,7 @@
       borderHtml +
       curlFrameSvg() +
       `<div class="trans-head"><strong>Terjemahan${state.showTafsir ? ' & Tafsir' : ''}</strong>` +
+      translationPickerHtml() +
       `<span>${info ? info.name_simple : ''} · halaman ${toArabicDigits(page)}${juz ? ' · Juz ' + juz : ''}</span>` +
       `<button type="button" class="page-swap" data-swap="${otherPage}">baca halaman ${toArabicDigits(otherPage)}</button>` +
       `</div>` +
@@ -2942,6 +2944,35 @@
     }
   }
 
+  function translationPickerHtml() {
+    const bundled = [['indo','Indonesia'],['kemenag','Kemenag RI'],['kfh','King Fahad'],['saheeh','Saheeh'],['pickthall','Pickthall'],['urdu','Urdu'],['turkish','Turki'],['translit','Translit Inggris'],['translit_id','Translit Indonesia']];
+    const cur = state.translationSlug || 'indo';
+    let opts = `<optgroup label="Bawaan">` + bundled.map(([v,l]) => `<option value="${v}"${v===cur?' selected':''}>${l}</option>`).join('') + `</optgroup>`;
+    const man = qulManifestCache;
+    if (Array.isArray(man) && man.length) {
+      const groups = new Map();
+      for (const it of man) {
+        const lang = String(it.language || '').trim();
+        if (!groups.has(lang)) groups.set(lang, []);
+        groups.get(lang).push(it);
+      }
+      opts += [...groups.keys()].sort().map((lang) => `<optgroup label="${lang}">` +
+        groups.get(lang).map((it) => `<option value="qul${it.id}"${('qul'+it.id)===cur?' selected':''}>${it.name}</option>`).join('') + `</optgroup>`).join('');
+    }
+    return `<select class="trans-lang" aria-label="Ganti bahasa terjemahan" onchange="AlKalam.setTranslationSlug(this.value)">${opts}</select>`;
+  }
+
+  function setTranslationSlug(slug) {
+    if (!slug) return;
+    state.translationSlug = slug;
+    state.translationLang = LANG_OF_TRANSLATION[slug] || (String(slug).startsWith('qul') ? 'qul' : 'id');
+    state.showTranslation = true;
+    saveSettings();
+    const sel = document.getElementById('translationSelect');
+    if (sel && [...sel.options].some((o) => o.value === slug)) sel.value = slug;
+    renderPage(state.currentPage);
+  }
+
   async function initQulTranslations() {
     const langSel = $('qulLang');
     const trSel = $('qulTr');
@@ -2950,6 +2981,8 @@
     try {
       const res = await fetch('./data/translations_manifest.json', { cache: 'no-cache' });
       manifest = await res.json();
+      qulManifestCache = manifest;
+      if (state.currentView === 'mushaf') setTimeout(() => renderPage(state.currentPage), 200);
     } catch { return; }
     const qul = manifest.filter((x) => x && x.id && x.language);
     const norm = (v) => String(v).trim().replace(/^./, (c) => c.toUpperCase());
@@ -4581,6 +4614,7 @@
     openModal,
     ayahTimes,
     pickLocaleTranslation,
+    setTranslationSlug,
     startWordLoop,
     stopWordLoop,
     activeSheetPage: () => {
