@@ -201,7 +201,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul25';
+  const BUILD = '2026-11-27-modul26';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -686,7 +686,7 @@
     // 'classic'/'green' (versi lama) dipetakan ke 'simple'
     if (!['simple', 'none'].includes(state.pageBorder)) state.pageBorder = 'simple';
     if (!['soft', 'vivid'].includes(state.pagePalette)) state.pagePalette = 'soft';
-    if (!TRANSLATION_OPTIONS.some(o => o[0] === state.translationSlug)) state.translationSlug = 'indo';
+    if (!TRANSLATION_OPTIONS.some(o => o[0] === state.translationSlug) && !/^qul\d+$/.test(state.translationSlug)) state.translationSlug = 'indo';
     if (!state.translationLang) state.translationLang = LANG_OF_TRANSLATION[state.translationSlug] || 'id';
     if (!TAFSIR_OPTIONS.some(o => o[0] === state.tafsirSlug)) state.tafsirSlug = 'short';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
@@ -717,6 +717,7 @@
     els.autoPlayNext.checked = state.autoPlayNext;
     els.repeatAyah.checked = state.repeatAyah;
     initAudioExtras();
+  initQulTranslations();
     ensurePageIndex();
     els.offlinePages.checked = state.offlinePages;
     // CSS variables
@@ -2849,6 +2850,43 @@
 
   // ── Playback ────────────────────────────────────────────────────────
   /** Isi & sambungkan kontrol tambahan di bilah audio. */
+  async function initQulTranslations() {
+    const langSel = $('qulLang');
+    const trSel = $('qulTr');
+    if (!langSel || !trSel) return;
+    let manifest = [];
+    try {
+      const res = await fetch('./data/translations_manifest.json', { cache: 'no-cache' });
+      manifest = await res.json();
+    } catch { return; }
+    const qul = manifest.filter((x) => x && x.id && x.language);
+    const norm = (v) => String(v).trim().replace(/^./, (c) => c.toUpperCase());
+    const langs = [...new Set(qul.map((x) => norm(x.language)))].sort();
+    langSel.innerHTML = '<option value="">— pilih bahasa —</option>' + langs.map((l) => `<option value="${l}">${l}</option>`).join('');
+    const fill = () => {
+      const lang = langSel.value;
+      const list = qul.filter((x) => norm(x.language) === lang);
+      trSel.innerHTML = list.length
+        ? list.map((x) => `<option value="${x.id}">${x.name}${x.author ? ' — ' + x.author : ''}</option>`).join('')
+        : '<option value="">— pilih bahasa dulu —</option>';
+    };
+    langSel.addEventListener('change', fill);
+    trSel.addEventListener('change', () => {
+      const id = Number(trSel.value);
+      if (!id) return;
+      state.translationSlug = `qul${id}`;
+      state.translationLang = langSel.value || 'en';
+      state.showTranslation = true;
+      saveSettings();
+      renderPage(state.currentPage);
+    });
+    const cur = /^qul(\d+)$/.exec(state.translationSlug || '');
+    if (cur) {
+      const item = qul.find((x) => Number(x.id) === Number(cur[1]));
+      if (item) { langSel.value = norm(item.language); fill(); trSel.value = String(item.id); }
+    }
+  }
+
   function initAudioExtras() {
     const reciters = (window.ALKALAM_CONFIG && window.ALKALAM_CONFIG.reciters) || [];
     if (els.audioQari) {

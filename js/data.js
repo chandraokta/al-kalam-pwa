@@ -174,8 +174,33 @@ const DataManager = (() => {
     }).filter(Boolean);
   }
   
+  const qulTrCache = new Map();
+
+  /** Terjemahan QUL/quran.com dimuat per surah lalu di-cache di memori. */
+  async function getQulTranslation(verseKey, id) {
+    const [surah] = verseKey.split(':').map(Number);
+    const key = `${id}_${surah}`;
+    if (!qulTrCache.has(key)) {
+      const url = `https://api.qurancdn.com/api/qdc/translations/${id}/by_chapter/${surah}?per_page=300`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const data = await res.json();
+      const list = (data && data.translations) || [];
+      const map = {};
+      list.forEach((t, i) => { map[`${surah}:${i + 1}`] = t.text; });
+      qulTrCache.set(key, map);
+    }
+    return (qulTrCache.get(key) || {})[verseKey] || '';
+  }
+
   // Helper: get translation
   async function getTranslation(verseKey, lang = 'indo') {
+    const slug = String(lang || '');
+    if (slug.startsWith('qul')) {
+      const id = Number(slug.slice(3));
+      if (id) {
+        try { return await getQulTranslation(verseKey, id); } catch { return ''; }
+      }
+    }
     const key = `translation_${lang}`;
     const trans = await load(key);
     return trans?.[verseKey] || '';
