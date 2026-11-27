@@ -4,7 +4,8 @@ Versi web ringan dari **Al-Kalam Digital v1.0** (Penerbit Diponegoro, 2009) yang
 aplikasi DVD Windows **2,8 GB**. Versi ini **≈16 MB** (kode + data), tanpa build tool, tanpa server:
 semua data disimpan sebagai `.json.gz` dan dimuat sesuai kebutuhan.
 
-**Demo:** https://chandraokta.github.io/al-kalam-pwa/
+**Demo:** https://chandraokta.github.io/al-kalam-pwa/  
+Build terakhir: `2026-11-27-modul13` · service worker `v162`
 
 | | Aplikasi asli (2009) | Versi ini |
 |---|---|---|
@@ -62,6 +63,33 @@ semua data disimpan sebagai `.json.gz` dan dimuat sesuai kebutuhan.
 - **Di mushaf:** Sembunyi (kata/ayat), Tandai (kata salah), Lancar/Ulang (halaman), A-B (ulangi audio), nomor ayat = penilaian ayat
 - **Dengar juz**, **rekam bacaan** (MediaRecorder), **Tilawa (Beta)** — pengenal bacaan on-device
 - **Profil anggota keluarga**: satu perangkat, banyak pengguna — hafalan, setelan, penanda, dan posisi baca terpisah per profil
+
+
+### Mode aplikasi (tampilan sama, controller terpisah)
+- **Baca / Hafal / Setoran / Murajaah** berbagi tampilan mushaf yang sama, tetapi controller, audio, dan setelannya terpisah (`js/core/mode.js`, `audio-lock.js`).
+- Satu pemilik audio: memutar metode otomatis menghentikan audio baca (dan sebaliknya).
+- Label mode tampil di toolbar; mode Setoran menyembunyikan kontrol bacaan yang tidak perlu.
+
+### Target & Metode 20×
+- **“Hafal apa kita hari ini?”**: target berupa **halaman** atau **surat + rentang ayat**; tersimpan per tanggal dan langsung mengisi kartu metode.
+- **Metode 20× per Ayat**: langkah otomatis (ayat → gabung kelompok → seluruh rentang), ulangan default **20×** (bisa 3/5/10/20), kelompok ayat disarankan otomatis (2 bila ada ayat panjang), estimasi waktu dari durasi ayat × ulangan.
+- Tombol **Mulai menghafal** langsung memutar urutan langkah; auto lanjut ke langkah berikutnya; indikator `x/N putaran` + sisa detik.
+- Sorotan di mushaf: **ungu** untuk rentang langkah, **teal** untuk kata yang sedang dibunyikan.
+- **Panel halaman tidak aktif**: saat menghafal, halaman sebelah menampilkan **satu ayat aktif** per kata (Arab · transliterasi · arti) dengan sorotan yang sama.
+
+### Setoran (Tilawa)
+- **Setoran tersembunyi**: teks halaman disembunyikan; **Tilawa** (on-device, model ONNX) menyimak bacaan dan membuka kata yang benar; kata salah ditandai merah; kata bisa dibuka manual bila mikrofon tidak diizinkan.
+- Catatan setoran ke guru (nama, tanggal, catatan) tersimpan di profil.
+- Modul terpisah: `js/modules/setoran.js`, `js/tilawa.js`; bisa dipanggil fitur lain via `window.AlKalamTilawa`.
+
+### Struktur modul
+```
+js/core/      mode.js  audio-lock.js  store.js  settings.js
+js/modules/   mushaf-view.js  reader.js  today.js  setoran.js  scope.js  study-panel.js
+js/           method-player.js  tilawa.js  hifz.js (perakitan UI)
+```
+- Setelan per modul: `S.modules.<modul>.<kunci>` (satu pemilik per setelan), migrasi otomatis v1 → v2.
+- Layout & jumlah baris **mengikuti QUL**: Madani QCF 604 hlm (15 baris), IndoPak Qudratullah 610 hlm (15), Taj 548 hlm (16).
 
 ## Data
 
