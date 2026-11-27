@@ -37,6 +37,7 @@
     fontSizeArabic: 28,
     fontSizeTrans: 15,
     theme: 'auto',
+    uiSkin: '0',
     qari: 'alafasy',
     segments: null,          // penanda waktu per kata untuk ayat yang diputar
     autoPlayNext: true,
@@ -138,6 +139,7 @@
     els.fontSizeTrans = $('fontSizeTrans');
     els.fontSizeTransVal = $('fontSizeTransVal');
     els.themeSelect = $('themeSelect');
+  els.skinSelect = $('skinSelect');
     els.langSelect = $('langSelect');
     els.showAyahNumbers = $('showAyahNumbers');
     els.pageModeSelect = $('pageModeSelect');
@@ -203,7 +205,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul30';
+  const BUILD = '2026-11-27-modul32';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -637,6 +639,7 @@
   function saveSettings() {
     const settings = {
       theme: state.theme,
+      uiSkin: state.uiSkin || '0',
       pageMode: state.pageMode,
       mushaf: state.mushaf,
       fontSizeArabic: state.fontSizeArabic,
@@ -724,7 +727,10 @@
     els.autoPlayNext.checked = state.autoPlayNext;
     els.repeatAyah.checked = state.repeatAyah;
     initAudioExtras();
+  applySkin();
   initQulTranslations();
+  if (els.skinSelect) els.skinSelect.value = state.uiSkin || '0';
+  els.skinSelect && els.skinSelect.addEventListener('change', (e) => { state.uiSkin = e.target.value; applySkin(); saveSettings(); });
   initQulTafsirs();
     ensurePageIndex();
     els.offlinePages.checked = state.offlinePages;
@@ -3877,6 +3883,11 @@
   // ═══════════════════════════════════════════════════════════════
   // Event Listeners
   // ═══════════════════════════════════════════════════════════════
+  function applySkin() {
+    if (state.uiSkin && state.uiSkin !== '0') document.body.dataset.skin = state.uiSkin;
+    else delete document.body.dataset.skin;
+  }
+
   function bindEvents() {
     // label mode aktif (baca/hafal/setoran/murajaah)
     try {

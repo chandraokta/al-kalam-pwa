@@ -2865,3 +2865,39 @@ body.has-session .mushaf-toolbar { position: sticky; top: 0; z-index: 30;
   --accent-primary:#8b3a4a; --accent-secondary:#a94c5e; --accent-tertiary:#c76a7a;
   --accent-light:#f6dfe3; --border-color:#e6c4cb;
 }
+
+/* ═══ 5 kandidat TATA LETAK (bukan sekadar warna) ═══ */
+body[data-skin="1"] .app-header { box-shadow:none; border-bottom:none; background:var(--bg-primary); }
+body[data-skin="1"] .mushaf-toolbar { border:none; border-radius:999px; padding:8px 16px;
+  box-shadow:var(--shadow-md); background:var(--bg-secondary); }
+body[data-skin="1"] .scan-sheet-box { box-shadow:none !important; border:none !important; background:transparent !important; }
+body[data-skin="1"] .scan-sheet { border-radius:6px; box-shadow:none; }
+body[data-skin="1"] .bottom-nav { background:transparent; border:none; box-shadow:none; }
+body[data-skin="1"] .bottom-nav .nav-label { display:none; }
+
+body[data-skin="2"] .app-main { padding:10px 14px 96px; }
+body[data-skin="2"] .mushaf-toolbar { border:none; border-bottom:1px dashed var(--border-color); border-radius:0; box-shadow:none; background:transparent; }
+body[data-skin="2"] .scan-sheet-box { border-radius:22px; overflow:hidden; box-shadow:0 24px 50px -30px rgba(0,0,0,.45); border:1px solid var(--border-color); }
+body[data-skin="2"] .bottom-nav { left:12px; right:12px; bottom:10px; border-radius:18px; margin:0 auto; max-width:720px; box-shadow:0 18px 40px -24px rgba(0,0,0,.55); border:1px solid var(--border-color); }
+
+body[data-skin="3"] .view { padding:0; }
+body[data-skin="3"] .mushaf-toolbar { margin:0; border-radius:0; border-left:none; border-right:none; border-top:none; background:linear-gradient(var(--bg-secondary), rgba(255,255,255,0)); box-shadow:none; }
+body[data-skin="3"] .mushaf-container { margin:0; }
+body[data-skin="3"] .scan-sheet-box { border-radius:0; border:none; box-shadow:none; }
+body[data-skin="3"] .scan-sheet { border-radius:0; }
+body[data-skin="3"] .bottom-nav { background:rgba(0,0,0,.28); backdrop-filter:blur(10px); border:none; }
+body[data-skin="3"] .bottom-nav .nav-label { color:#fff; }
+
+body[data-skin="4"] .app-title { font-family:Georgia, 'Times New Roman', serif; letter-spacing:.02em; }
+body[data-skin="4"] .mushaf-toolbar { border-radius:0; border:none; border-top:2px solid var(--accent-primary); border-bottom:1px solid var(--border-color); background:transparent; padding:10px 2px; }
+body[data-skin="4"] .mushaf-toolbar .btn, body[data-skin="4"] .mushaf-toolbar select { text-transform:uppercase; letter-spacing:.08em; font-size:.7rem; }
+body[data-skin="4"] .scan-sheet-box { border-radius:2px; box-shadow:0 10px 30px -26px rgba(0,0,0,.4); }
+body[data-skin="4"] .bottom-nav { background:transparent; border-top:1px solid var(--border-color); }
+body[data-skin="4"] .bottom-nav .nav-label { text-transform:uppercase; letter-spacing:.12em; font-size:.6rem; }
+
+body[data-skin="5"] .view { padding:8px 10px 84px; }
+body[data-skin="5"] .mushaf-toolbar { padding:6px; gap:4px; border-radius:8px; }
+body[data-skin="5"] .mushaf-toolbar .btn, body[data-skin="5"] .mushaf-toolbar select { font-size:.68rem; padding:4px 6px; }
+body[data-skin="5"] .scan-sheet-box { border-radius:8px; }
+body[data-skin="5"] .bottom-nav { height:50px; }
+body[data-skin="5"] .bottom-nav .nav-label { font-size:.62rem; }
