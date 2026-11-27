@@ -25,6 +25,7 @@
       <div class="hifz-actions" style="margin-top:8px">
         <button class="btn btn-sm btn-primary" data-set-start>Mulai setoran halaman ini</button>
         <button class="btn btn-sm" data-set-stop hidden>Hentikan</button>
+        <button class="btn btn-sm" data-set-back>Kembali</button>
       </div>
       <span class="hifz-muted" id="setStatus">Siap.</span>
     </div>
@@ -142,6 +143,10 @@
   function bind(view) {
     view.querySelector('[data-set-start]')?.addEventListener('click', () => { start(); });
     view.querySelector('[data-set-stop]')?.addEventListener('click', () => { stop(); });
+    view.querySelector('[data-set-back]')?.addEventListener('click', async () => {
+      await stop();
+      document.querySelector('[data-nav="hafal"]')?.click();
+    });
   }
 
   window.AlKalamSetoran = {

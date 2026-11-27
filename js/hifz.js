@@ -275,6 +275,28 @@
     flash(`Lanjut sesi hafalan: langkah ${m.step + 1}/${m.steps.length}`);
   }
 
+  function updateModeBack() {
+    let btn = document.getElementById('modeBack');
+    const mode = window.AlKalamMode ? window.AlKalamMode.get() : '';
+    const view = window.AlKalam.state && window.AlKalam.state.currentView;
+    const m = methodsState().newMem;
+    const inSession = view === 'mushaf' && (mode === 'setoran' || (mode === 'hafal' && m));
+    if (!inSession) { if (btn) btn.remove(); return; }
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'modeBack';
+      btn.className = 'mode-back';
+      btn.textContent = '← Kembali';
+      btn.addEventListener('click', async () => {
+        const md = window.AlKalamMode ? window.AlKalamMode.get() : '';
+        if (md === 'setoran') { try { await window.AlKalamSetoran.stop(); } catch { /* abaikan */ } }
+        else { window.AlKalamMethodPlayer.stop(); }
+        document.querySelector('[data-nav="hafal"]')?.click();
+      });
+      document.body.appendChild(btn);
+    }
+  }
+
   function updateResumePill() {
     let pill = document.getElementById('resumeSession');
     const m = methodsState().newMem;
@@ -1416,6 +1438,7 @@
           ? '<button class="btn btn-sm btn-primary" data-mt-finish>✓ Sudah hafal — masukkan ke daftar</button>'
           : `<button class="btn btn-sm btn-primary" data-mt-play>${m.listening ? 'Hentikan' : (m.listens ? `Lanjut ${st.repeat}×` : 'Mulai menghafal')}</button>
              <button class="btn btn-sm" data-mt-next ${(m.listens || 0) < st.repeat ? 'disabled' : ''}>Langkah berikutnya</button>`}
+        <button class="btn btn-sm" data-mt-back>Kembali</button>
         <button class="btn btn-sm" data-mt-reset-step>Ulang langkah</button>
         <button class="btn btn-sm" data-mt-reset-all>Ulang sesi</button>
         <button class="btn btn-sm" data-mt-cancel>Batal</button>
@@ -2529,7 +2552,13 @@
       save(); render();
       flash(`Mulai dari langkah ${i + 1}: ${stepLabel(m.steps[i])}`);
     }));
-view.querySelector('[data-mt-reset-step]')?.addEventListener('click', () => {
+view.querySelector('[data-mt-back]')?.addEventListener('click', () => {
+      window.AlKalamMethodPlayer.stop();
+      save();
+      document.querySelector('[data-nav="hafal"]')?.click();
+      flash('Sesi disimpan — lanjutkan kapan saja');
+    });
+    view.querySelector('[data-mt-reset-step]')?.addEventListener('click', () => {
       const m = methodsState().newMem; if (!m) return;
       m.listens = 0; save(); render(); flash('Putaran langkah ini diulang dari 0');
     });
@@ -3506,8 +3535,8 @@ view.querySelector('[data-mt-reset-step]')?.addEventListener('click', () => {
     }
   }
 
-  if (window.AlKalamMode) window.AlKalamMode.on(() => { updateSessionBar(); updateResumePill(); });
-  setInterval(() => { if (window.AlKalamMode) updateResumePill(); }, 900);
+  if (window.AlKalamMode) window.AlKalamMode.on(() => { updateSessionBar(); updateResumePill(); updateModeBack(); });
+  setInterval(() => { if (window.AlKalamMode) { updateResumePill(); updateModeBack(); } }, 900);
 
   if (window.AlKalamScopeModel) {
     window.AlKalamScopeModel.init({ getS: () => S, save, loadPageMap });

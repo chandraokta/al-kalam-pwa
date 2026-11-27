@@ -2829,3 +2829,8 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   z-index: 70; padding: 8px 12px; border-radius: 999px; cursor: pointer;
   background: #7fd1a5; color: #0b2018; border: 1px solid #4f9f78;
   font-weight: 700; font-size: .76rem; box-shadow: 0 10px 26px -14px rgba(0,0,0,.8); }
+
+/* tombol kembali pada halaman sesi (hafal/setoran) */
+.mode-back { position: fixed; left: 12px; top: calc(var(--header-h, 52px) + 10px); z-index: 70;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: .76rem;
+  background: rgba(18,42,33,.92); color: #d8f5e4; border: 1px solid rgba(127,209,165,.4); }
