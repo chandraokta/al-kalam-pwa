@@ -61,7 +61,7 @@ window.ALKALAM_CONFIG = {
       fontsLocal: ''
     },
     indopak: {
-      label: 'IndoPak · 15 baris (Qudratullah)',
+      label: 'IndoPak · QUL Qudratullah 15 baris · 610 halaman',
       layout: 'layout-indopak.json.gz',
       pageCount: 610,
       fontPerPage: false,
