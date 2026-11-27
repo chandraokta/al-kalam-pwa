@@ -61,21 +61,19 @@
   let S = emptyState();
 
   function load() {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const d = JSON.parse(raw);
-        if (d && typeof d === 'object') S = Object.assign(emptyState(), d,
-          { settings: Object.assign(emptyState().settings, d.settings || {}) });
-      }
-    } catch { /* rusak: pakai bawaan */ }
+    const stored = window.AlKalamStore ? window.AlKalamStore.load() : null;
+    if (stored && typeof stored === 'object') {
+      S = Object.assign(emptyState(), stored,
+        { settings: Object.assign(emptyState().settings, stored.settings || {}) });
+      S.modules = stored.modules || {};
+    }
     return S;
   }
   let saveTimer = null;
   function save() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* penuh */ }
+      if (window.AlKalamStore) window.AlKalamStore.save(S);
     }, 200);
   }
 
@@ -1440,10 +1438,10 @@
           <input id="mtCount" type="number" min="1" value="${tCount}" aria-label="Jumlah ayat" ${hidePage ? '' : 'hidden'} style="width:90px">
           <input id="mtTo" type="number" min="1" value="${t && t.kind === 'ayat' ? t.to : 5}" aria-label="Sampai ayat" ${hidePage ? '' : 'hidden'} style="width:90px">
           <select id="mtGroup" aria-label="Kelompok ayat">
-            ${[2, 4, 6, 8].map((n) => `<option value="${n}"${n === 4 ? ' selected' : ''}>Kelompok ${n} ayat</option>`).join('')}
+            ${[2, 4, 6, 8].map((n) => `<option value="${n}"${n === Number(AlKalamSettings.get(S, 'method.group')) ? ' selected' : ''}>Kelompok ${n} ayat</option>`).join('')}
           </select>
           <select id="mtRepeat" aria-label="Ulangan">
-            ${[3, 5, 10, 20].map((n) => `<option value="${n}"${n === 20 ? ' selected' : ''}>${n}×</option>`).join('')}
+            ${[3, 5, 10, 20].map((n) => `<option value="${n}"${n === Number(AlKalamSettings.get(S, 'method.repeat')) ? ' selected' : ''}>${n}×</option>`).join('')}
           </select>
           <button class="btn btn-sm btn-primary" data-mt-start>Mulai menghafal</button>
         </div>
@@ -2418,6 +2416,8 @@
     view.querySelector('[data-mt-start]')?.addEventListener('click', async () => {
       const group = Number(view.querySelector('#mtGroup')?.value) || 4;
       const repeat = Number(view.querySelector('#mtRepeat')?.value) || 20;
+      AlKalamSettings.set(S, 'method.group', group);
+      AlKalamSettings.set(S, 'method.repeat', repeat);
       const m = {
         mode: mtMode,
         page: Number(view.querySelector('#mtPage')?.value) || 1,
