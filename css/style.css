@@ -2823,3 +2823,13 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .mushaf-toolbar .session-bar .sb-info b { font-size: .82rem; }
 .mushaf-toolbar .session-bar .sb-info span { font-size: .72rem; opacity: .7; }
 .mushaf-toolbar .session-bar .sb-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* progress putaran pada bilah sesi */
+.sb-progress { width: min(320px, 40vw); height: 5px; border-radius: 99px;
+  background: rgba(255,255,255,.14); margin-top: 4px; overflow: hidden; }
+.sb-progress i { display: block; height: 100%; background: #7fd1a5; border-radius: 99px;
+  transition: width .25s ease; }
+
+/* saat sesi aktif, toolbar menempel di atas area gulir agar status terlihat */
+body.has-session .mushaf-toolbar { position: sticky; top: 0; z-index: 30;
+  background: var(--bg-card); box-shadow: 0 10px 24px -22px rgba(0,0,0,.8); }

@@ -320,7 +320,13 @@
     const mode = window.AlKalamMode ? window.AlKalamMode.get() : '';
     const allowed = mode === 'hafal' || mode === 'murajaah';
     const onMushaf = window.AlKalam.state && window.AlKalam.state.currentView === 'mushaf';
-    if (!m || !m.steps || !onMushaf || !allowed) { if (bar) bar.remove(); updateResumePill(); return; }
+    if (!m || !m.steps || !onMushaf || !allowed) {
+      if (bar) bar.remove();
+      document.body.classList.remove('has-session');
+      updateResumePill();
+      return;
+    }
+    document.body.classList.add('has-session');
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'sessionBar';
@@ -359,9 +365,15 @@
     }
     const st = m.steps[m.step] || {};
     const label = `${st.surah}:${st.from}${st.to !== st.from ? '-' + st.to : ''}`;
+    const listens = m.listens || 0;
+    const repeat = st.repeat || 0;
+    const pct = repeat ? Math.round((listens / repeat) * 100) : 0;
+    const stepPct = Math.round((m.step / m.steps.length) * 100);
     bar.innerHTML = `
-      <div class="sb-info"><b>Langkah ${m.step + 1}/${m.steps.length}</b>
-        <span>Ayat ${label} · ${m.listens || 0}/${st.repeat || 0}×</span></div>
+      <div class="sb-info"><b>Langkah ${m.step + 1}/${m.steps.length} · Ayat ${label}</b>
+        <span>Metode 20× · ${listens}/${repeat} putaran · langkah ${stepPct}%</span>
+        <div class="sb-progress"><i style="width:${pct}%"></i></div>
+      </div>
       <div class="sb-actions">
         <button class="btn btn-sm btn-primary" data-sb="toggle">${m.listening ? 'Jeda' : 'Lanjut'}</button>
         <button class="btn btn-sm" data-sb="next">Langkah berikutnya</button>
