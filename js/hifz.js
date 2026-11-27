@@ -1418,7 +1418,7 @@
 
     const st = m.steps[m.step] || null;
     const done = m.step >= m.steps.length;
-    const list = m.steps.map((x, i) => `<div class="mt-step${i < m.step ? ' done' : i === m.step ? ' now' : ''}" data-step="${i}" role="button" tabindex="0" title="Mulai dari langkah ini">
+    const list = m.steps.map((x, i) => `<div class="mt-step${i < m.step ? ' done' : i === m.step ? ' now' : ''}" data-step="${i}" role="button" tabindex="0" title="Klik 2× untuk mulai menghafal dari langkah ini">
       <span class="mt-no">${i < m.step ? '✓' : i + 1}</span>
       <span class="mt-txt">${stepLabel(x)} <span class="hifz-muted">${x.repeat}×</span></span></div>`).join('');
     return `<div class="hifz-card method-card">
@@ -2552,6 +2552,18 @@
       m.step = i; m.listens = 0; m.listening = false;
       save(); render();
       flash(`Mulai dari langkah ${i + 1}: ${stepLabel(m.steps[i])}`);
+    }));
+    view.querySelectorAll('[data-step]').forEach((el) => el.addEventListener('dblclick', () => {
+      const m = methodsState().newMem;
+      if (!m) return;
+      const i = Number(el.dataset.step);
+      if (!Number.isInteger(i) || !m.steps[i]) return;
+      window.AlKalamMethodPlayer.stop();
+      m.step = i; m.listens = 0; m.listening = false;
+      save(); render();
+      window.AlKalamMode?.set('hafal');
+      flash(`Mulai menghafal dari langkah ${i + 1}: ${stepLabel(m.steps[i])}`);
+      setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 250);
     }));
 view.querySelector('[data-mt-back]')?.addEventListener('click', () => {
       window.AlKalamMethodPlayer.stop();

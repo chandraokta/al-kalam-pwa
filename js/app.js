@@ -201,7 +201,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul22';
+  const BUILD = '2026-11-27-modul23';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
