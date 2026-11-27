@@ -311,9 +311,27 @@
         if (!mm) return;
         const act = b.dataset.sb;
         if (act === 'toggle') { window.AlKalamMethodPlayer.play(); }
-        else if (act === 'next') { mm.step = Math.min(mm.step + 1, mm.steps.length - 1); mm.listens = 0; mm.listening = false; save(); render(); }
-        else if (act === 'reset') { mm.listens = 0; save(); render(); flash('Putaran langkah ini diulang'); }
-        else if (act === 'back') { window.AlKalamMethodPlayer.stop(); save(); document.querySelector('[data-nav=\"hafal\"]')?.click(); flash('Sesi disimpan — lanjutkan kapan saja'); }
+        else if (act === 'next') {
+          const was = !!mm.listening;
+          window.AlKalamMethodPlayer.stop();
+          mm.step = Math.min(mm.step + 1, mm.steps.length - 1);
+          mm.listens = 0; mm.listening = false;
+          save(); render();
+          flash(`Langkah ${mm.step + 1}/${mm.steps.length}: ${stepLabel(mm.steps[mm.step])}`);
+          if (was) setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 400);
+        } else if (act === 'reset') {
+          const was = !!mm.listening;
+          window.AlKalamMethodPlayer.stop();
+          mm.listens = 0; mm.listening = false;
+          save(); render();
+          flash('Putaran langkah ini diulang dari 0');
+          if (was) setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 400);
+        } else if (act === 'back') {
+          window.AlKalamMethodPlayer.stop();
+          save();
+          document.querySelector('[data-nav=\"hafal\"]')?.click();
+          flash('Sesi disimpan — lanjutkan kapan saja');
+        }
       });
     }
     const st = m.steps[m.step] || {};
