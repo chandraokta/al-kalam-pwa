@@ -23,6 +23,7 @@
     pagePalette: 'soft',
     translationSlug: 'indo',   // terjemahan aktif
     translationLang: 'id',     // bahasa terjemahan terpilih
+    localeInit: false,       // sudah pernah menetapkan bahasa otomatis
     tafsirSlug: 'short',       // tafsir aktif   // 'soft' = hijau muda & kuning | 'vivid' = warna legenda
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     activePage: null,      // halaman yang sedang dibaca (null = halaman kanan pasangan)
@@ -201,7 +202,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul26';
+  const BUILD = '2026-11-27-modul27';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -2850,6 +2851,31 @@
 
   // ── Playback ────────────────────────────────────────────────────────
   /** Isi & sambungkan kontrol tambahan di bilah audio. */
+  const LOCALE_NAMES = {
+    fr: 'french', es: 'spanish', de: 'german', ru: 'russian', bn: 'bengali',
+    zh: 'chinese', fa: 'persian', hi: 'hindi', pt: 'portuguese', sw: 'swahili',
+    ml: 'malayalam', ta: 'tamil', ha: 'hausa', so: 'somali', id: 'indonesian',
+    ms: 'malay', ar: 'arabic', nl: 'dutch', it: 'italian', ja: 'japanese',
+    ko: 'korean', th: 'thai', vi: 'vietnamese', uz: 'uzbek', az: 'azeri',
+    kk: 'kazakh', ky: 'kyrgyz', ps: 'pashto', sd: 'sindhi', ug: 'uyghur',
+  };
+
+  /** Pilih terjemahan sesuai bahasa perangkat; fallback Inggris. */
+  function pickLocaleTranslation(manifest, navLang) {
+    const base = String(navLang || 'en').toLowerCase().split('-')[0];
+    if (base === 'id') return { slug: 'indo', lang: 'id', name: 'Indonesia' };
+    if (base === 'en') return { slug: 'saheeh', lang: 'en', name: 'English' };
+    if (base === 'ur') return { slug: 'urdu', lang: 'ur', name: 'Urdu' };
+    if (base === 'tr') return { slug: 'turkish', lang: 'tr', name: 'Turki' };
+    const wanted = LOCALE_NAMES[base];
+    const qul = Array.isArray(manifest) ? manifest : [];
+    if (wanted) {
+      const item = qul.find((x) => String(x.language || '').toLowerCase() === wanted);
+      if (item) return { slug: `qul${item.id}`, lang: base, name: item.language };
+    }
+    return { slug: 'saheeh', lang: 'en', name: 'English (fallback)' };
+  }
+
   async function initQulTranslations() {
     const langSel = $('qulLang');
     const trSel = $('qulTr');
@@ -2880,6 +2906,14 @@
       saveSettings();
       renderPage(state.currentPage);
     });
+    if (!state.localeInit) {
+      const pick = pickLocaleTranslation(qul, navigator.language || 'en');
+      state.translationSlug = pick.slug;
+      state.translationLang = pick.lang;
+      state.localeInit = true;
+      saveSettings();
+    }
+
     const cur = /^qul(\d+)$/.exec(state.translationSlug || '');
     if (cur) {
       const item = qul.find((x) => Number(x.id) === Number(cur[1]));
@@ -4455,6 +4489,7 @@
     showOnboarding,
     openModal,
     ayahTimes,
+    pickLocaleTranslation,
     startWordLoop,
     stopWordLoop,
     activeSheetPage: () => {
