@@ -202,6 +202,10 @@ const DataManager = (() => {
         try { return await getQulTranslation(verseKey, id); } catch { return ''; }
       }
     }
+    if (slug === 'translit_auto') {
+      const en = !/^id\b/i.test(String(navigator.language || 'en'));
+      return getTranslation(verseKey, en ? 'translit' : 'translit_id');
+    }
     const key = `translation_${lang}`;
     const trans = await load(key);
     return trans?.[verseKey] || '';

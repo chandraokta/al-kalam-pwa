@@ -2833,3 +2833,35 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 /* saat sesi aktif, toolbar menempel di atas area gulir agar status terlihat */
 body.has-session .mushaf-toolbar { position: sticky; top: 0; z-index: 30;
   background: var(--bg-card); box-shadow: 0 10px 24px -22px rgba(0,0,0,.8); }
+
+/* ═══ 5 tema kandidat (untuk dinilai) ═══ */
+[data-theme="zamrud"] {
+  --bg-primary:#eef7f0; --bg-secondary:#ffffff; --bg-tertiary:#dcefe1; --bg-card:#ffffff;
+  --text-primary:#0f2e1c; --text-secondary:#2f5a41; --text-muted:#5f8a70;
+  --accent-primary:#14532d; --accent-secondary:#1f7a45; --accent-tertiary:#34a06a;
+  --accent-light:#d7f0e0; --border-color:#bcdcc8;
+}
+[data-theme="malam"] {
+  --bg-primary:#0f172a; --bg-secondary:#16213a; --bg-tertiary:#1d2b47; --bg-card:#182440;
+  --text-primary:#e6edf8; --text-secondary:#b9c7de; --text-muted:#8b9cb8;
+  --accent-primary:#93c5fd; --accent-secondary:#7aa8e6; --accent-tertiary:#5b8fd6;
+  --accent-light:#1e3355; --border-color:#2b3d5c;
+}
+[data-theme="perkamen"] {
+  --bg-primary:#f7efdc; --bg-secondary:#fbf5e6; --bg-tertiary:#efe2c6; --bg-card:#fbf5e6;
+  --text-primary:#3a2c17; --text-secondary:#5d4826; --text-muted:#8a7248;
+  --accent-primary:#7c5b2a; --accent-secondary:#9a7234; --accent-tertiary:#b78a41;
+  --accent-light:#eadcc0; --border-color:#d9c6a2;
+}
+[data-theme="samudra"] {
+  --bg-primary:#eaf4f7; --bg-secondary:#ffffff; --bg-tertiary:#d8ebef; --bg-card:#ffffff;
+  --text-primary:#0b2b33; --text-secondary:#24545f; --text-muted:#4f7f89;
+  --accent-primary:#0f5f6e; --accent-secondary:#147d8f; --accent-tertiary:#2aa4b8;
+  --accent-light:#d2edf2; --border-color:#b5dbe3;
+}
+[data-theme="mawar"] {
+  --bg-primary:#fbf0ee; --bg-secondary:#fff8f6; --bg-tertiary:#f3ded9; --bg-card:#fff8f6;
+  --text-primary:#3a1b22; --text-secondary:#6a3542; --text-muted:#96616d;
+  --accent-primary:#8b3a4a; --accent-secondary:#a94c5e; --accent-tertiary:#c76a7a;
+  --accent-light:#f6dfe3; --border-color:#e6c4cb;
+}

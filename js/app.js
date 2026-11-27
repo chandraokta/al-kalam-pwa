@@ -203,7 +203,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul29';
+  const BUILD = '2026-11-27-modul30';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -581,6 +581,7 @@
     ['indo', 'Indonesia'], ['kemenag', 'Kemenag RI'], ['kfh', 'King Fahad Complex'],
     ['saheeh', 'Saheeh International'], ['pickthall', 'M. Pickthall'],
     ['urdu', 'Urdu (Jalandhari)'], ['turkish', 'Turki (Diyanet)'],
+    ['translit_auto', 'Transliterasi (otomatis)'],
     ['translit', 'Transliterasi Latin (gaya Inggris)'],
     ['translit_id', 'Transliterasi Indonesia'],
   ];
