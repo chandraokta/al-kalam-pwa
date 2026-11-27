@@ -21,6 +21,19 @@
     return H;
   }
 
+  function paintStep(st) {
+    document.querySelectorAll('.mw.mt-hl').forEach((e) => e.classList.remove('mt-hl'));
+    for (let a = st.from; a <= st.to; a++) {
+      document.querySelectorAll(`.mw[data-v="${st.surah}:${a}"]`).forEach((e) => e.classList.add('mt-hl'));
+    }
+    const first = document.querySelector(`.mw[data-v="${st.surah}:${st.from}"]`);
+    if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  function clearStepPaint() {
+    document.querySelectorAll('.mw.mt-hl').forEach((e) => e.classList.remove('mt-hl'));
+  }
+
   function hpAudio() {
     if (!HP.el) {
       HP.el = new Audio();
@@ -36,6 +49,7 @@
   function stop() {
     if (window.AlKalamAudioLock) window.AlKalamAudioLock.release('metode');
     HP.token += 1;
+    clearStepPaint();
     hpClearTimer();
     if (HP.el) { try { HP.el.pause(); } catch { /* abaikan */ } }
     if (!H) return;
@@ -88,6 +102,7 @@
     const repeat = Math.max(1, Number(st.repeat) || 20);
     const seek = () => { try { a.currentTime = Math.max(0, t1.from / 1000 + 0.01); } catch { /* abaikan */ } };
     seek();
+    paintStep(st);
     try { await a.play(); } catch {
       h.flash('Ketuk sekali lagi untuk mengizinkan audio');
       m.listening = false; h.save(); h.render(); return;
@@ -137,6 +152,7 @@
             h.save();
             h.render();
             hpClearTimer();
+            clearStepPaint();
             h.flash('Semua langkah selesai — tekan "Sudah hafal"');
           }
         } else {
