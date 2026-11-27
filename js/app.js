@@ -201,7 +201,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul13';
+  const BUILD = '2026-11-27-modul15';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -4412,7 +4412,7 @@
     stopAudio,
     audio: () => audioEl,
     goPage: (p) => renderPage(p),
-    openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); },
+    openPage: async (p) => { showView('mushaf'); await renderPage(p); window.scrollTo(0, 0); window.AlKalamHifz?.updateSessionBar?.(); },
     playPageOnce,
     showOnboarding,
     openModal,

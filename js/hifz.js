@@ -226,6 +226,41 @@
     return st === 'lancar' ? 'ok' : st === 'lemah' ? 'bad' : st === 'sedang' ? 'mid' : 'none';
   }
 
+  function updateSessionBar() {
+    const m = methodsState().newMem;
+    let bar = document.getElementById('sessionBar');
+    const onMushaf = window.AlKalam.state && window.AlKalam.state.currentView === 'mushaf';
+    if (!m || !m.steps || !onMushaf) { if (bar) bar.remove(); return; }
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'sessionBar';
+      bar.className = 'session-bar';
+      document.body.appendChild(bar);
+      bar.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-sb]');
+        if (!b) return;
+        const mm = methodsState().newMem;
+        if (!mm) return;
+        const act = b.dataset.sb;
+        if (act === 'toggle') { window.AlKalamMethodPlayer.play(); }
+        else if (act === 'next') { mm.step = Math.min(mm.step + 1, mm.steps.length - 1); mm.listens = 0; mm.listening = false; save(); render(); }
+        else if (act === 'reset') { mm.listens = 0; save(); render(); flash('Putaran langkah ini diulang'); }
+        else if (act === 'back') { window.AlKalamMethodPlayer.stop(); save(); document.querySelector('[data-nav=\"hafal\"]')?.click(); flash('Sesi disimpan — lanjutkan kapan saja'); }
+      });
+    }
+    const st = m.steps[m.step] || {};
+    const label = `${st.surah}:${st.from}${st.to !== st.from ? '-' + st.to : ''}`;
+    bar.innerHTML = `
+      <div class="sb-info"><b>Langkah ${m.step + 1}/${m.steps.length}</b>
+        <span>Ayat ${label} · ${m.listens || 0}/${st.repeat || 0}×</span></div>
+      <div class="sb-actions">
+        <button class="btn btn-sm btn-primary" data-sb="toggle">${m.listening ? 'Jeda' : 'Lanjut'}</button>
+        <button class="btn btn-sm" data-sb="next">Langkah berikutnya</button>
+        <button class="btn btn-sm" data-sb="reset">Ulang langkah</button>
+        <button class="btn btn-sm" data-sb="back">Kembali</button>
+      </div>`;
+  }
+
   async function render() {
     const view = el('viewHifz');
     if (!view) return;
@@ -240,6 +275,7 @@
     else if (tab === 'scope') body.innerHTML = await renderScope();
     else body.innerHTML = renderSettings();
     bind();
+    updateSessionBar();
   }
 
   // ── Cakupan hafalan + program murajaah ────────────────────────────────
@@ -1214,6 +1250,22 @@
       (durasi ayat × ${(m.steps || []).length} langkah ulangan)</span>`;
   }
 
+  async function methodPreviewHtml() {
+    const t = todayTarget();
+    if (!t || !t.date) return '';
+    const repeat = Number(AlKalamSettings.get(S, 'method.repeat')) || 20;
+    const group = Number(AlKalamSettings.get(S, 'method.group')) || 4;
+    const m = t.kind === 'page'
+      ? { mode: 'page', page: t.page }
+      : { mode: 'ayat', surah: t.surah, from: t.from, count: Math.max(1, t.to - t.from + 1) };
+    try {
+      const segs = await methodTargetSegments(m);
+      const steps = buildMethodSteps(segs, group, repeat);
+      const ms = await methodTotalMs({ steps });
+      return `<span class="hifz-muted" id="mtSummary"><b>${segmentsLabel(segs)}</b> · ${steps.length} langkah · ${repeat}× · perkiraan <b>${fmtDuration(ms || 0)}</b></span>`;
+    } catch { return ''; }
+  }
+
   async function methodCardHtml() {
     await ensureVerseMeta();
     const m = methodsState().newMem;
@@ -1230,6 +1282,7 @@
       return `<div class="hifz-card method-card">
         <strong class="hifz-title">Metode 20× per Ayat</strong>
         <span class="hifz-muted">Hafal tiap ayat 20×, gabungkan per kelompok, lalu ulangi semuanya.</span>
+        ${await methodPreviewHtml()}
         ${t ? `<span class="hifz-muted">Default mengikuti target hari ini: <b>${t.kind === 'page' ? 'halaman ' + t.page : (chapters.find((c) => c.id === Number(t.surah))?.name_simple || 'Surah ' + t.surah) + ' ' + t.from + '–' + t.to}</b> — bisa diubah di bawah.</span>` : ''}
         <div class="hifz-actions" style="margin:8px 0">
           ${METHOD_TARGETS.filter(([v]) => !isPemula() || v !== 'range').map(([v, tt]) => `<button class="btn btn-sm${v === tKind ? ' btn-primary' : ''}" data-mt-target="${v}">${tt}</button>`).join('')}
@@ -1277,6 +1330,8 @@
           ? '<button class="btn btn-sm btn-primary" data-mt-finish>✓ Sudah hafal — masukkan ke daftar</button>'
           : `<button class="btn btn-sm btn-primary" data-mt-play>${m.listening ? 'Hentikan' : (m.listens ? `Lanjut ${st.repeat}×` : 'Mulai menghafal')}</button>
              <button class="btn btn-sm" data-mt-next ${(m.listens || 0) < st.repeat ? 'disabled' : ''}>Langkah berikutnya</button>`}
+        <button class="btn btn-sm" data-mt-reset-step>Ulang langkah</button>
+        <button class="btn btn-sm" data-mt-reset-all>Ulang sesi</button>
         <button class="btn btn-sm" data-mt-cancel>Batal</button>
       </div>
     </div>`;
@@ -2392,6 +2447,14 @@
       render();
     });
     view.querySelector('[data-mt-finish]')?.addEventListener('click', methodFinish);
+    view.querySelector('[data-mt-reset-step]')?.addEventListener('click', () => {
+      const m = methodsState().newMem; if (!m) return;
+      m.listens = 0; save(); render(); flash('Putaran langkah ini diulang dari 0');
+    });
+    view.querySelector('[data-mt-reset-all]')?.addEventListener('click', () => {
+      const m = methodsState().newMem; if (!m) return;
+      m.step = 0; m.listens = 0; m.listening = false; save(); render(); flash('Sesi diulang dari langkah 1');
+    });
     view.querySelector('[data-mt-cancel]')?.addEventListener('click', () => {
       window.AlKalamMethodPlayer.stop();
       methodsState().newMem = null;
@@ -3394,7 +3457,7 @@
     window.AlKalamMethodPlayer.setHooks({ methodsState, save, render, flash, raporBump, openVersePage });
   }
 
-  window.AlKalamHifz = { showTab, isMethodActive, maybeNotify, sessionNotifyCheck,
+  window.AlKalamHifz = { updateSessionBar, showTab, isMethodActive, maybeNotify, sessionNotifyCheck,
     get state() { return S; },
     save, markPageDone, markPageStatus, flagWord, unflagWord, isFlagged,
     srsRate, dueVerses, render, mount, todayKey,
