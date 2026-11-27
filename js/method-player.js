@@ -32,6 +32,23 @@
 
   function clearStepPaint() {
     document.querySelectorAll('.mw.mt-hl').forEach((e) => e.classList.remove('mt-hl'));
+    document.querySelectorAll('.mw.mt-word').forEach((e) => e.classList.remove('mt-word'));
+  }
+
+  function paintWord(segs, ms) {
+    let hit = null;
+    for (const s of segs) {
+      if (ms >= s.from - 120 && ms <= s.to + 250) {
+        for (const g of s.segs || []) {
+          if (ms >= Number(g[1]) - 60 && ms <= Number(g[2]) + 120) hit = { vk: s.vk, w: Number(g[0]) };
+        }
+      }
+    }
+    document.querySelectorAll('.mw.mt-word').forEach((e) => e.classList.remove('mt-word'));
+    if (!hit) return;
+    const list = document.querySelectorAll(`.mw[data-v="${hit.vk}"]`);
+    const el = list[hit.w - 1];
+    if (el) el.classList.add('mt-word');
   }
 
   function hpAudio() {
@@ -122,11 +139,18 @@
       if (remain) remain.textContent = `${Math.max(0, Math.ceil((t2.to - a.currentTime * 1000) / 1000))} dtk`;
     };
     paint();
+    const segs = [];
+    for (let a = st.from; a <= st.to; a++) {
+      const vk2 = `${st.surah}:${a}`;
+      const tt = window.AlKalam.ayahTimes && window.AlKalam.ayahTimes(vk2);
+      if (tt) segs.push({ vk: vk2, from: Number(tt.from), to: Number(tt.to), segs: tt.segs || [] });
+    }
     const tick = () => {
       if (token !== HP.token) { hpClearTimer(); return; }
       const mm = h.methodsState().newMem;
       if (!mm || !mm.listening) { hpClearTimer(); return; }
       paint();
+      paintWord(segs, a.currentTime * 1000);
       if (a.currentTime * 1000 >= t2.to - 60) {
         try { a.pause(); } catch { /* abaikan */ }
         hpClearTimer();

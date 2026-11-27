@@ -2768,3 +2768,24 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .mw.mt-hl { background: rgba(139, 92, 246, .32) !important;
   box-shadow: inset 0 -2px 0 rgba(139, 92, 246, .85); border-radius: 4px; }
 [data-theme="dark"] .mw.mt-hl { background: rgba(167, 139, 250, .38) !important; }
+
+/* kata yang sedang dibaca pada metode hafalan (teal, beda dari rentang ungu) */
+.mw.mt-word { background: #22d3ee !important; color: #062a33 !important; border-radius: 4px; }
+
+/* panel studi halaman tidak aktif saat menghafal */
+.scan-sheet-box { position: relative; }
+.study-panel { position: absolute; inset: 0; z-index: 6; overflow: auto;
+  background: #fbf6e9; color: #2c2a24; padding: 14px 16px; border-radius: 10px; }
+[data-theme="dark"] .study-panel { background: #141a17; color: #e9e3d5; }
+.sp-head { display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid rgba(120,100,50,.25); padding-bottom: 6px; margin-bottom: 8px; }
+.sp-head span { font-size: .72rem; opacity: .7; }
+.sp-verse { margin: 10px 0 14px; }
+.sp-vk { font-size: .72rem; letter-spacing: .05em; opacity: .6; margin-bottom: 4px; }
+.sp-words { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-word { display: flex; flex-direction: column; align-items: center; min-width: 64px;
+  padding: 6px 8px; border-radius: 8px; background: rgba(120,100,50,.07);
+  border: 1px solid rgba(120,100,50,.12); }
+.sp-ar { font-family: var(--font-arabic); font-size: 1.15rem; line-height: 1.6; }
+.sp-tl { font-size: .68rem; font-style: italic; opacity: .8; }
+.sp-tr { font-size: .66rem; opacity: .65; text-align: center; }
