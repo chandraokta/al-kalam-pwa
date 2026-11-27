@@ -229,8 +229,10 @@
   function updateSessionBar() {
     const m = methodsState().newMem;
     let bar = document.getElementById('sessionBar');
+    const mode = window.AlKalamMode ? window.AlKalamMode.get() : '';
+    const allowed = mode === 'hafal' || mode === 'murajaah';
     const onMushaf = window.AlKalam.state && window.AlKalam.state.currentView === 'mushaf';
-    if (!m || !m.steps || !onMushaf) { if (bar) bar.remove(); return; }
+    if (!m || !m.steps || !onMushaf || !allowed) { if (bar) bar.remove(); return; }
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'sessionBar';
@@ -1309,7 +1311,7 @@
 
     const st = m.steps[m.step] || null;
     const done = m.step >= m.steps.length;
-    const list = m.steps.map((x, i) => `<div class="mt-step${i < m.step ? ' done' : i === m.step ? ' now' : ''}">
+    const list = m.steps.map((x, i) => `<div class="mt-step${i < m.step ? ' done' : i === m.step ? ' now' : ''}" data-step="${i}" role="button" tabindex="0" title="Mulai dari langkah ini">
       <span class="mt-no">${i < m.step ? '✓' : i + 1}</span>
       <span class="mt-txt">${stepLabel(x)} <span class="hifz-muted">${x.repeat}×</span></span></div>`).join('');
     return `<div class="hifz-card method-card">
@@ -2447,7 +2449,17 @@
       render();
     });
     view.querySelector('[data-mt-finish]')?.addEventListener('click', methodFinish);
-    view.querySelector('[data-mt-reset-step]')?.addEventListener('click', () => {
+    view.querySelectorAll('[data-step]').forEach((el) => el.addEventListener('click', () => {
+      const m = methodsState().newMem;
+      if (!m) return;
+      const i = Number(el.dataset.step);
+      if (!Number.isInteger(i) || !m.steps[i]) return;
+      window.AlKalamMethodPlayer.stop();
+      m.step = i; m.listens = 0; m.listening = false;
+      save(); render();
+      flash(`Mulai dari langkah ${i + 1}: ${stepLabel(m.steps[i])}`);
+    }));
+view.querySelector('[data-mt-reset-step]')?.addEventListener('click', () => {
       const m = methodsState().newMem; if (!m) return;
       m.listens = 0; save(); render(); flash('Putaran langkah ini diulang dari 0');
     });
@@ -3423,6 +3435,8 @@
       document.querySelector('.drawer-item[data-view="hifz"]')?.addEventListener('click', () => setTimeout(render, 60));
     }
   }
+
+  if (window.AlKalamMode) window.AlKalamMode.on(() => updateSessionBar());
 
   if (window.AlKalamScopeModel) {
     window.AlKalamScopeModel.init({ getS: () => S, save, loadPageMap });

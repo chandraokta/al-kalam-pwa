@@ -2813,3 +2813,13 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
 .sb-info span { font-size: .74rem; opacity: .75; }
 .sb-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 @media (max-height: 520px) { .session-bar { bottom: 8px; padding: 6px 10px; } }
+
+/* langkah metode bisa diklik (ulang dari ayat mana pun) */
+.mt-step[data-step] { cursor: pointer; }
+.mt-step[data-step]:hover, .mt-step[data-step]:focus-visible { background: rgba(127,209,165,.10); }
+.mt-step.done[data-step] { opacity: .8; }
+
+/* menu per mode: hafal & murajaah fokus ke mushaf */
+[data-mode="hafal"] .mushaf-toolbar #toggleTajwid,
+[data-mode="murajaah"] .mushaf-toolbar #toggleTajwid { display: none !important; }
+[data-mode="hafal"] .mushaf-toolbar #toggleTranslation { display: none !important; }
