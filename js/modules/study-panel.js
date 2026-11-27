@@ -10,6 +10,7 @@
   let pageMap = null;
   let timer = null;
   let lastKey = '';
+  let currentAyah = null;
 
   async function data() {
     if (!wordsCache) {
@@ -34,7 +35,7 @@
     const active = Number(window.AlKalam.state.activePage || window.AlKalam.state.currentPage || 1);
     if (boxes.length < 2) { removePanels(); return; }
     const { words, pages } = await data();
-    const key = `${active}|${boxes.map((b) => b.dataset.sheet).join(',')}`;
+    const key = `${active}|${currentAyah || ''}|${boxes.map((b) => b.dataset.sheet).join(',')}`;
     if (key === lastKey && document.querySelector('.study-panel')) return;
     lastKey = key;
     for (const box of boxes) {
@@ -42,22 +43,27 @@
       const sheet = box.querySelector('.scan-sheet');
       const existing = box.querySelector('.study-panel');
       if (page === active) { if (existing) existing.remove(); box.classList.remove('study-on'); continue; }
-      const pageInfo = pages.find((p) => Number(p.page) === page);
+      const pageInfo = pages.find((p2) => Number(p2.page) === page);
       const verses = (pageInfo && pageInfo.verses) || [];
       if (!verses.length) { if (existing) existing.remove(); continue; }
-      const rows = verses.map((v) => {
-        const vk = `${v.surah}:${v.ayah}`;
-        const list = words[vk] || [];
-        const chips = list.map((w) => `<div class="sp-word">
-            <span class="sp-ar" dir="rtl">${w.ar || ''}</span>
-            <span class="sp-tl">${w.tl || ''}</span>
-            <span class="sp-tr">${w.tr || ''}</span>
-          </div>`).join('');
-        return `<div class="sp-verse"><div class="sp-vk">${vk}</div><div class="sp-words">${chips}</div></div>`;
-      }).join('');
+      // hanya SATU ayat: yang sedang dibaca; jika belum ada, ayat pertama halaman aktif
+      let vk = currentAyah;
+      if (!vk) {
+        const actInfo = pages.find((p2) => Number(p2.page) === active);
+        const av = (actInfo && actInfo.verses && actInfo.verses[0]) || null;
+        if (av) vk = `${av.surah}:${av.ayah}`;
+      }
+      if (!vk) { if (existing) existing.remove(); continue; }
+      const list = words[vk] || [];
+      if (!list.length) { if (existing) existing.remove(); continue; }
+      const chips = list.map((w) => `<div class="sp-word sp-word-lg">
+          <span class="sp-ar" dir="rtl">${w.ar || ''}</span>
+          <span class="sp-tl">${w.tl || ''}</span>
+          <span class="sp-tr">${w.tr || ''}</span>
+        </div>`).join('');
       const html = `<div class="study-panel">
-        <div class="sp-head"><b>Halaman ${page}</b><span>Arab · transliterasi · arti kata</span></div>
-        <div class="sp-body">${rows}</div>
+        <div class="sp-head"><b>Ayat ${vk}</b><span>Arab · transliterasi · arti kata</span></div>
+        <div class="sp-body"><div class="sp-verse"><div class="sp-words sp-words-lg">${chips}</div></div></div>
       </div>`;
       if (existing) existing.outerHTML = html;
       else if (sheet) box.appendChild(new DOMParser().parseFromString(html, 'text/html').body.firstElementChild);
@@ -79,7 +85,15 @@
     schedule();
   }
 
-  window.AlKalamStudy = { apply, refresh: schedule };
+  function setAyah(vk) {
+    if (!vk || vk === currentAyah) return;
+    currentAyah = vk;
+    schedule();
+  }
+
+  window.AlKalamMode && window.AlKalamMode.on((m) => { if (m !== 'hafal') currentAyah = null; });
+
+  window.AlKalamStudy = { apply, refresh: schedule, setAyah, currentAyah: () => currentAyah };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 })();

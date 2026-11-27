@@ -46,6 +46,7 @@
     }
     document.querySelectorAll('.mw.mt-word').forEach((e) => e.classList.remove('mt-word'));
     if (!hit) return;
+    if (window.AlKalamStudy) window.AlKalamStudy.setAyah(hit.vk);
     const list = document.querySelectorAll(`.mw[data-v="${hit.vk}"]`);
     const el = list[hit.w - 1];
     if (el) el.classList.add('mt-word');
@@ -120,6 +121,7 @@
     const seek = () => { try { a.currentTime = Math.max(0, t1.from / 1000 + 0.01); } catch { /* abaikan */ } };
     seek();
     paintStep(st);
+    if (window.AlKalamStudy) window.AlKalamStudy.setAyah(`${st.surah}:${st.from}`);
     try { await a.play(); } catch {
       h.flash('Ketuk sekali lagi untuk mengizinkan audio');
       m.listening = false; h.save(); h.render(); return;
