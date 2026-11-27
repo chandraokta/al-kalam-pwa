@@ -263,13 +263,42 @@
     setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 350);
   }
 
+  async function resumeHafalSession() {
+    const m = methodsState().newMem;
+    if (!m || !m.steps) return;
+    const st = m.steps[m.step] || m.steps[0];
+    const page = versePageOf(st.surah, st.from) || window.AlKalam.state.activePage || 1;
+    window.AlKalamMode?.set('hafal');
+    showTab('hafal');
+    await window.AlKalam.openPage(page);
+    updateSessionBar();
+    flash(`Lanjut sesi hafalan: langkah ${m.step + 1}/${m.steps.length}`);
+  }
+
+  function updateResumePill() {
+    let pill = document.getElementById('resumeSession');
+    const m = methodsState().newMem;
+    const mode = window.AlKalamMode ? window.AlKalamMode.get() : '';
+    const view = window.AlKalam.state && window.AlKalam.state.currentView;
+    const needed = !!(m && m.steps) && !(mode === 'hafal' && view === 'mushaf');
+    if (!needed) { if (pill) pill.remove(); return; }
+    if (!pill) {
+      pill = document.createElement('button');
+      pill.id = 'resumeSession';
+      pill.className = 'resume-session';
+      pill.addEventListener('click', () => { resumeHafalSession(); });
+      document.body.appendChild(pill);
+    }
+    pill.textContent = `Kembali ke sesi hafalan · Langkah ${m.step + 1}/${m.steps.length}`;
+  }
+
   function updateSessionBar() {
     const m = methodsState().newMem;
     let bar = document.getElementById('sessionBar');
     const mode = window.AlKalamMode ? window.AlKalamMode.get() : '';
     const allowed = mode === 'hafal' || mode === 'murajaah';
     const onMushaf = window.AlKalam.state && window.AlKalam.state.currentView === 'mushaf';
-    if (!m || !m.steps || !onMushaf || !allowed) { if (bar) bar.remove(); return; }
+    if (!m || !m.steps || !onMushaf || !allowed) { if (bar) bar.remove(); updateResumePill(); return; }
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'sessionBar';
@@ -3459,7 +3488,8 @@ view.querySelector('[data-mt-reset-step]')?.addEventListener('click', () => {
     }
   }
 
-  if (window.AlKalamMode) window.AlKalamMode.on(() => updateSessionBar());
+  if (window.AlKalamMode) window.AlKalamMode.on(() => { updateSessionBar(); updateResumePill(); });
+  setInterval(() => { if (window.AlKalamMode) updateResumePill(); }, 900);
 
   if (window.AlKalamScopeModel) {
     window.AlKalamScopeModel.init({ getS: () => S, save, loadPageMap });
