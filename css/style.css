@@ -2749,3 +2749,6 @@ body.has-audio .app-main { padding-bottom: calc(var(--audio-bar-h) * 2 + var(--n
   border-radius: 4px; text-shadow: none !important; cursor: pointer; }
 .scan-sheet.set-hidden .mw.st-on { color: inherit !important; background: transparent !important; }
 .scan-sheet.set-hidden .mw.st-bad { color: #e57373 !important; background: rgba(229,115,115,.12) !important; }
+
+/* highlight kata oleh controller (baca/hafal/setoran) */
+.mushaf-hl { background: rgba(127, 209, 165, .22); border-radius: 4px; }

@@ -201,7 +201,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul2';
+  const BUILD = '2026-11-27-modul4';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3009,6 +3009,7 @@
 
   async function playAyah(verseKey) {
     if (!audioEl) initAudio();
+    if (window.AlKalamAudioLock) window.AlKalamAudioLock.acquire('baca', () => stopAudio());
 
     const [surah, ayah] = verseKey.split(':').map(Number);
     els.audioBar.hidden = false;
@@ -3756,7 +3757,8 @@
       b.addEventListener('click', () => {
         const nav = b.dataset.nav;
         if (nav === 'lainnya') { openDrawer(); return; }
-        if (nav === 'mushaf') { showView('mushaf'); return; }
+        if (nav === 'mushaf') { window.AlKalamMode?.set('baca'); showView('mushaf'); return; }
+        window.AlKalamMode?.set(nav === 'hafal' ? 'hafal' : 'murajaah');
         showView('hifz');
         window.AlKalamHifz?.showTab?.(nav === 'hafal' ? 'hafal' : 'murajaah');
         document.querySelectorAll('[data-nav]').forEach((x) => x.classList.toggle('active', x === b));

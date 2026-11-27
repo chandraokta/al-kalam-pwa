@@ -1236,11 +1236,17 @@
     const page = window.AlKalam.state.activePage || window.AlKalam.state.currentPage || 1;
     SET.page = page;
     await window.AlKalam.openPage(page);
-    await new Promise((r) => setTimeout(r, 500));
+    // tunggu sampai kata halaman benar-benar dirender
+    for (let i = 0; i < 25; i++) {
+      if (document.querySelectorAll('.scan-sheet .mw').length) break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
     const perVerse = setoranCollectWords();
     if (!SET.total) { setStatus('Tidak ada teks di halaman ini.'); return; }
     document.querySelectorAll('.scan-sheet').forEach((s) => s.classList.add('set-hidden'));
     SET.active = true;
+    if (window.AlKalamMode) window.AlKalamMode.set('setoran');
+    if (window.AlKalamAudioLock) window.AlKalamAudioLock.acquire('setoran', () => { setoranStop(); });
     if (btnStop) btnStop.hidden = false;
     document.querySelectorAll('.scan-sheet.set-hidden .mw').forEach((el) => {
       el.addEventListener('click', () => {
@@ -1277,6 +1283,8 @@
   }
 
   async function setoranStop() {
+    if (window.AlKalamAudioLock) window.AlKalamAudioLock.release('setoran');
+    if (window.AlKalamMode) window.AlKalamMode.set('hafal');
     try { await window.AlKalamTilawa.stop(); } catch { /* abaikan */ }
     setoranCleanup();
     setStatus(`Setoran dihentikan · terbuka ${SET.open}/${SET.total} kata · salah ${SET.wrong}`);

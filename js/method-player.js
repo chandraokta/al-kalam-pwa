@@ -34,6 +34,7 @@
   }
 
   function stop() {
+    if (window.AlKalamAudioLock) window.AlKalamAudioLock.release('metode');
     HP.token += 1;
     hpClearTimer();
     if (HP.el) { try { HP.el.pause(); } catch { /* abaikan */ } }
@@ -157,6 +158,7 @@
   async function play() {
     const h = hooksReady();
     const m = h.methodsState().newMem;
+    if (m && window.AlKalamAudioLock) window.AlKalamAudioLock.acquire('metode', () => stop());
     if (!m) { h.flash('Simpan target & susun langkah dulu'); return; }
     if (m.listening) { stop(); return; }
     try { window.AlKalam.stopAudio && window.AlKalam.stopAudio(); } catch { /* abaikan */ }
