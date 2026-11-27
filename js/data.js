@@ -206,8 +206,31 @@ const DataManager = (() => {
     return trans?.[verseKey] || '';
   }
   
+  const qulTafsirCache = new Map();
+
+  async function getQulTafsir(verseKey, id) {
+    const [surah] = verseKey.split(':').map(Number);
+    const key = `${id}_${surah}`;
+    if (!qulTafsirCache.has(key)) {
+      const url = `https://api.qurancdn.com/api/qdc/tafsirs/${id}/by_chapter/${surah}?per_page=300`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const data = await res.json();
+      const map = {};
+      ((data && data.tafsirs) || []).forEach((t) => { if (t.verse_key) map[t.verse_key] = t.text; });
+      qulTafsirCache.set(key, map);
+    }
+    return (qulTafsirCache.get(key) || {})[verseKey] || '';
+  }
+
   // Helper: get tafsir
   async function getTafsir(verseKey, type = 'short') {
+    const slug = String(type || '');
+    if (slug.startsWith('qul')) {
+      const id = Number(slug.slice(3));
+      if (id) {
+        try { return await getQulTafsir(verseKey, id); } catch { return ''; }
+      }
+    }
     const key = `tafsir_${type}`;
     const tafsir = await load(key);
     return tafsir?.[verseKey] || '';

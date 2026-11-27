@@ -24,6 +24,7 @@
     translationSlug: 'indo',   // terjemahan aktif
     translationLang: 'id',     // bahasa terjemahan terpilih
     localeInit: false,       // sudah pernah menetapkan bahasa otomatis
+    tafsirLocaleInit: false, // sudah menetapkan tafsir otomatis
     tafsirSlug: 'short',       // tafsir aktif   // 'soft' = hijau muda & kuning | 'vivid' = warna legenda
     _renderSeq: 0,         // penjaga agar render lama tidak menimpa render baru
     activePage: null,      // halaman yang sedang dibaca (null = halaman kanan pasangan)
@@ -202,7 +203,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul27';
+  const BUILD = '2026-11-27-modul28';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -689,6 +690,7 @@
     if (!['soft', 'vivid'].includes(state.pagePalette)) state.pagePalette = 'soft';
     if (!TRANSLATION_OPTIONS.some(o => o[0] === state.translationSlug) && !/^qul\d+$/.test(state.translationSlug)) state.translationSlug = 'indo';
     if (!state.translationLang) state.translationLang = LANG_OF_TRANSLATION[state.translationSlug] || 'id';
+    if (state.tafsirSlug && !TAFSIR_OPTIONS.some(o => o[0] === state.tafsirSlug) && !/^qul\d+$/.test(state.tafsirSlug)) state.tafsirSlug = 'short';
     if (!TAFSIR_OPTIONS.some(o => o[0] === state.tafsirSlug)) state.tafsirSlug = 'short';
     state.pageMode = state.pageMode === 'text' ? 'text' : 'scan';
     state.mushaf = state.mushaf === 'indopak' ? 'indopak' : 'madani';
@@ -719,6 +721,7 @@
     els.repeatAyah.checked = state.repeatAyah;
     initAudioExtras();
   initQulTranslations();
+  initQulTafsirs();
     ensurePageIndex();
     els.offlinePages.checked = state.offlinePages;
     // CSS variables
@@ -2874,6 +2877,54 @@
       if (item) return { slug: `qul${item.id}`, lang: base, name: item.language };
     }
     return { slug: 'saheeh', lang: 'en', name: 'English (fallback)' };
+  }
+
+  async function initQulTafsirs() {
+    const langSel = $('qulTafsirLang');
+    const trSel = $('qulTafsirVersion');
+    if (!langSel || !trSel) return;
+    let manifest = [];
+    try {
+      const res = await fetch('./data/tafsirs_manifest.json', { cache: 'no-cache' });
+      manifest = await res.json();
+    } catch { return; }
+    const qul = manifest.filter((x) => x && x.id && x.language);
+    const norm = (v) => String(v).trim().replace(/^./, (c) => c.toUpperCase());
+    const langs = [...new Set(qul.map((x) => norm(x.language)))].sort();
+    langSel.innerHTML = '<option value="">— pilih bahasa —</option>' + langs.map((l) => `<option value="${l}">${l}</option>`).join('');
+    const fill = () => {
+      const list = qul.filter((x) => norm(x.language) === langSel.value);
+      trSel.innerHTML = list.length
+        ? list.map((x) => `<option value="${x.id}">${x.name}${x.author ? ' — ' + x.author : ''}</option>`).join('')
+        : '<option value="">— pilih bahasa dulu —</option>';
+    };
+    langSel.addEventListener('change', fill);
+    trSel.addEventListener('change', () => {
+      const id = Number(trSel.value);
+      if (!id) return;
+      state.tafsirSlug = `qul${id}`;
+      state.showTafsir = true;
+      saveSettings();
+      renderPage(state.currentPage);
+    });
+    if (!state.tafsirLocaleInit) {
+      const base = String(navigator.language || 'en').toLowerCase().split('-')[0];
+      if (base === 'id') state.tafsirSlug = 'short';
+      else {
+        const names = { en: 'english', ar: 'arabic', ur: 'urdu', bn: 'bengali', ru: 'russian', ku: 'kurdish' };
+        const wanted = names[base];
+        const item = wanted ? qul.find((x) => String(x.language || '').toLowerCase() === wanted) : null;
+        state.tafsirSlug = item ? `qul${item.id}` : 'short';
+      }
+      state.tafsirLocaleInit = true;
+      saveSettings();
+    }
+
+    const cur = /^qul(\d+)$/.exec(state.tafsirSlug || '');
+    if (cur) {
+      const item = qul.find((x) => Number(x.id) === Number(cur[1]));
+      if (item) { langSel.value = norm(item.language); fill(); trSel.value = String(item.id); }
+    }
   }
 
   async function initQulTranslations() {
