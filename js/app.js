@@ -140,6 +140,7 @@
     els.fontSizeTransVal = $('fontSizeTransVal');
     els.themeSelect = $('themeSelect');
   els.skinSelect = $('skinSelect');
+  els.translitSelect = $('translitSelect');
     els.langSelect = $('langSelect');
     els.showAyahNumbers = $('showAyahNumbers');
     els.pageModeSelect = $('pageModeSelect');
@@ -205,7 +206,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul33';
+  const BUILD = '2026-11-27-modul34';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -728,6 +729,10 @@
     els.repeatAyah.checked = state.repeatAyah;
     initAudioExtras();
   applySkin();
+  if (els.translitSelect) {
+    els.translitSelect.value = translitModeOf(state.translationSlug);
+    els.translitSelect.addEventListener('change', (e) => applyTranslit(e.target.value));
+  }
   initQulTranslations();
   if (els.skinSelect) els.skinSelect.value = state.uiSkin || '0';
   els.skinSelect && els.skinSelect.addEventListener('change', (e) => { state.uiSkin = e.target.value; applySkin(); saveSettings(); });
@@ -3883,6 +3888,25 @@
   // ═══════════════════════════════════════════════════════════════
   // Event Listeners
   // ═══════════════════════════════════════════════════════════════
+  function translitModeOf(slug) {
+    if (slug === 'translit_auto') return 'auto';
+    if (slug === 'translit_id') return 'indo';
+    if (slug === 'translit') return 'english';
+    return 'off';
+  }
+
+  function applyTranslit(mode) {
+    if (mode === 'off') {
+      if (/^translit/.test(state.translationSlug || '')) state.translationSlug = 'indo';
+    } else {
+      state.translationSlug = mode === 'auto' ? 'translit_auto' : mode === 'indo' ? 'translit_id' : 'translit';
+      state.translationLang = 'latin';
+      state.showTranslation = true;
+    }
+    saveSettings();
+    renderPage(state.currentPage);
+  }
+
   function applySkin() {
     const skin = state.uiSkin || '5';
     if (skin !== '0') document.body.dataset.skin = skin;
