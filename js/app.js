@@ -37,7 +37,7 @@
     fontSizeArabic: 28,
     fontSizeTrans: 15,
     theme: 'auto',
-    uiSkin: '0',
+    uiSkin: '5',
     qari: 'alafasy',
     segments: null,          // penanda waktu per kata untuk ayat yang diputar
     autoPlayNext: true,
@@ -205,7 +205,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul32';
+  const BUILD = '2026-11-27-modul33';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -3884,7 +3884,8 @@
   // Event Listeners
   // ═══════════════════════════════════════════════════════════════
   function applySkin() {
-    if (state.uiSkin && state.uiSkin !== '0') document.body.dataset.skin = state.uiSkin;
+    const skin = state.uiSkin || '5';
+    if (skin !== '0') document.body.dataset.skin = skin;
     else delete document.body.dataset.skin;
   }
 
