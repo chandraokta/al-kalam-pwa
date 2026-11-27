@@ -226,6 +226,43 @@
     return st === 'lancar' ? 'ok' : st === 'lemah' ? 'bad' : st === 'sedang' ? 'mid' : 'none';
   }
 
+  async function openMethodPlan(values) {
+    const m = Object.assign({}, values, { step: 0, listens: 0, listening: false });
+    const segs = await methodTargetSegments(m);
+    if (!segs.length) { flash('Target tidak valid'); return; }
+    m.segments = segs;
+    const steps = buildMethodSteps(segs, m.group, m.repeat);
+    m.steps = steps;
+    const pages = [...new Set(segs.flatMap((x) => rangePages(x.surah, x.from, x.to)))].sort((a, b) => a - b);
+    const ayahs = segs.reduce((n, x) => n + (x.to - x.from + 1), 0);
+    const ms = await methodTotalMs(m);
+    const list = steps.map((x, i) => `<div class="mt-step${i === 0 ? ' now' : ''}">
+      <span class="mt-no">${i + 1}</span>
+      <span class="mt-txt">${stepLabel(x)} <span class="hifz-muted">${x.repeat}×</span></span></div>`).join('');
+    const ov = window.AlKalam.openModal(`<div class="mi-head"><span class="mi-name">Rencana hafalan</span></div>
+      <p class="mi-sub"><b>${segmentsLabel(segs)}</b> · ${ayahs} ayat · ${pages.length} halaman (${pages.length === 1 ? pages[0] : pages[0] + '–' + pages[pages.length - 1]})</p>
+      <p class="mi-sub">${steps.length} langkah · ${m.repeat}× per langkah · perkiraan <b>${fmtDuration(ms || 0)}</b></p>
+      <div class="mt-list" style="max-height:280px;overflow:auto;margin:10px 0">${list}</div>
+      <div class="hifz-actions">
+        <button class="btn btn-sm btn-primary" data-plan-start>Mulai menghafal</button>
+        <button class="btn btn-sm" data-plan-close>Batal</button>
+      </div>`);
+    ov.querySelector('[data-plan-close]')?.addEventListener('click', () => ov.remove());
+    ov.querySelector('[data-plan-start]')?.addEventListener('click', () => { ov.remove(); startMethodPlan(m); });
+  }
+
+  function startMethodPlan(m) {
+    const np = [...new Set(m.segments.flatMap((x) => rangePages(x.surah, x.from, x.to)))].length;
+    if (np > 2.5 && !confirm(`Target ${np} halaman melebihi 1/8 juz (±2,5 halaman). Lanjutkan?`)) return;
+    const capM = Number(S.settings.maxPages) || 0;
+    if (capM && np > capM && !confirm(`Target ${np} halaman melebihi batas sesi (${capM} halaman). Lanjutkan?`)) return;
+    methodsState().newMem = m;
+    save();
+    render();
+    flash(`Mulai menghafal: ${segmentsLabel(m.segments)} · ${m.steps.length} langkah · ${m.repeat}×`);
+    setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 350);
+  }
+
   function updateSessionBar() {
     const m = methodsState().newMem;
     let bar = document.getElementById('sessionBar');
@@ -1303,7 +1340,7 @@
           <select id="mtRepeat" aria-label="Ulangan">
             ${[3, 5, 10, 20].map((n) => `<option value="${n}"${n === Number(AlKalamSettings.get(S, 'method.repeat')) ? ' selected' : ''}>${n}×</option>`).join('')}
           </select>
-          <button class="btn btn-sm btn-primary" data-mt-start>Mulai menghafal</button>
+          <button class="btn btn-sm btn-primary" data-mt-start>Lihat rencana</button>
         </div>
         <span class="hifz-muted" id="mtPreview">Default: target hari ini · ulangan 20× (bisa diubah).</span>
       </div>`;
@@ -2263,29 +2300,15 @@
       const repeat = Number(view.querySelector('#mtRepeat')?.value) || 20;
       AlKalamSettings.set(S, 'method.group', group);
       AlKalamSettings.set(S, 'method.repeat', repeat);
-      const m = {
+      await openMethodPlan({
         mode: mtMode,
         page: Number(view.querySelector('#mtPage')?.value) || 1,
         surah: Number(view.querySelector('#mtSurah')?.value) || 1,
         from: Number(view.querySelector('#mtFrom')?.value) || 1,
         count: Number(view.querySelector('#mtCount')?.value) || 5,
         to: Number(view.querySelector('#mtTo')?.value) || 5,
-        group, repeat, step: 0, listens: 0, listening: false,
-      };
-      const segs = await methodTargetSegments(m);
-      if (!segs.length) { flash('Target tidak valid'); return; }
-      m.segments = segs;
-      const np = [...new Set(segs.flatMap((x) => rangePages(x.surah, x.from, x.to)))].length;
-      if (np > 2.5 && !confirm(`Target ${np} halaman melebihi 1/8 juz (±2,5 halaman). Lanjutkan?`)) return;
-      const capM = Number(S.settings.maxPages) || 0;
-      if (capM && np > capM && !confirm(`Target ${np} halaman melebihi batas sesi (${capM} halaman). Lanjutkan?`)) return;
-      m.steps = buildMethodSteps(segs, group, repeat);
-      methodsState().newMem = m;
-      save();
-      render();
-      flash(`Mulai menghafal: ${segmentsLabel(segs)} · ${m.steps.length} langkah · ${repeat}×`);
-      // langsung jalankan urutan metode (ulangan & langkah berurutan)
-      setTimeout(() => { window.AlKalamMethodPlayer.play(); }, 350);
+        group, repeat,
+      });
     });
     view.querySelectorAll('[data-sim-open]').forEach((b) => b.addEventListener('click', async () => {
       const [a, b2] = b.dataset.simOpen.split('|');
