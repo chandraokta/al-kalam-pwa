@@ -203,7 +203,7 @@
   }
   
   // ── Versi build (tanda bahwa browser memakai bundel terbaru) ────────
-  const BUILD = '2026-11-27-modul28';
+  const BUILD = '2026-11-27-modul29';
 
   function showBuildTag() {
     const el = document.getElementById('buildTag');
@@ -581,8 +581,11 @@
     ['indo', 'Indonesia'], ['kemenag', 'Kemenag RI'], ['kfh', 'King Fahad Complex'],
     ['saheeh', 'Saheeh International'], ['pickthall', 'M. Pickthall'],
     ['urdu', 'Urdu (Jalandhari)'], ['turkish', 'Turki (Diyanet)'],
-    ['translit', 'Transliterasi Latin'],
+    ['translit', 'Transliterasi Latin (gaya Inggris)'],
+    ['translit_id', 'Transliterasi Indonesia'],
   ];
+  LANG_OF_TRANSLATION.translit_id = 'latin';
+
   const TAFSIR_OPTIONS = [
     ['short', 'Indonesia ringkas'], ['long', 'Indonesia lengkap'],
     ['muyassar', 'Muyassar (Arab)'],
